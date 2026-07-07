@@ -1,36 +1,26 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSession } from "@/components/SessionProvider";
 
 export default function HeroGreeting() {
+  const { user, isLoaded } = useSession();
   const [greeting, setGreeting] = useState<string | null>(null);
   const [isTyping, setIsTyping] = useState(false);
 
   useEffect(() => {
-    fetch("/api/auth/me")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.user) {
-          const { full_name, created_at } = data.user;
-          const firstName = full_name?.split(" ")[0] || "Traveler";
-          const isNewUser = new Date(created_at).getTime() > Date.now() - 5 * 60 * 1000;
-          
-          if (isNewUser) {
-            setGreeting(`Hello, ${firstName}! 👋`);
-          } else {
-            setGreeting(`Welcome back, ${firstName}! ✨`);
-          }
-          setIsTyping(true);
-        } else {
-          setGreeting("✨ Find your next adventure");
-          setIsTyping(true);
-        }
-      })
-      .catch(() => {
-        setGreeting("✨ Find your next adventure");
-        setIsTyping(true);
-      });
-  }, []);
+    if (!isLoaded) return;
+
+    if (user) {
+      const firstName = user.full_name?.split(" ")[0] || "Traveler";
+      const isNewUser = user.created_at ? new Date(user.created_at).getTime() > Date.now() - 5 * 60 * 1000 : false;
+      setGreeting(isNewUser ? `Hello, ${firstName}!` : `Welcome back, ${firstName}!`);
+    } else {
+      setGreeting("Find your next adventure");
+    }
+
+    setIsTyping(true);
+  }, [isLoaded, user]);
 
   if (!greeting) {
     return (

@@ -1,3 +1,5 @@
+import { apiJson } from "@/lib/apiClient";
+
 type ImageUploadProfile = {
   maxWidth: number;
   maxHeight: number;
@@ -81,13 +83,10 @@ export async function uploadToCloudinary(fileOrDataUrl: File | string, folder: s
       dataUrl = await compressImageFile(fileOrDataUrl, folder);
     }
 
-    const uploadRes = await fetch("/api/upload", {
+    const uploadData = await apiJson<{ url: string }>("/api/upload", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ dataUrl, folder }),
-    });
-    const uploadData = await uploadRes.json();
-    if (!uploadRes.ok) throw new Error(uploadData.error || "Upload failed");
+    }, { timeoutMs: 30000 });
     return uploadData.url;
   } catch (err) {
     console.error("[CloudinaryClient] Upload error:", err);

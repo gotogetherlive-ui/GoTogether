@@ -50,4 +50,4 @@ next-env.d.ts
 # load-test secrets/artifacts with live session cookies
 /load-test-results/*.env
 /load-test-results/*cookies*
-
+.next-dev*.log

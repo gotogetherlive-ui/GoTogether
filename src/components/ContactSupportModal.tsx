@@ -2,6 +2,8 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Headset, X, Send, Loader2, CheckCircle2 } from "lucide-react";
+import { useSession } from "@/components/SessionProvider";
+import { apiJson } from "@/lib/apiClient";
 
 export default function ContactSupportModal({ open, onClose, defaultCategory }: { open: boolean; onClose: () => void; defaultCategory?: string }) {
   const [form, setForm] = useState({ full_name: "", email: "", phone: "", category: defaultCategory || "general", subject: "", message: "" });
@@ -9,29 +11,23 @@ export default function ContactSupportModal({ open, onClose, defaultCategory }: 
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
   const [mounted, setMounted] = useState(false);
+  const { user } = useSession();
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Auto-fill user info when modal opens
+  // Auto-fill user info from the shared session context when modal opens.
   useEffect(() => {
-    if (open && !form.full_name && !form.email) {
-      fetch("/api/auth/me")
-        .then(res => res.json())
-        .then(data => {
-          if (data.user) {
-            setForm(f => ({
-              ...f,
-              full_name: f.full_name || data.user.full_name || "",
-              email: f.email || data.user.email || "",
-              phone: f.phone || data.user.phone_number || "",
-            }));
-          }
-        })
-        .catch(() => {});
+    if (open && user && !form.full_name && !form.email) {
+      setForm((f) => ({
+        ...f,
+        full_name: f.full_name || user.full_name || "",
+        email: f.email || user.email || "",
+        phone: f.phone || user.phone_number || "",
+      }));
     }
-  }, [open]);
+  }, [open, user, form.full_name, form.email]);
 
   // Reset on close
   const handleClose = () => {
@@ -45,15 +41,10 @@ export default function ContactSupportModal({ open, onClose, defaultCategory }: 
     setSubmitting(true);
     setError("");
     try {
-      const res = await fetch("/api/support", {
+      await apiJson("/api/support", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
-      });
-      if (!res.ok) {
-        const d = await res.json();
-        throw new Error(d.error || "Failed to submit");
-      }
+      }, { timeoutMs: 12000 });
       setSuccess(true);
     } catch (err: any) {
       setError(err.message || "Something went wrong. Please try again.");

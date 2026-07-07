@@ -33,7 +33,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   try {
     const trips = await query<{ id: string; title: string; destination?: string | null; slug?: string | null; updated_at?: string | null; created_at?: string | null; image_url?: string | null }>(
-      `SELECT id, title, destination, slug, created_at, image_url
+      `SELECT id, title, destination, slug, created_at, updated_at, image_url
        FROM trips
        WHERE status = 'live' AND trip_type = 'premium' AND deleted_at IS NULL
        ORDER BY created_at DESC
@@ -41,8 +41,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       [],
     );
 
-    const organizers = await query<{ id: string; full_name: string; organizer_slug?: string | null; created_at?: string | null }>(
-      `SELECT DISTINCT u.id, u.full_name, u.organizer_slug, u.created_at
+    const organizers = await query<{ id: string; full_name: string; organizer_slug?: string | null; created_at?: string | null; updated_at?: string | null }>(
+      `SELECT DISTINCT u.id, u.full_name, u.organizer_slug, u.created_at, u.updated_at
        FROM users u
        JOIN trips t ON t.organizer_id = u.id
        WHERE t.status = 'live' AND t.trip_type = 'premium' AND t.deleted_at IS NULL
@@ -56,7 +56,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       const tripSlug = await ensureTripSlug(trip);
       return {
         url: absoluteUrl(`/trips/${tripSlug}`),
-        lastModified: trip.created_at || undefined,
+        lastModified: trip.updated_at || trip.created_at || undefined,
         changeFrequency: "weekly" as const,
         priority: 0.78,
         images: trip.image_url ? [trip.image_url] : undefined,
@@ -70,7 +70,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         const organizerSlug = await ensureOrganizerSlug(organizer);
         return {
           url: absoluteUrl(`/organizers/${organizerSlug}`),
-          lastModified: organizer.created_at || undefined,
+          lastModified: organizer.updated_at || organizer.created_at || undefined,
           changeFrequency: "weekly" as const,
           priority: 0.72,
         };

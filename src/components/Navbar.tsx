@@ -6,6 +6,7 @@ import { Compass, Menu, X, ShieldCheck, MessageSquare } from "lucide-react";
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import AnimatedButton from "@/components/AnimatedButton";
+import { useSession } from "@/components/SessionProvider";
 
 const FeedbackModal = dynamic(() => import("@/components/FeedbackModal"), { ssr: false });
 const NotificationBell = dynamic(() => import("@/components/NotificationBell"), { ssr: false });
@@ -17,30 +18,13 @@ const navLinks = [
   { href: "/about", label: "About" },
 ];
 
-interface NavUser {
-  id: string;
-  email: string;
-  full_name: string;
-  role: string;
-  avatar_url: string | null;
-  google_id: string | null;
-  is_verified: number;
-  age?: number | null;
-  gender?: string | null;
-  profession?: string | null;
-  fooding_habit?: string | null;
-  phone_number?: string | null;
-  phone_verified?: number;
-  is_admin?: boolean;
-}
-
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [user, setUser] = useState<NavUser | null>(null);
-  const [userLoaded, setUserLoaded] = useState(false);
+  const { user, isLoaded: userLoaded, refreshSession } = useSession();
+  const [avatarFailed, setAvatarFailed] = useState(false);
   const [avatarMenuOpen, setAvatarMenuOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
 
@@ -51,17 +35,9 @@ export default function Navbar() {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
-
-  // Fetch current user from session API
   useEffect(() => {
-    fetch("/api/auth/me")
-      .then((res) => res.json())
-      .then((data) => {
-        setUser(data.user || null);
-        setUserLoaded(true);
-      })
-      .catch(() => setUserLoaded(true));
-  }, [pathname]); // re-check on navigation
+    setAvatarFailed(false);
+  }, [user?.avatar_url]);
 
   const navBg =
     mobileOpen || (!isHomepage || scrolled)
@@ -76,7 +52,7 @@ export default function Navbar() {
 
   const handleSignOut = async () => {
     await fetch("/api/auth/signout", { method: "POST" });
-    setUser(null);
+    refreshSession();
     setAvatarMenuOpen(false);
     router.push("/");
     router.refresh();
@@ -92,14 +68,12 @@ export default function Navbar() {
         aria-label="Open user menu"
         title={user?.full_name || user?.email || "Profile"}
       >
-        {user?.avatar_url ? (
+        {user?.avatar_url && !avatarFailed ? (
           <img
             src={user.avatar_url}
             alt={initial}
             className="w-full h-full rounded-full object-cover"
-            onError={() => {
-              setUser((prev) => (prev ? { ...prev, avatar_url: null } : null));
-            }}
+            onError={() => setAvatarFailed(true)}
           />
         ) : (
           initial
@@ -347,12 +321,12 @@ export default function Navbar() {
                 {/* User info row */}
                 <div className="flex items-center gap-3 px-4 py-3 mb-2 bg-slate-50 rounded-xl">
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-rose-500 flex items-center justify-center text-white font-bold text-sm overflow-hidden">
-                    {user.avatar_url ? (
+                    {user.avatar_url && !avatarFailed ? (
                       <img
                         src={user.avatar_url}
                         alt=""
                         className="w-full h-full object-cover"
-                        onError={() => setUser((prev) => (prev ? { ...prev, avatar_url: null } : null))}
+                        onError={() => setAvatarFailed(true)}
                       />
                     ) : (
                       user.full_name?.charAt(0)?.toUpperCase() || "U"
@@ -395,4 +369,3 @@ export default function Navbar() {
     </>
   );
 }
-

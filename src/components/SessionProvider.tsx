@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useCallback, useEffect } from "react";
+import { apiJson } from "@/lib/apiClient";
 
 interface SessionUser {
   id: string;
@@ -39,9 +40,8 @@ export function useSession() {
 }
 
 /**
- * SessionProvider — receives server-fetched user data via props.
- * This eliminates the client-side `/api/auth/me` fetch on every page load.
- * A background refresh on window focus keeps the session fresh.
+ * Receives server-fetched user data and avoids duplicate `/api/auth/me` calls on page load.
+ * A timeout-bound background refresh on focus keeps long-lived tabs current.
  */
 export default function SessionProvider({
   serverUser,
@@ -54,18 +54,16 @@ export default function SessionProvider({
   const [isLoaded, setIsLoaded] = useState(true);
 
   const refreshSession = useCallback(() => {
-    fetch("/api/auth/me")
-      .then((res) => res.json())
+    apiJson<{ user?: SessionUser | null }>("/api/auth/me", { cache: "no-store" }, { timeoutMs: 8000 })
       .then((data) => {
         setUser(data.user || null);
-        setIsLoaded(true);
       })
-      .catch(() => {
+      .catch(() => {})
+      .finally(() => {
         setIsLoaded(true);
       });
   }, []);
 
-  // Re-validate session when user returns to the tab (non-blocking background refresh)
   useEffect(() => {
     const handleFocus = () => refreshSession();
     window.addEventListener("focus", handleFocus);

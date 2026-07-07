@@ -5,6 +5,8 @@ export const DEFAULT_TITLE = "GoTogether | Verified Group Trips & Travel Experie
 export const DEFAULT_DESCRIPTION =
   "Discover and book verified group trips, weekend trips, backpacking trips, trekking trips, bike trips, and curated travel experiences in India with trusted organizers.";
 export const DEFAULT_OG_IMAGE = "/hero_india_ladakh.png";
+export const INSTAGRAM_URL = "https://www.instagram.com/gotogether.in";
+export const WHATSAPP_COMMUNITY_URL = "https://chat.whatsapp.com/HWmEmqlCvNIBoHvNyfPETP";
 
 export const PRIVATE_ROUTE_PREFIXES = [
   "/admin",
@@ -100,8 +102,23 @@ export function buildMetadata({
 
   return {
     metadataBase: new URL(getPublicAppUrl()),
+    applicationName: SITE_NAME,
     title,
     description,
+    keywords: [
+      "group trips India",
+      "verified travel organizers",
+      "weekend trips",
+      "backpacking trips",
+      "trekking trips",
+      "bike trips",
+      "travel buddy",
+      "solo travel groups",
+    ],
+    authors: [{ name: SITE_NAME, url: getPublicAppUrl() }],
+    creator: SITE_NAME,
+    publisher: SITE_NAME,
+    category: "travel",
     alternates: { canonical },
     robots: index ? { index: true, follow: true } : { index: false, follow: false },
     openGraph: {
@@ -156,6 +173,15 @@ export function organizationJsonLd() {
     logo: absoluteUrl(DEFAULT_OG_IMAGE),
     description:
       "GoTogether is an India-focused travel marketplace that helps users discover and book verified group trips, backpacking trips, weekend trips, trekking trips, bike trips, women-only trips, solo travel groups, and curated travel experiences from trusted organizers.",
+    sameAs: [INSTAGRAM_URL, WHATSAPP_COMMUNITY_URL],
+    contactPoint: [
+      {
+        "@type": "ContactPoint",
+        contactType: "customer support",
+        email: "support@gotogethertrip.com",
+        url: absoluteUrl("/contact"),
+      },
+    ],
   };
 }
 
@@ -172,4 +198,3 @@ export function websiteJsonLd() {
     },
   };
 }
-
