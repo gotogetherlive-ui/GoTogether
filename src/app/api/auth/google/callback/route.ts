@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
-import db from '@/lib/db'
-import { createSession } from '@/lib/auth'
+import { queryOne, run } from '@/lib/db';import { createSession } from '@/lib/auth'
+import { cookies } from 'next/headers'
 
 interface GoogleTokenResponse {
   access_token: string
@@ -21,10 +21,15 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const code = searchParams.get('code')
   const error = searchParams.get('error')
+  const state = searchParams.get('state')
+  const cookieStore = await cookies()
+  const expectedState = cookieStore.get('gt_oauth_state')?.value
+  cookieStore.delete('gt_oauth_state')
 
-  const origin = new URL(request.url).origin
+  const requestOrigin = new URL(request.url).origin
+  const origin = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || requestOrigin
 
-  if (error || !code) {
+  if (error || !code || !state || !expectedState || state !== expectedState) {
     return NextResponse.redirect(`${origin}/login?error=google_auth_failed`)
   }
 
@@ -60,29 +65,31 @@ export async function GET(request: Request) {
     }
 
     const googleUser: GoogleUserInfo = await userInfoResponse.json()
+    if (!googleUser.verified_email || !googleUser.email) {
+      return NextResponse.redirect(`${origin}/login?error=unverified_google_email`)
+    }
 
     // Upsert user in our database
-    let user = db.prepare(
-      'SELECT id FROM users WHERE google_id = ? OR email = ?'
-    ).get(googleUser.id, googleUser.email) as { id: string } | undefined
+    let user = await queryOne('SELECT id, google_id FROM users WHERE google_id = $1 OR LOWER(email) = LOWER($2)', [googleUser.id, googleUser.email]) as { id: string; google_id: string | null } | undefined
 
     if (user) {
+      if (user.google_id && user.google_id !== googleUser.id) {
+        return NextResponse.redirect(`${origin}/login?error=google_account_conflict`)
+      }
       // Update existing user with Google info
-      db.prepare(
-        'UPDATE users SET google_id = ?, avatar_url = ?, full_name = CASE WHEN full_name = \'\' THEN ? ELSE full_name END WHERE id = ?'
-      ).run(googleUser.id, googleUser.picture, googleUser.name, user.id)
+      await run('UPDATE users SET google_id = $1, avatar_url = $2, full_name = CASE WHEN full_name = \'\' THEN $3 ELSE full_name END WHERE id = $4', [googleUser.id, googleUser.picture, googleUser.name, user.id])
     } else {
       // Create new user
       const userId = uuidv4()
-      db.prepare(`
+      await run(`
         INSERT INTO users (id, email, full_name, google_id, avatar_url, role, is_verified)
-        VALUES (?, ?, ?, ?, ?, 'regular', 1)
-      `).run(userId, googleUser.email, googleUser.name, googleUser.id, googleUser.picture)
-      user = { id: userId }
+        VALUES ($1, $2, $3, $4, $5, 'regular', 1)
+      `, [userId, googleUser.email, googleUser.name, googleUser.id, googleUser.picture])
+      user = { id: userId, google_id: googleUser.id }
     }
 
     // Create session
-    await createSession(user.id)
+    await createSession(user!.id)
 
     return NextResponse.redirect(`${origin}/`)
   } catch (err) {

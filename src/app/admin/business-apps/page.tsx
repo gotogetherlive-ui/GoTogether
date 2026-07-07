@@ -15,6 +15,14 @@ interface Application {
   created_at: string;
   user_full_name: string;
   user_email: string;
+  pan_number: string | null;
+  pan_photo_url: string | null;
+  razorpay_account_id: string | null;
+  razorpay_account_holder_name: string | null;
+  razorpay_account_email: string | null;
+  razorpay_account_phone: string | null;
+  payment_settlement_model: string | null;
+  payment_onboarding_status: string | null;
 }
 
 export default function BusinessAppsPage() {
@@ -22,6 +30,7 @@ export default function BusinessAppsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const fetchApps = async () => {
     setLoading(true);
@@ -127,7 +136,7 @@ export default function BusinessAppsPage() {
               </h2>
               <div className="grid grid-cols-1 gap-4">
                 {pendingApps.map(app => (
-                  <AppCard key={app.id} app={app} onAction={handleAction} processingId={processingId} />
+                  <AppCard key={app.id} app={app} onAction={handleAction} processingId={processingId} onPreviewPan={setPreviewUrl} />
                 ))}
               </div>
             </div>
@@ -141,18 +150,45 @@ export default function BusinessAppsPage() {
               </h2>
               <div className="grid grid-cols-1 gap-4 opacity-75">
                 {processedApps.map(app => (
-                  <AppCard key={app.id} app={app} onAction={handleAction} processingId={processingId} />
+                  <AppCard key={app.id} app={app} onAction={handleAction} processingId={processingId} onPreviewPan={setPreviewUrl} />
                 ))}
               </div>
             </div>
           )}
         </div>
       )}
+
+      {previewUrl && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
+          <div className="relative max-w-4xl max-h-[90vh] w-full bg-white rounded-3xl overflow-hidden p-6 flex flex-col items-center justify-center shadow-2xl border border-slate-100 animate-[scaleUp_0.3s_ease-out]">
+            <button
+              onClick={() => setPreviewUrl(null)}
+              className="absolute top-4 right-4 w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors cursor-pointer z-10 font-bold"
+            >
+              &times;
+            </button>
+            <h3 className="text-lg font-bold text-slate-900 mb-4 uppercase tracking-wider">PAN Document Preview</h3>
+            <div className="relative flex-1 w-full overflow-auto max-h-[70vh] flex items-center justify-center border border-slate-100 rounded-2xl bg-slate-50 p-2">
+              <img
+                src={previewUrl}
+                alt="PAN Card Document"
+                className="max-w-full max-h-full object-contain rounded-xl"
+              />
+            </div>
+            <button
+              onClick={() => setPreviewUrl(null)}
+              className="mt-4 px-6 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-semibold transition-colors shadow-lg shadow-orange-500/20 cursor-pointer"
+            >
+              Close Preview
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function AppCard({ app, onAction, processingId }: { app: Application, onAction: (id: string, action: "approve" | "reject" | "block" | "unblock") => void, processingId: string | null }) {
+function AppCard({ app, onAction, processingId, onPreviewPan }: { app: Application, onAction: (id: string, action: "approve" | "reject" | "block" | "unblock") => void, processingId: string | null, onPreviewPan: (url: string) => void }) {
   const isProcessing = processingId === app.id;
 
   return (
@@ -191,6 +227,27 @@ function AppCard({ app, onAction, processingId }: { app: Application, onAction: 
           <div className="ml-auto text-xs text-slate-400">
             Applied on {new Date(app.created_at).toLocaleDateString()}
           </div>
+        </div>
+
+        <div className="mt-3 rounded-xl border border-orange-100 bg-orange-50/50 p-3 text-sm text-slate-700">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Payment Review</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <p><span className="font-semibold">Razorpay:</span> <span className="font-mono text-xs">{app.razorpay_account_id || "Missing"}</span></p>
+            <p><span className="font-semibold">Owner:</span> {app.razorpay_account_holder_name || "Missing"}</p>
+            <p><span className="font-semibold">Email:</span> {app.razorpay_account_email || "Missing"}</p>
+            <p><span className="font-semibold">Phone:</span> {app.razorpay_account_phone || "Missing"}</p>
+            <p><span className="font-semibold">PAN:</span> <span className="font-mono text-xs">{app.pan_number || "Missing"}</span></p>
+            <p><span className="font-semibold">Settlement:</span> {app.payment_settlement_model || "organizer_direct"}</p>
+          </div>
+          {app.pan_photo_url && (
+            <button
+              type="button"
+              onClick={() => onPreviewPan(app.pan_photo_url!)}
+              className="mt-2 inline-block text-xs font-bold text-orange-600 hover:text-orange-700 bg-transparent border-none p-0 cursor-pointer outline-none align-baseline"
+            >
+              View PAN document
+            </button>
+          )}
         </div>
       </div>
 

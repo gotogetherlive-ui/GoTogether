@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import TripCard from "@/components/TripCard";
+import TripCard, { type TripSummary } from "@/components/TripCard";
 import { Search } from "lucide-react";
 
-export default function TripsClient({ initialTrips }: { initialTrips: any[] }) {
+export default function TripsClient({ initialTrips }: { initialTrips: TripSummary[] }) {
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState("");
   const [filterDate, setFilterDate] = useState("");
@@ -37,6 +37,7 @@ export default function TripsClient({ initialTrips }: { initialTrips: any[] }) {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:border-orange-400 focus:ring-1 focus:ring-orange-400 outline-none transition"
+            suppressHydrationWarning
           />
         </div>
         <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
@@ -46,11 +47,13 @@ export default function TripsClient({ initialTrips }: { initialTrips: any[] }) {
             onChange={(e) => setFilterDate(e.target.value)}
             className="px-4 py-2.5 rounded-xl border border-slate-200 focus:border-orange-400 outline-none transition"
             title="Filter by starting date"
+            suppressHydrationWarning
           />
           <select
             value={filterDuration}
             onChange={(e) => setFilterDuration(e.target.value)}
             className="px-4 py-2.5 rounded-xl border border-slate-200 focus:border-orange-400 outline-none transition bg-white"
+            suppressHydrationWarning
           >
             <option value="">Any Duration</option>
             <option value="1-3">1-3 Days</option>

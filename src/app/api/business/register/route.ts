@@ -1,9 +1,15 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import db from "@/lib/db";
+import { queryOne, run } from '@/lib/db';
 import { v4 as uuidv4 } from "uuid";
+import { isPaymentProviderImplemented, normalizePaymentProvider, parseEnabledPaymentProviders, SUPPORTED_PAYMENT_PROVIDERS } from "@/lib/payments/provider-config";
+import { SecretManager } from "@/lib/payments/secret-manager";
 
-// Check application status
+const PAN_REGEX = /^[A-Z0-9]{10}$/i;
+const RAZORPAY_ACCOUNT_REGEX = /^[a-zA-Z0-9_]{4,}$/;
+const ENABLED_PAYMENT_PROVIDERS = new Set(parseEnabledPaymentProviders(process.env.ENABLED_ORGANIZER_PAYMENT_PROVIDERS));
+const EMAIL_REGEX = /^\S+@\S+\.\S+$/;
+
 export async function GET() {
   try {
     const session = await getSession();
@@ -11,28 +17,18 @@ export async function GET() {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    // If user is already a business, return approved
     if (session.role === "business") {
       return NextResponse.json({ status: "approved" });
     }
 
-    // Check for existing application
-    const app = db.prepare(
-      "SELECT status FROM business_applications WHERE user_id = ? ORDER BY created_at DESC LIMIT 1"
-    ).get(session.id) as { status: string } | undefined;
-
-    if (app) {
-      return NextResponse.json({ status: app.status });
-    }
-
-    return NextResponse.json({ status: null });
+    const app = await queryOne("SELECT status FROM business_applications WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1", [session.id]) as { status: string } | undefined;
+    return NextResponse.json({ status: app?.status || null });
   } catch (error) {
     console.error("GET /api/business/register error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
-// Submit a new application
 export async function POST(request: Request) {
   try {
     const session = await getSession();
@@ -44,41 +40,92 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "You are already registered as a business" }, { status: 400 });
     }
 
-    // Check if there is already a pending or rejected application
-    const existing = db.prepare(
-      "SELECT status FROM business_applications WHERE user_id = ? ORDER BY created_at DESC LIMIT 1"
-    ).get(session.id) as { status: string } | undefined;
-
-    if (existing) {
-      if (existing.status === "pending") {
-        return NextResponse.json({ error: "You already have a pending application" }, { status: 400 });
-      }
-      if (existing.status === "rejected") {
-        return NextResponse.json({ error: "Your previous application was rejected. You cannot re-apply." }, { status: 400 });
-      }
+    const existing = await queryOne("SELECT status FROM business_applications WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1", [session.id]) as { status: string } | undefined;
+    if (existing?.status === "pending") {
+      return NextResponse.json({ error: "You already have a pending application" }, { status: 400 });
+    }
+    if (existing?.status === "rejected") {
+      return NextResponse.json({ error: "Your previous application was rejected. You cannot re-apply." }, { status: 400 });
     }
 
     const body = await request.json();
-    const { company_name, location, phone_number, alternate_email, profile_pic_url } = body;
+    const companyName = String(body.companyName || body.company_name || "").trim();
+    const location = String(body.location || "").trim();
+    const phoneNumber = String(body.phoneNumber || body.phone_number || "").trim();
+    const alternateEmail = (body.alternateEmail || body.alternate_email) ? String(body.alternateEmail || body.alternate_email).trim().toLowerCase() : null;
+    const profilePicUrl = (body.profilePicUrl || body.profile_pic_url) ? String(body.profilePicUrl || body.profile_pic_url).trim() : null;
+    const panNumber = String(body.panNumber || body.pan_number || "").trim().toUpperCase();
+    const panPhotoUrl = String(body.panPhotoUrl || body.pan_photo_url || "").trim();
+    const paymentProvider = normalizePaymentProvider(body.paymentProvider || body.payment_provider) || "RAZORPAY";
+    const apiKey = String(body.api_key || body.apiKey || "").trim();
+    const apiSecret = String(body.api_secret || body.apiSecret || "").trim();
+    const webhookSecret = String(body.webhook_secret || body.webhookSecret || "").trim();
+    const rawProviderAccountId = String(body.providerAccountId || body.provider_account_id || body.razorpay_account_id || "").trim();
+    const providerAccountId = rawProviderAccountId || (paymentProvider === "CASHFREE" ? apiKey : "");
+    const providerAccountHolderName = String(body.providerAccountHolderName || body.provider_account_holder_name || body.razorpay_account_holder_name || "").trim();
+    const providerRegisteredEmail = String(body.providerRegisteredEmail || body.provider_registered_email || body.razorpay_account_email || "").trim().toLowerCase();
+    const providerRegisteredPhone = String(body.providerRegisteredPhone || body.provider_registered_phone || body.razorpay_account_phone || "").trim();
+    const razorpayAccountId = paymentProvider === "RAZORPAY" ? providerAccountId : null;
+    const razorpayAccountHolderName = paymentProvider === "RAZORPAY" ? providerAccountHolderName : null;
+    const razorpayAccountEmail = paymentProvider === "RAZORPAY" ? providerRegisteredEmail : null;
+    const razorpayAccountPhone = paymentProvider === "RAZORPAY" ? providerRegisteredPhone : null;
+    const paymentTermsAccepted = Boolean(body.paymentTermsAccepted || body.payment_terms_accepted);
 
-    if (!company_name || !location || !phone_number) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    if (!companyName || !location || !phoneNumber) {
+      return NextResponse.json({ error: "Missing required business fields" }, { status: 400 });
+    }
+    if (!PAN_REGEX.test(panNumber) || !panPhotoUrl) {
+      return NextResponse.json({ error: "Valid PAN number and PAN photo are required" }, { status: 400 });
+    }
+    if (!SUPPORTED_PAYMENT_PROVIDERS.includes(paymentProvider)) {
+      return NextResponse.json({ error: "Unsupported payment provider" }, { status: 400 });
+    }
+    if (!isPaymentProviderImplemented(paymentProvider) || !ENABLED_PAYMENT_PROVIDERS.has(paymentProvider)) {
+      return NextResponse.json({ error: `${paymentProvider} onboarding is not enabled for production yet. Please select Razorpay.` }, { status: 400 });
+    }
+    if (!RAZORPAY_ACCOUNT_REGEX.test(providerAccountId)) {
+      return NextResponse.json({ error: "Valid provider account/merchant ID is required" }, { status: 400 });
+    }
+    if (!providerAccountId || !providerAccountHolderName || !EMAIL_REGEX.test(providerRegisteredEmail) || !providerRegisteredPhone || !paymentTermsAccepted) {
+      return NextResponse.json({ error: "Provider account ownership details and payment terms acceptance are required" }, { status: 400 });
     }
 
-    const id = uuidv4();
+    const apiKeyEnc = apiKey ? SecretManager.encrypt(apiKey) : null;
+    const apiSecretEnc = apiSecret ? SecretManager.encrypt(apiSecret) : null;
+    const webhookSecretEnc = webhookSecret ? SecretManager.encrypt(webhookSecret) : null;
 
-    db.prepare(`
-      INSERT INTO business_applications (id, user_id, company_name, location, phone_number, alternate_email, profile_pic_url, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
-    `).run(
-      id,
+    await run(`
+      INSERT INTO business_applications (
+        id, user_id, company_name, location, phone_number, alternate_email,
+        profile_pic_url, pan_number, pan_photo_url, payment_provider,
+        provider_account_id, provider_account_holder_name, provider_registered_email, provider_registered_phone,
+        razorpay_account_id, razorpay_account_holder_name, razorpay_account_email, razorpay_account_phone,
+        payment_settlement_model, payment_terms_accepted, payment_onboarding_status, status,
+        api_key_enc, api_secret_enc, webhook_secret_enc
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,'organizer_direct',1,'pending_review','pending',$19,$20,$21)
+    `, [
+      uuidv4(),
       session.id,
-      company_name,
+      companyName,
       location,
-      phone_number,
-      alternate_email || null,
-      profile_pic_url || null
-    );
+      phoneNumber,
+      alternateEmail,
+      profilePicUrl,
+      panNumber,
+      panPhotoUrl,
+      paymentProvider,
+      providerAccountId,
+      providerAccountHolderName,
+      providerRegisteredEmail,
+      providerRegisteredPhone,
+      razorpayAccountId,
+      razorpayAccountHolderName,
+      razorpayAccountEmail,
+      razorpayAccountPhone,
+      apiKeyEnc,
+      apiSecretEnc,
+      webhookSecretEnc,
+    ]);
 
     return NextResponse.json({ success: true, status: "pending" });
   } catch (error) {
@@ -86,3 +133,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+

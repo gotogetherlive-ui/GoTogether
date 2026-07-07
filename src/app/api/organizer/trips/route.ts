@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import db from '@/lib/db';
+import { query } from '@/lib/db';
 
 export async function GET() {
   try {
@@ -10,26 +10,26 @@ export async function GET() {
     }
 
     // Fetch trips organized by this user
-    const trips = db.prepare(`
+    const trips = await query(`
       SELECT id, title, destination, status, created_at, trip_type, registration_closed 
       FROM trips 
-      WHERE organizer_id = ?
+      WHERE organizer_id = $1 AND trip_type = 'buddy'
       ORDER BY created_at DESC
-    `).all(user.id);
+    `, [user.id]);
 
     // For each trip, fetch requests
-    const tripsWithRequests = trips.map((trip: any) => {
-      const requests = db.prepare(`
+    const tripsWithRequests = await Promise.all(trips.map(async (trip: any) => {
+      const requests = await query(`
         SELECT r.id, r.requester_id, r.status, r.created_at, r.candidate_details,
                u.full_name, u.avatar_url, u.age, u.gender, u.profession, u.fooding_habit
         FROM trip_requests r
         JOIN users u ON r.requester_id = u.id
-        WHERE r.trip_id = ?
+        WHERE r.trip_id = $1
         ORDER BY r.created_at DESC
-      `).all(trip.id);
+      `, [trip.id]);
       
       return { ...trip, requests };
-    });
+    }));
 
     return NextResponse.json({ trips: tripsWithRequests });
   } catch (err) {

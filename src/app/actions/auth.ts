@@ -1,40 +1,10 @@
 'use server'
 
 import { redirect } from 'next/navigation'
-import { v4 as uuidv4 } from 'uuid'
-import db from '@/lib/db'
-import { hashPassword, verifyPassword, createSession, destroySession } from '@/lib/auth'
-
-export async function signUp(formData: FormData): Promise<{ error?: string; success?: string } | void> {
-  const email = formData.get('email') as string
-  const password = formData.get('password') as string
-  const fullName = formData.get('fullName') as string
-
-  if (!email || !password) {
-    return { error: 'Email and password are required.' }
-  }
-
-  if (password.length < 6) {
-    return { error: 'Password must be at least 6 characters.' }
-  }
-
-  // Check if user already exists
-  const existingUser = db.prepare('SELECT id FROM users WHERE email = ?').get(email) as { id: string } | undefined
-  if (existingUser) {
-    return { error: 'An account with this email already exists.' }
-  }
-
-  const hashedPw = await hashPassword(password)
-  const userId = uuidv4()
-
-  db.prepare(`
-    INSERT INTO users (id, email, password_hash, full_name, role, is_verified)
-    VALUES (?, ?, ?, ?, 'regular', 0)
-  `).run(userId, email, hashedPw, fullName || 'User')
-
-  await createSession(userId)
-  redirect('/')
-}
+import { headers } from 'next/headers'
+import { queryOne, run } from '@/lib/db'
+import { verifyPassword, createSession, destroySession } from '@/lib/auth'
+import { rateLimit } from '@/lib/rateLimit'
 
 export async function signIn(formData: FormData): Promise<{ error?: string; success?: string } | void> {
   const email = formData.get('email') as string
@@ -44,9 +14,20 @@ export async function signIn(formData: FormData): Promise<{ error?: string; succ
     return { error: 'Email and password are required.' }
   }
 
-  const user = db.prepare(
-    'SELECT id, password_hash FROM users WHERE email = ?'
-  ).get(email) as { id: string; password_hash: string | null } | undefined
+  const headerStore = await headers()
+  const ip = process.env.TRUST_PROXY === 'true'
+    ? (headerStore.get('cf-connecting-ip') || headerStore.get('x-forwarded-for')?.split(',')[0] || headerStore.get('x-real-ip') || 'unknown').trim()
+    : 'untrusted-proxy'
+  const normalizedEmail = email.trim().toLowerCase()
+  const limit = await rateLimit(`signin:${ip}:${normalizedEmail}`, 10, 15 * 60 * 1000)
+  if (!limit.allowed) {
+    return { error: 'Too many sign-in attempts. Please try again later.' }
+  }
+
+  const user = await queryOne<{ id: string; password_hash: string | null }>(
+    'SELECT id, password_hash FROM users WHERE email = $1 AND deleted_at IS NULL',
+    [normalizedEmail]
+  )
 
   if (!user) {
     return { error: 'Invalid email or password.' }
@@ -78,9 +59,10 @@ export async function updateUserLocation(latitude: number, longitude: number) {
     return { error: 'Not authenticated' }
   }
 
-  db.prepare(
-    'UPDATE users SET latitude = ?, longitude = ?, location_updated_at = datetime(\'now\') WHERE id = ?'
-  ).run(latitude, longitude, user.id)
+  await run(
+    'UPDATE users SET latitude = $1, longitude = $2, location_updated_at = NOW() WHERE id = $3',
+    [latitude, longitude, user.id]
+  )
 
   return { success: true }
 }

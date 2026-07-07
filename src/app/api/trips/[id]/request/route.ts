@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import db from '@/lib/db';
+import { queryOne, run } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(
@@ -17,9 +17,19 @@ export async function POST(
     const { id: tripId } = await params;
 
     // Check if trip exists
-    const trip = db.prepare('SELECT id, organizer_id FROM trips WHERE id = ?').get(tripId) as any;
+    const trip = await queryOne(`
+      SELECT id, organizer_id
+      FROM trips
+      WHERE id = $1
+        AND status = 'live'
+        AND trip_type = 'buddy'
+        AND (
+          NULLIF(start_date, '') IS NULL
+          OR (NULLIF(start_date, '')::date + INTERVAL '1 day') > (NOW() AT TIME ZONE 'Asia/Kolkata')
+        )
+    `, [tripId]) as any;
     if (!trip) {
-      return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Buddy trip not found or unavailable' }, { status: 404 });
     }
 
     if (trip.organizer_id === user.id) {
@@ -27,7 +37,7 @@ export async function POST(
     }
 
     // Check if already requested
-    const existing = db.prepare('SELECT id FROM trip_requests WHERE trip_id = ? AND requester_id = ?').get(tripId, user.id);
+    const existing = await queryOne('SELECT id FROM trip_requests WHERE trip_id = $1 AND requester_id = $2', [tripId, user.id]);
     if (existing) {
       return NextResponse.json({ error: 'Already showed interest in this trip' }, { status: 400 });
     }
@@ -43,10 +53,10 @@ export async function POST(
     });
 
     const requestId = uuidv4();
-    db.prepare(`
+    await run(`
       INSERT INTO trip_requests (id, trip_id, requester_id, candidate_details, status)
-      VALUES (?, ?, ?, ?, 'pending')
-    `).run(requestId, tripId, user.id, candidateDetails);
+      VALUES ($1, $2, $3, $4, 'pending')
+    `, [requestId, tripId, user.id, candidateDetails]);
 
     return NextResponse.json({ success: true, message: 'Interest shown successfully!' }, { status: 201 });
   } catch (err) {
@@ -54,3 +64,4 @@ export async function POST(
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+

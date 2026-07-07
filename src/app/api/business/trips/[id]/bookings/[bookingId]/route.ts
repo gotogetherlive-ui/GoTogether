@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import db from '@/lib/db';
+import { queryOne, run } from '@/lib/db';
+import { isAdminUser } from '@/lib/admin';
 
 export async function PATCH(
   request: Request,
@@ -21,24 +22,36 @@ export async function PATCH(
     }
 
     // Verify the trip belongs to this user
-    const trip = db.prepare('SELECT id, organizer_id FROM trips WHERE id = ?').get(tripId) as any;
+    const trip = await queryOne('SELECT id, organizer_id FROM trips WHERE id = $1', [tripId]) as any;
     if (!trip) {
       return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
     }
 
-    const isAdmin = user.email === 'gotogether.live@gmail.com' || user.role === 'super_admin';
+    const isAdmin = await isAdminUser(user);
     if (trip.organizer_id !== user.id && !isAdmin) {
       return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
     }
 
     // Verify booking exists and belongs to this trip
-    const booking = db.prepare('SELECT id, status FROM trip_bookings WHERE id = ? AND trip_id = ?').get(bookingId, tripId) as any;
+    const booking = await queryOne(`
+      SELECT b.id, b.status, b.booking_status, b.payment_status,
+             EXISTS (SELECT 1 FROM payments.orders po WHERE po.booking_id = b.id) as has_payment_order
+      FROM trip_bookings b
+      WHERE b.id = $1 AND b.trip_id = $2
+    `, [bookingId, tripId]) as any;
     if (!booking) {
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
     }
 
+    if (booking.has_payment_order) {
+      return NextResponse.json(
+        { error: 'Paid bookings are managed by the payment and cancellation workflow.' },
+        { status: 409 }
+      );
+    }
+
     const newStatus = action === 'approve' ? 'approved' : 'rejected';
-    db.prepare('UPDATE trip_bookings SET status = ? WHERE id = ?').run(newStatus, bookingId);
+    await run('UPDATE trip_bookings SET status = $1 WHERE id = $2', [newStatus, bookingId]);
 
     return NextResponse.json({ success: true, status: newStatus });
   } catch (err) {

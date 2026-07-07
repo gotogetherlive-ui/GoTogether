@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Headset, Loader2, RefreshCw, X, Clock, User, Mail, Phone, CheckCircle, AlertTriangle, MessageSquare, ArrowRight, Sparkles } from "lucide-react";
+import { Headset, Loader2, RefreshCw, X, Clock, User, Mail, Phone, CheckCircle, AlertTriangle, ArrowRight } from "lucide-react";
 
 interface Ticket {
   id: string; full_name: string; email: string; phone: string | null; category: string;

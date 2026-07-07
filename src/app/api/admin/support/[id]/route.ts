@@ -1,19 +1,18 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import db from '@/lib/db';
-
-const ADMIN_EMAIL = 'gotogether.live@gmail.com';
+import { queryOne, run } from '@/lib/db';
+import { isAdminUser } from '@/lib/admin';
 
 export async function GET(request: Request, context: any) {
   try {
     const user = await getSession();
-    if (!user || user.email !== ADMIN_EMAIL) {
+    if (!user || !(await isAdminUser(user))) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const { id } = await context.params;
 
-    const ticket = db.prepare(`
+    const ticket = await queryOne(`
       SELECT st.id, st.full_name, st.email, st.phone, st.category, st.subject, st.message,
              st.status, st.admin_notes, st.created_at, st.user_id,
              u.full_name as user_account_name, u.email as user_account_email,
@@ -22,8 +21,8 @@ export async function GET(request: Request, context: any) {
              u.created_at as user_joined
       FROM support_tickets st
       LEFT JOIN users u ON st.user_id = u.id
-      WHERE st.id = ?
-    `).get(id);
+      WHERE st.id = $1
+    `, [id]);
 
     if (!ticket) {
       return NextResponse.json({ error: 'Ticket not found' }, { status: 404 });
@@ -39,7 +38,7 @@ export async function GET(request: Request, context: any) {
 export async function PATCH(request: Request, context: any) {
   try {
     const user = await getSession();
-    if (!user || user.email !== ADMIN_EMAIL) {
+    if (!user || !(await isAdminUser(user))) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -47,11 +46,11 @@ export async function PATCH(request: Request, context: any) {
     const body = await request.json();
 
     if (body.status && ['open', 'in_progress', 'resolved', 'closed'].includes(body.status)) {
-      db.prepare('UPDATE support_tickets SET status = ? WHERE id = ?').run(body.status, id);
+      await run('UPDATE support_tickets SET status = $1 WHERE id = $2', [body.status, id]);
     }
 
     if (body.admin_notes !== undefined) {
-      db.prepare('UPDATE support_tickets SET admin_notes = ? WHERE id = ?').run(body.admin_notes, id);
+      await run('UPDATE support_tickets SET admin_notes = $1 WHERE id = $2', [body.admin_notes, id]);
     }
 
     return NextResponse.json({ success: true });

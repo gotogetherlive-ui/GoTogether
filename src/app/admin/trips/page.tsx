@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, X, Pin, Trash2, Loader2, ChevronDown, ChevronUp, RefreshCw, MapPin, Clock, DollarSign, ArrowRight, Sparkles, Image, Info, Users, Phone, Mail, User, Calendar, FileText, Download } from "lucide-react";
+import { Check, X, Pin, Trash2, Loader2, ChevronDown, RefreshCw, Clock, DollarSign, ArrowRight, Sparkles, Image, Info, Users, Phone, User, Calendar, FileText, Download, AlertCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface BookingData {
@@ -20,6 +20,11 @@ interface BookingData {
   user_phone: string | null;
   user_age: number | null;
   user_gender: string | null;
+  booking_status?: string | null;
+  payment_status?: string | null;
+  amount?: number | null;
+  refund_status?: string | null;
+  refund_amount?: number | null;
 }
 
 interface TripData {
@@ -72,13 +77,22 @@ export default function AdminTripsPage() {
     fetchTrips();
   }, []);
 
+
+  const uniqueBookings = (items: BookingData[]) => {
+    const seen = new Set<string>();
+    return items.filter((item) => {
+      if (seen.has(item.id)) return false;
+      seen.add(item.id);
+      return true;
+    });
+  };
   const fetchBookings = async (tripId: string) => {
     setBookingsLoading(tripId);
     try {
       const res = await fetch(`/api/admin/trips/${tripId}/bookings`);
       if (res.ok) {
         const data = await res.json();
-        setTripBookings(prev => ({ ...prev, [tripId]: data.bookings || [] }));
+        setTripBookings(prev => ({ ...prev, [tripId]: uniqueBookings(data.bookings || []) }));
       }
     } catch (err) {
       console.error(err);
@@ -142,6 +156,22 @@ export default function AdminTripsPage() {
       fetchTrips();
     } catch {
       alert("Failed to delete trip");
+    }
+  };
+
+  const handleRetryRefund = async (bookingId: string, tripId: string) => {
+    try {
+      const res = await fetch(`/api/admin/bookings/${bookingId}/retry-refund`, { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        alert("Refund retry initiated successfully.");
+        fetchBookings(tripId);
+      } else {
+        alert(data.error || "Failed to retry refund.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error retrying refund.");
     }
   };
 
@@ -280,6 +310,8 @@ export default function AdminTripsPage() {
                 <span className={`px-3 py-1 rounded-full text-xs font-bold ${
                   trip.status === 'live' ? 'bg-emerald-100 text-emerald-700' :
                   trip.status === 'pending' ? 'bg-amber-100 text-amber-700 animate-pulse' :
+                  trip.status === 'cancelling' || trip.status === 'refunds_processing' ? 'bg-rose-100 text-rose-700 animate-pulse' :
+                  trip.status === 'cancelled' ? 'bg-slate-100 text-slate-500' :
                   'bg-rose-100 text-rose-700'
                 }`}>
                   {trip.status}
@@ -576,6 +608,45 @@ export default function AdminTripsPage() {
                                 )}
                               </div>
 
+                              {/* Payment & Refund Details */}
+                              {b.booking_status && (
+                                <div className="mt-3 bg-slate-50 border border-slate-100 rounded-xl p-3 flex justify-between items-center text-xs">
+                                  <div className="space-y-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-slate-400 font-semibold uppercase tracking-wider text-[9px]">Booking Status:</span>
+                                      <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase ${
+                                        b.booking_status === 'confirmed' ? 'bg-emerald-100 text-emerald-700' :
+                                        b.booking_status === 'trip_cancelled' ? 'bg-rose-100 text-rose-700 animate-pulse' :
+                                        'bg-slate-100 text-slate-600'
+                                      }`}>{b.booking_status?.replace('_', ' ')}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-slate-400 font-semibold uppercase tracking-wider text-[9px]">Payment Status:</span>
+                                      <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase ${
+                                        b.payment_status === 'refunded' ? 'bg-emerald-100 text-emerald-700' :
+                                        b.payment_status === 'refund_failed' ? 'bg-rose-100 text-rose-700 animate-pulse' :
+                                        b.payment_status === 'refund_pending' ? 'bg-amber-100 text-amber-700 animate-pulse' :
+                                        'bg-slate-100 text-slate-600'
+                                      }`}>{b.payment_status?.replace('_', ' ')}</span>
+                                    </div>
+                                    {b.refund_amount && (
+                                      <div className="text-[10px] text-slate-500">
+                                        Refunded Amount: <strong className="text-slate-800">₹{(Number(b.refund_amount) / 100).toLocaleString('en-IN')}</strong>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {b.payment_status === 'refund_failed' && (
+                                    <button
+                                      onClick={() => handleRetryRefund(b.id, trip.id)}
+                                      className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold shadow-md shadow-rose-600/10 flex items-center gap-1.5 transition-all animate-bounce"
+                                    >
+                                      <AlertCircle className="w-3.5 h-3.5" /> Retry Refund
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+
                               {/* Footer */}
                               <div className="flex items-center gap-4 mt-2.5 text-[10px] text-slate-400">
                                 <span className="flex items-center gap-1">
@@ -602,3 +673,4 @@ export default function AdminTripsPage() {
     </div>
   );
 }
+

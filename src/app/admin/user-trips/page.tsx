@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, X, Pin, Trash2, Loader2 } from "lucide-react";
+import { Check, X, Pin, Trash2, Loader2, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface TripData {
@@ -17,18 +17,22 @@ export default function AdminUserTripsPage() {
   const [trips, setTrips] = useState<TripData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
 
   const fetchTrips = async () => {
     setLoading(true);
+    setRefreshing(true);
+    setError("");
     try {
       const res = await fetch("/api/admin/user-trips");
       if (!res.ok) throw new Error("Failed to fetch trips");
       const data = await res.json();
       setTrips(data.trips || []);
     } catch {
-      setError("Failed to load trips");
+      setError("Failed to load trips. Please retry.");
     } finally {
       setLoading(false);
+      setTimeout(() => setRefreshing(false), 600);
     }
   };
 
@@ -72,7 +76,7 @@ export default function AdminUserTripsPage() {
     }
   };
 
-  if (loading) {
+  if (loading && trips.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="w-10 h-10 text-orange-400 animate-spin" />
@@ -80,15 +84,46 @@ export default function AdminUserTripsPage() {
     );
   }
 
-  if (error) {
-    return <div className="text-rose-500 font-medium">{error}</div>;
+  if (error && trips.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-4">
+        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-100 flex items-center gap-3">
+          <p className="text-rose-500 font-medium">{error}</p>
+        </div>
+        <button
+          onClick={fetchTrips}
+          className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-semibold hover:bg-orange-600 transition-colors"
+        >
+          <RefreshCw className="w-4 h-4" /> Retry
+        </button>
+      </div>
+    );
   }
 
   return (
     <div>
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold text-slate-900">User Trips</h1>
+        <button
+          onClick={fetchTrips}
+          className={`flex items-center gap-1.5 text-xs text-slate-600 hover:text-orange-500 border border-slate-200 hover:border-orange-300 px-3 py-1.5 rounded-lg transition-all duration-300 hover:shadow-sm ${loading ? "opacity-50 pointer-events-none" : ""}`}
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} /> Refresh
+        </button>
       </div>
+
+      {/* Error banner if trips exist but refresh failed */}
+      {error && trips.length > 0 && (
+        <div className="mb-6 p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm font-medium flex items-center justify-between animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+            {error}
+          </div>
+          <button onClick={() => setError("")} className="text-rose-400 hover:text-rose-600 transition-colors font-bold text-lg leading-none">
+            &times;
+          </button>
+        </div>
+      )}
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
         <div className="overflow-x-auto">
@@ -116,20 +151,18 @@ export default function AdminUserTripsPage() {
                     <div className="text-slate-500 text-xs">{trip.organizer_email}</div>
                   </td>
                   <td className="p-4">
-                    <span className={`px-2.5 py-1 rounded-md text-xs font-semibold ${
-                      trip.organizer_role === 'super_admin' ? 'bg-purple-100 text-purple-700' :
-                      trip.organizer_role === 'business' ? 'bg-blue-100 text-blue-700' :
-                      'bg-slate-100 text-slate-700'
-                    }`}>
+                    <span className={`px-2.5 py-1 rounded-md text-xs font-semibold ${trip.organizer_role === 'super_admin' ? 'bg-purple-100 text-purple-700' :
+                        trip.organizer_role === 'business' ? 'bg-blue-100 text-blue-700' :
+                          'bg-slate-100 text-slate-700'
+                      }`}>
                       {trip.organizer_role}
                     </span>
                   </td>
                   <td className="p-4">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                      trip.status === 'live' ? 'bg-emerald-100 text-emerald-700' :
-                      trip.status === 'pending' ? 'bg-amber-100 text-amber-700' :
-                      'bg-rose-100 text-rose-700'
-                    }`}>
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${trip.status === 'live' ? 'bg-emerald-100 text-emerald-700' :
+                        trip.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                          'bg-rose-100 text-rose-700'
+                      }`}>
                       {trip.status}
                     </span>
                   </td>

@@ -15,6 +15,7 @@
 
 # next.js
 /.next/
+/.next-*/
 /out/
 
 # production
@@ -32,6 +33,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env*.example
 
 # vercel
 .vercel
@@ -44,3 +46,8 @@ next-env.d.ts
 /data/
 *.db
 /supabase/
+
+# load-test secrets/artifacts with live session cookies
+/load-test-results/*.env
+/load-test-results/*cookies*
+

@@ -2,12 +2,18 @@ import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
-import db from '@/lib/db';
+import { queryOne, run } from '@/lib/db';
+import crypto from 'node:crypto';
+import { rateLimit, getClientIP } from '@/lib/rateLimit';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 function generateOTP(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  return crypto.randomInt(100000, 1000000).toString();
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 interface EmailOtpRecord {
@@ -20,6 +26,15 @@ interface EmailOtpRecord {
 
 export async function POST(request: Request) {
   try {
+    const ip = getClientIP(request);
+    const limitRes = await rateLimit(`otp_resend_${ip}`, 5, 10 * 60 * 1000);
+    if (!limitRes.allowed) {
+      return NextResponse.json(
+        { error: `Too many requests. Please try again after ${Math.ceil(limitRes.retryAfterMs / 1000)} seconds.` },
+        { status: 429 }
+      );
+    }
+
     const { email } = await request.json();
 
     if (!email) {
@@ -29,24 +44,19 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check if a pending signup exists
-    const existing = db
-      .prepare(
-        'SELECT * FROM email_otps WHERE email = ? ORDER BY created_at DESC LIMIT 1'
-      )
-      .get(email) as EmailOtpRecord | undefined;
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+
+    const existing = await queryOne<EmailOtpRecord>(
+      'SELECT id, email, full_name, password_hash, created_at FROM email_otps WHERE email = $1 ORDER BY created_at DESC LIMIT 1',
+      [normalizedEmail]
+    );
 
     if (!existing) {
-      return NextResponse.json(
-        { error: 'No pending verification found. Please sign up again.' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: true });
     }
 
-    // Rate-limit: 60 seconds between resends
     const createdAt = new Date(existing.created_at).getTime();
-    const now = Date.now();
-    const secondsSinceLast = (now - createdAt) / 1000;
+    const secondsSinceLast = (Date.now() - createdAt) / 1000;
 
     if (secondsSinceLast < 60) {
       const wait = Math.ceil(60 - secondsSinceLast);
@@ -56,29 +66,27 @@ export async function POST(request: Request) {
       );
     }
 
-    // Generate new OTP
     const otp = generateOTP();
-    const otpHash = bcrypt.hashSync(otp, 10);
+    const otpHash = await bcrypt.hash(otp, 10);
 
-    // Delete old record and create new one
-    db.prepare('DELETE FROM email_otps WHERE email = ?').run(email);
+    await run('DELETE FROM email_otps WHERE email = $1', [normalizedEmail]);
 
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-    db.prepare(
-      'INSERT INTO email_otps (id, email, full_name, password_hash, otp_hash, expires_at) VALUES (?, ?, ?, ?, ?, ?)'
-    ).run(
-      uuidv4(),
-      existing.email,
-      existing.full_name,
-      existing.password_hash,
-      otpHash,
-      expiresAt
+    await run(
+      'INSERT INTO email_otps (id, email, full_name, password_hash, otp_hash, expires_at) VALUES ($1, $2, $3, $4, $5, $6)',
+      [
+        uuidv4(),
+        existing.email,
+        existing.full_name,
+        existing.password_hash,
+        otpHash,
+        expiresAt,
+      ]
     );
 
-    // Send email via Resend
     const { error: sendError } = await resend.emails.send({
-      from: 'GoTogether <onboarding@resend.dev>',
-      to: [email],
+      from: process.env.RESEND_FROM_EMAIL || 'GoTogether <onboarding@resend.dev>',
+      to: [normalizedEmail],
       subject: 'Your new GoTogether verification code',
       html: `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 480px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">
@@ -88,7 +96,7 @@ export async function POST(request: Request) {
           </div>
           <div style="padding: 32px;">
             <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 8px;">
-              Hi <strong>${existing.full_name}</strong>,
+              Hi <strong>${escapeHtml(existing.full_name)}</strong>,
             </p>
             <p style="color: #64748b; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">
               Here's your new verification code:
@@ -124,7 +132,7 @@ export async function POST(request: Request) {
           { status: 500 }
         );
       }
-      console.log(`\n📧 [DEV MODE] Email delivery failed. OTP for ${email}: ${otp}\n`);
+      console.warn('[DEV MODE] Email delivery failed; replacement OTP was generated but not logged.');
     }
 
     return NextResponse.json({ success: true });

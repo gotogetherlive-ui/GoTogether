@@ -1,6 +1,9 @@
+"use client";
+
 import Link from "next/link";
+import type { SVGProps } from "react";
 import { Compass } from "lucide-react";
-import { getSession } from "@/lib/auth";
+import { useSession } from "@/components/SessionProvider";
 import FooterSupportButton from "./FooterSupportButton";
 
 const legalLinks = [
@@ -15,9 +18,61 @@ const adminLinks = [
   { href: "/admin/trips", label: "Trip Moderation" },
 ];
 
-export default async function Footer() {
-  const user = await getSession();
-  const isAdmin = user?.role === 'super_admin';
+const socialLinks = [
+  {
+    href: "https://www.instagram.com/gotogether.in?igsh=azhiNGt5dXdiYmR2&utm_source=ig_contact_invite",
+    label: "Instagram",
+    Icon: InstagramIcon,
+    className: "hover:text-pink-400",
+  },
+  {
+    href: "https://chat.whatsapp.com/HWmEmqlCvNIBoHvNyfPETP?s=sh&p=a&mlu=0&ilr=0",
+    label: "WhatsApp",
+    Icon: WhatsAppIcon,
+    className: "hover:text-emerald-400",
+  },
+];
+
+function InstagramIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      aria-hidden="true"
+      {...props}
+    >
+      <rect x="3" y="3" width="18" height="18" rx="5" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function WhatsAppIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      aria-hidden="true"
+      {...props}
+    >
+      <path d="M4.8 19.2 6 15.6A8 8 0 1 1 8.4 18l-3.6 1.2Z" />
+      <path d="M9.2 8.8c.2-.4.4-.5.7-.5h.6c.2 0 .4.1.5.4l.6 1.4c.1.3.1.5-.1.7l-.4.5c.5.9 1.2 1.6 2.1 2.1l.5-.4c.2-.2.4-.2.7-.1l1.4.6c.3.1.4.3.4.5v.6c0 .3-.1.5-.5.7-.6.3-1.5.4-2.5 0-2.3-.9-4.1-2.7-5-5-.4-1-.3-1.9 0-2.5Z" />
+    </svg>
+  );
+}
+
+export default function Footer() {
+  const { user } = useSession();
+  const isAdmin = !!user?.is_admin;
   const isLoggedIn = !!user;
 
   const exploreLinks = [
@@ -25,11 +80,11 @@ export default async function Footer() {
     { href: "/about", label: "About Us" },
     ...(isLoggedIn
       ? [
-        { href: "/dashboard", label: "My Dashboard" },
-      ]
+          { href: "/dashboard", label: "My Dashboard" },
+        ]
       : [
-        { href: "/login", label: "Sign In" },
-      ]),
+          { href: "/login", label: "Sign In" },
+        ]),
   ];
 
   return (
@@ -119,15 +174,27 @@ export default async function Footer() {
 
         {/* Bottom bar */}
         <div className="pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-xs text-slate-600">
-            © {new Date().getFullYear()} GoTogether. All rights reserved.
+          <p className="text-xs text-slate-600" suppressHydrationWarning>
+            &copy; {new Date().getFullYear()} GoTogether. All rights reserved.
           </p>
-          <div className="flex items-center gap-4">
-            <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-xs text-slate-600">All systems operational</span>
+          <div className="flex items-center gap-3">
+            {socialLinks.map(({ href, label, Icon, className }) => (
+              <a
+                key={label}
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`GoTogether on ${label}`}
+                title={label}
+                className={`flex h-10 w-10 items-center justify-center rounded-full border border-slate-800 text-slate-500 transition-colors hover:border-slate-700 hover:bg-slate-800 ${className}`}
+              >
+                <Icon className="h-5 w-5" />
+              </a>
+            ))}
           </div>
         </div>
       </div>
     </footer>
   );
 }
+

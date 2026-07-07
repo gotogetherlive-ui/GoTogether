@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import db from '@/lib/db';
+import { queryOne, run } from '@/lib/db';
+import { isAdminUser } from '@/lib/admin';
 
 export async function PATCH(
   request: Request,
@@ -15,18 +16,19 @@ export async function PATCH(
     const { id: tripId } = await params;
     
     // Verify the trip belongs to this user
-    const trip = db.prepare('SELECT id, organizer_id, registration_closed FROM trips WHERE id = ?').get(tripId) as any;
+    const trip = await queryOne('SELECT id, organizer_id, status, registration_closed FROM trips WHERE id = $1', [tripId]) as any;
     if (!trip) {
       return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
     }
 
-    const isAdmin = user.email === 'gotogether.live@gmail.com' || user.role === 'super_admin';
-    if (trip.organizer_id !== user.id && !isAdmin) {
-      return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
+    if (['cancelling', 'refunds_processing', 'refunds_completed', 'cancelled', 'archived', 'deleted'].includes(trip.status)) {
+      return NextResponse.json({ error: 'Cannot toggle registration on a cancelled or cancelling trip' }, { status: 400 });
     }
 
+    const isAdmin = await isAdminUser(user);
+
     const newStatus = trip.registration_closed === 1 ? 0 : 1;
-    db.prepare('UPDATE trips SET registration_closed = ? WHERE id = ?').run(newStatus, tripId);
+    await run('UPDATE trips SET registration_closed = $1 WHERE id = $2', [newStatus, tripId]);
 
     return NextResponse.json({ success: true, registration_closed: newStatus });
   } catch (err) {

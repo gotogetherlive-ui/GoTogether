@@ -1,27 +1,26 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import db from '@/lib/db';
-
-const ADMIN_EMAIL = 'gotogether.live@gmail.com';
+import { queryOne, run } from '@/lib/db';
+import { isAdminUser } from '@/lib/admin';
 
 export async function GET(request: Request, context: any) {
   try {
     const user = await getSession();
-    if (!user || user.email !== ADMIN_EMAIL) {
+    if (!user || !(await isAdminUser(user))) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const { id } = await context.params;
 
-    const feedback = db.prepare(`
+    const feedback = await queryOne(`
       SELECT f.id, f.category, f.subject, f.description, f.status, f.created_at,
              u.id as user_id, u.full_name as user_name, u.email as user_email, 
              u.phone_number as user_phone, u.age as user_age, u.gender as user_gender,
              u.avatar_url as user_avatar
       FROM feedbacks f
       JOIN users u ON f.user_id = u.id
-      WHERE f.id = ?
-    `).get(id);
+      WHERE f.id = $1
+    `, [id]);
 
     if (!feedback) {
       return NextResponse.json({ error: 'Feedback not found' }, { status: 404 });
@@ -37,7 +36,7 @@ export async function GET(request: Request, context: any) {
 export async function PATCH(request: Request, context: any) {
   try {
     const user = await getSession();
-    if (!user || user.email !== ADMIN_EMAIL) {
+    if (!user || !(await isAdminUser(user))) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -45,7 +44,7 @@ export async function PATCH(request: Request, context: any) {
     const body = await request.json();
 
     if (body.status && ['pending', 'solved'].includes(body.status)) {
-      db.prepare('UPDATE feedbacks SET status = ? WHERE id = ?').run(body.status, id);
+      await run('UPDATE feedbacks SET status = $1 WHERE id = $2', [body.status, id]);
       return NextResponse.json({ success: true });
     }
 

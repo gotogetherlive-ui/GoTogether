@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 
 const heroImages = [
   {
@@ -47,34 +46,40 @@ export default function HeroSlideshow() {
   }, []);
 
   useEffect(() => {
-    const interval = setInterval(advanceSlide, 6000); // slightly longer for the zoom to feel right
+    const interval = setInterval(advanceSlide, 6000);
     return () => clearInterval(interval);
   }, [advanceSlide]);
 
   return (
     <>
-      <AnimatePresence mode="popLayout">
-        <motion.div
-          key={currentIndex}
-          initial={{ opacity: 0, scale: 1 }}
-          animate={{ opacity: 1, scale: 1.05 }}
-          exit={{ opacity: 0, scale: 1.05 }}
-          transition={{
-            opacity: { duration: 1.5, ease: "easeInOut" },
-            scale: { duration: 10, ease: "linear" }, // Slow 3D Ken Burns effect
-          }}
-          className="absolute inset-0 z-0 origin-center"
-        >
-          <Image
-            src={heroImages[currentIndex].src}
-            alt={heroImages[currentIndex].label}
-            fill
-            className="object-cover object-center brightness-[0.55]"
-            priority={currentIndex === 0}
-            sizes="100vw"
-          />
-        </motion.div>
-      </AnimatePresence>
+      {heroImages.map((img, index) => {
+        const isActive = index === currentIndex;
+
+        return (
+          <div
+            key={img.src}
+            className={`absolute inset-0 z-0 origin-center transition-opacity duration-[1500ms] ease-in-out ${
+              isActive ? "opacity-100" : "opacity-0 pointer-events-none"
+            }`}
+          >
+            <div
+              className={`relative w-full h-full ${
+                isActive ? "animate-[kenBurns_10s_linear_forwards]" : ""
+              }`}
+            >
+              <Image
+                src={img.src}
+                alt={img.label}
+                fill
+                className="object-cover object-center brightness-[0.55]"
+                priority={index === 0}
+                loading={index === 0 ? "eager" : "lazy"}
+                sizes="100vw"
+              />
+            </div>
+          </div>
+        );
+      })}
 
       {/* Subtle overlay gradient for depth */}
       <div className="absolute inset-0 z-[2] bg-gradient-to-b from-black/30 via-transparent to-black/40 pointer-events-none" />
@@ -102,16 +107,12 @@ export default function HeroSlideshow() {
 
       {/* Current destination label */}
       <div className="absolute bottom-10 md:bottom-16 left-1/2 -translate-x-1/2 z-[25] hidden md:block">
-        <motion.span
+        <span
           key={currentIndex}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.8 }}
-          className="text-white/80 text-xs font-semibold tracking-widest uppercase drop-shadow-md"
+          className="text-white/80 text-xs font-semibold tracking-widest uppercase drop-shadow-md animate-[slideUp_0.8s_ease-out_forwards]"
         >
           {heroImages[currentIndex].label}
-        </motion.span>
+        </span>
       </div>
     </>
   );

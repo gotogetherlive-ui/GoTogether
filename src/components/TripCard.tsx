@@ -5,29 +5,36 @@ import Link from "next/link";
 import { MapPin, Calendar, ShieldCheck } from "lucide-react";
 import Tilt from "react-parallax-tilt";
 
+export interface TripSummary {
+  id: string;
+  slug?: string | null;
+  title: string;
+  description: string;
+  destination: string;
+  duration_days: number;
+  duration_nights?: number;
+  image_url?: string | null;
+  images?: string | null;
+  is_featured?: number;
+  tags?: string | null;
+  pickup_point?: string | null;
+  drop_point?: string | null;
+  b2b_price?: string | null;
+  b2c_price?: string | null;
+  gotogether_price?: string | null;
+  start_date?: string | null;
+  starting_location?: string | null;
+  registration_closed?: number;
+  organizer_id?: string;
+  organizer_name?: string;
+  organizer_slug?: string | null;
+  organizer_role?: string;
+  organizer_avatar?: string | null;
+}
+
 interface TripCardProps {
-  trip: {
-    id: string;
-    title: string;
-    description: string;
-    destination: string;
-    duration_days: number;
-    duration_nights?: number;
-    image_url?: string | null;
-    images?: string | null;
-    is_featured?: number;
-    tags?: string | null;
-    pickup_point?: string | null;
-    drop_point?: string | null;
-    b2b_price?: string | null;
-    b2c_price?: string | null;
-    gotogether_price?: string | null;
-    start_date?: string | null;
-    organizer_name?: string;
-    organizer_role?: string;
-    organizer_avatar?: string | null;
-  };
-  /** If true, the entire card links to /trips instead of /trips/[id] */
+  trip: TripSummary;
+  /** If true, the entire card links to /trips instead of the canonical trip detail URL. */
   linkToTrips?: boolean;
 }
 
@@ -72,7 +79,7 @@ export default function TripCard({ trip, linkToTrips = false }: TripCardProps) {
 
   const isFeatured = trip.is_featured === 1;
   const isBusiness = trip.organizer_role === "business";
-  const href = linkToTrips ? "/trips" : `/trips/${trip.id}`;
+  const href = linkToTrips ? "/trips" : `/trips/${trip.slug || trip.id}`;
 
   // Format start_date for display
   const formattedDate = trip.start_date
@@ -175,10 +182,10 @@ export default function TripCard({ trip, linkToTrips = false }: TripCardProps) {
                 <span className="truncate max-w-[100px]">{trip.drop_point}</span>
               </div>
             )}
-            {(trip.b2c_price || trip.gotogether_price) && (
+            {(trip.b2c_price || trip.gotogether_price || trip.b2b_price) && (
               <div className="flex items-center gap-3 text-xs font-bold text-slate-700 mt-1">
                 {trip.b2c_price && <span className="text-slate-500 line-through">Retail: {trip.b2c_price}</span>}
-                {trip.gotogether_price && <span className="text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded text-sm">GoTogether: {trip.gotogether_price}</span>}
+                {(trip.gotogether_price || trip.b2b_price) && <span className="text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded text-sm">GoTogether: {trip.gotogether_price || trip.b2b_price}</span>}
               </div>
             )}
           </div>
@@ -207,7 +214,7 @@ export default function TripCard({ trip, linkToTrips = false }: TripCardProps) {
         )}
 
         <div className="mt-auto flex items-center justify-between border-t border-slate-100 pt-4">
-          <div className="flex items-center gap-2">
+          <Link href={trip.organizer_slug ? `/organizers/${trip.organizer_slug}` : href} className="flex items-center gap-2 min-w-0">
             <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-white shadow-inner ${trip.organizer_role === 'super_admin' ? 'bg-gradient-to-tr from-orange-400 to-rose-400' : 'bg-blue-100 text-blue-600 border border-blue-200'}`}>
               {trip.organizer_avatar ? (
                 <img src={trip.organizer_avatar} alt="Avatar" className="w-full h-full rounded-full object-cover" />
@@ -215,15 +222,15 @@ export default function TripCard({ trip, linkToTrips = false }: TripCardProps) {
                 trip.organizer_name?.charAt(0) || "O"
               )}
             </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-semibold text-slate-900 flex items-center gap-1">
-                {trip.organizer_name} {isBusiness && <ShieldCheck className="w-4 h-4 text-blue-500" />}
+            <div className="flex flex-col min-w-0">
+              <span className="text-sm font-semibold text-slate-900 flex items-center gap-1 hover:text-orange-600 transition-colors truncate">
+                {trip.organizer_name} {isBusiness && <ShieldCheck className="w-4 h-4 text-blue-500 shrink-0" />}
               </span>
               <span className="text-xs text-slate-500">
                 {trip.organizer_role === "super_admin" ? "Verified Organizer" : "Verified Business"}
               </span>
             </div>
-          </div>
+          </Link>
           <Link href={href} className="text-sm font-bold text-orange-500 hover:text-orange-600 transition-colors">
             View Trip &rarr;
           </Link>
@@ -233,3 +240,8 @@ export default function TripCard({ trip, linkToTrips = false }: TripCardProps) {
     </Tilt>
   );
 }
+
+
+
+
+

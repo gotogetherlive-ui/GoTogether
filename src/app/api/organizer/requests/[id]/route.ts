@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import db from '@/lib/db';
+import { queryOne, transaction } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
+import { notifyUser } from '@/lib/notificationEvents';
 
 export async function POST(
   request: Request,
@@ -22,12 +23,12 @@ export async function POST(
     }
 
     // Check if the request exists and the current user is the organizer of the trip
-    const tripRequest = db.prepare(`
+    const tripRequest = await queryOne(`
       SELECT r.id, r.trip_id, r.requester_id, r.status, t.organizer_id
       FROM trip_requests r
       JOIN trips t ON r.trip_id = t.id
-      WHERE r.id = ?
-    `).get(requestId) as any;
+      WHERE r.id = $1
+    `, [requestId]) as any;
 
     if (!tripRequest) {
       return NextResponse.json({ error: 'Request not found' }, { status: 404 });
@@ -42,40 +43,38 @@ export async function POST(
     }
 
     // Begin transaction to ensure data integrity
-    const processRequest = db.transaction(() => {
+    await transaction(async (client) => {
       // Update request status
       const newStatus = action === 'accept' ? 'accepted' : 'rejected';
-      db.prepare('UPDATE trip_requests SET status = ?, notification_seen = 1 WHERE id = ?').run(newStatus, requestId);
+      await client.query('UPDATE trip_requests SET status = $1, notification_seen = $2 WHERE id = $3', [newStatus, action === 'accept' ? 0 : 1, requestId]);
 
       if (action === 'accept') {
         // Check if participant already exists to prevent duplicates
-        const existingParticipant = db.prepare(
-          'SELECT id FROM trip_participants WHERE trip_id = ? AND user_id = ?'
-        ).get(tripRequest.trip_id, tripRequest.requester_id);
+        const existingParticipantResult = await client.query('SELECT id FROM trip_participants WHERE trip_id = $1 AND user_id = $2', [tripRequest.trip_id, tripRequest.requester_id]);
+        const existingParticipant = existingParticipantResult.rows[0];
 
         if (!existingParticipant) {
           // Add to trip participants
-          db.prepare(`
+          await client.query(`
             INSERT INTO trip_participants (id, trip_id, user_id)
-            VALUES (?, ?, ?)
-          `).run(uuidv4(), tripRequest.trip_id, tripRequest.requester_id);
+            VALUES ($1, $2, $3)
+          `, [uuidv4(), tripRequest.trip_id, tripRequest.requester_id]);
         }
         
         // Also ensure organizer is in the participants list, so they can access the chat
-        const organizerParticipant = db.prepare(
-          'SELECT id FROM trip_participants WHERE trip_id = ? AND user_id = ?'
-        ).get(tripRequest.trip_id, user.id);
+        const organizerParticipantResult = await client.query('SELECT id FROM trip_participants WHERE trip_id = $1 AND user_id = $2', [tripRequest.trip_id, user.id]);
+        const organizerParticipant = organizerParticipantResult.rows[0];
         
         if (!organizerParticipant) {
-           db.prepare(`
+           await client.query(`
             INSERT INTO trip_participants (id, trip_id, user_id)
-            VALUES (?, ?, ?)
-          `).run(uuidv4(), tripRequest.trip_id, user.id);
+            VALUES ($1, $2, $3)
+          `, [uuidv4(), tripRequest.trip_id, user.id]);
         }
       }
     });
 
-    processRequest();
+    await notifyUser(tripRequest.requester_id);
 
     return NextResponse.json({ success: true, message: `Request ${action}ed successfully` });
   } catch (err) {

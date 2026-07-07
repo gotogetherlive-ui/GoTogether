@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import db from '@/lib/db';
+import { query, queryOne, run } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function GET(
@@ -16,32 +16,35 @@ export async function GET(
     const { tripId } = await params;
 
     // Verify user is a participant or organizer
-    const participant = db.prepare(
-      'SELECT id FROM trip_participants WHERE trip_id = ? AND user_id = ?'
-    ).get(tripId, user.id);
+    const participant = await queryOne(
+      'SELECT id FROM trip_participants WHERE trip_id = $1 AND user_id = $2',
+      [tripId, user.id]
+    );
 
-    const trip = db.prepare('SELECT organizer_id FROM trips WHERE id = ?').get(tripId) as any;
+    const trip = await queryOne('SELECT organizer_id FROM trips WHERE id = $1', [tripId]) as any;
 
     if (!participant && (!trip || trip.organizer_id !== user.id)) {
       return NextResponse.json({ error: 'Unauthorized to view this chat' }, { status: 403 });
     }
 
-    // Fetch messages
-    const messages = db.prepare(`
+    // Fetch messages (limit to 100 most recent for performance)
+    const messages = await query(`
       SELECT m.id, m.message, m.created_at, m.sender_id, u.full_name, u.avatar_url
       FROM messages m
       JOIN users u ON m.sender_id = u.id
-      WHERE m.trip_id = ?
-      ORDER BY m.created_at ASC
-    `).all(tripId);
+      WHERE m.trip_id = $1
+      ORDER BY m.created_at DESC
+      LIMIT 100
+    `, [tripId]);
+    messages.reverse();
 
     // Update last_read_at for this user and trip
     try {
-      db.prepare(`
+      await run(`
         INSERT INTO user_chat_reads (user_id, trip_id, last_read_at)
-        VALUES (?, ?, datetime('now'))
-        ON CONFLICT(user_id, trip_id) DO UPDATE SET last_read_at = datetime('now')
-      `).run(user.id, tripId);
+        VALUES ($1, $2, NOW())
+        ON CONFLICT(user_id, trip_id) DO UPDATE SET last_read_at = NOW()
+      `, [user.id, tripId]);
     } catch (err) {
       console.error('Failed to update chat read timestamp:', err);
     }
@@ -72,11 +75,12 @@ export async function POST(
     }
 
     // Verify user is a participant or organizer
-    const participant = db.prepare(
-      'SELECT id FROM trip_participants WHERE trip_id = ? AND user_id = ?'
-    ).get(tripId, user.id);
+    const participant = await queryOne(
+      'SELECT id FROM trip_participants WHERE trip_id = $1 AND user_id = $2',
+      [tripId, user.id]
+    );
 
-    const trip = db.prepare('SELECT organizer_id FROM trips WHERE id = ?').get(tripId) as any;
+    const trip = await queryOne('SELECT organizer_id FROM trips WHERE id = $1', [tripId]) as any;
 
     if (!participant && (!trip || trip.organizer_id !== user.id)) {
       return NextResponse.json({ error: 'Unauthorized to send message' }, { status: 403 });
@@ -84,10 +88,10 @@ export async function POST(
 
     // Insert message
     const messageId = uuidv4();
-    db.prepare(`
+    await run(`
       INSERT INTO messages (id, trip_id, sender_id, message)
-      VALUES (?, ?, ?, ?)
-    `).run(messageId, tripId, user.id, message);
+      VALUES ($1, $2, $3, $4)
+    `, [messageId, tripId, user.id, message]);
 
     return NextResponse.json({ success: true, messageId });
   } catch (err) {

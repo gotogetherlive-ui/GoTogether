@@ -11,6 +11,7 @@ export default function FooterSupportButton() {
       <button
         onClick={() => setOpen(true)}
         className="text-sm text-slate-400 hover:text-white transition-colors text-left"
+        suppressHydrationWarning
       >
         Contact Support
       </button>

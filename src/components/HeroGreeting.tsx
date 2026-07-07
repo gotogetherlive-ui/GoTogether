@@ -52,29 +52,6 @@ export default function HeroGreeting() {
       >
         {greeting}
       </span>
-      <style jsx>{`
-        @keyframes typing {
-          from {
-            width: 0;
-          }
-          to {
-            width: 100%;
-          }
-        }
-        @keyframes blink-caret {
-          from,
-          to {
-            border-color: transparent;
-          }
-          50% {
-            border-color: white;
-          }
-        }
-        .animate-typing {
-          animation: typing 1.5s steps(40, end), blink-caret 0.75s step-end infinite;
-          animation-fill-mode: both;
-        }
-      `}</style>
     </span>
   );
 }

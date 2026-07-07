@@ -1,7 +1,18 @@
 "use client";
 
 import ContactSupportModal from "@/components/ContactSupportModal";
-import { ShieldCheck, AlertTriangle, Headset } from "lucide-react";
+import { 
+  ShieldCheck, 
+  AlertTriangle, 
+  Headset, 
+  Users, 
+  Lock, 
+  Compass, 
+  MapPin, 
+  UserCheck, 
+  ShieldAlert, 
+  FileText 
+} from "lucide-react";
 import { useState } from "react";
 
 export default function SafetyContent() {
@@ -9,143 +20,160 @@ export default function SafetyContent() {
 
   return (
     <>
-      <article className="pt-28 pb-24 px-6 md:px-12 max-w-4xl mx-auto">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-500">
+      <article className="pt-36 pb-24 px-6 md:px-12 max-w-4xl mx-auto relative z-10">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-600">
             <ShieldCheck className="w-5 h-5" />
           </div>
-          <span className="text-sm font-semibold text-emerald-500 uppercase tracking-wider">Safety</span>
+          <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest">Trust &amp; Safety</span>
         </div>
-        <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 mb-3">Safety Guidelines</h1>
-        <p className="text-slate-500 text-sm mb-12">Your safety is our top priority. Please read these guidelines carefully.</p>
+        <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 mb-3 tracking-tight">Safety Guidelines</h1>
+        <p className="text-slate-500 text-sm md:text-base mb-3">Your safety is our absolute priority. Please read these platform guidelines carefully.</p>
+        <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-12">Last updated: July 6, 2026</p>
 
-        <div className="bg-gradient-to-r from-emerald-500 to-teal-500 rounded-2xl p-8 text-white mb-12">
-          <h2 className="text-2xl font-bold mb-3">Our Safety Promise</h2>
-          <p className="text-emerald-50 leading-relaxed">
-            GoTogether is built on trust. Every business is verified, every trip is moderated, and every report is reviewed within 24 hours. We provide the tools — but your awareness is the strongest safety measure.
-          </p>
+        {/* Safety Promise Block */}
+        <div className="relative bg-slate-900 text-white rounded-[2.5rem] p-8 md:p-10 mb-12 overflow-hidden shadow-xl border border-slate-800">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-teal-500/10 rounded-full blur-3xl pointer-events-none"></div>
+          <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center gap-6">
+            <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 flex-shrink-0">
+              <ShieldCheck className="w-8 h-8" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold mb-2 tracking-tight">Our Safety Promise</h2>
+              <p className="text-slate-400 text-sm md:text-base leading-relaxed">
+                GoTogether is built on trust. Every business organizer is verified, all listings are moderated, and all reports are reviewed within 24 hours. We give you advanced safety features—but your situational awareness is your strongest protection.
+              </p>
+            </div>
+          </div>
         </div>
 
-        <div className="space-y-10">
-          <S t="1. Before You Join a Trip">
-            <p>Protect yourself by doing your due diligence before committing to any trip:</p>
+        {/* Safety Cards Grid */}
+        <div className="space-y-8">
+          <S t="1. Before You Join a Trip" icon={Compass}>
+            <p>Protect yourself by performing necessary due diligence before committing to any trip:</p>
             <ul>
-              <li><strong>Check the organizer&apos;s profile:</strong> Look for the verification badge (blue shield icon).</li>
-              <li><strong>Read reviews and ratings:</strong> Past participants&apos; feedback is your best indicator.</li>
-              <li><strong>Verify trip details:</strong> Confirm itinerary, costs, meeting points, and cancellation policy.</li>
-              <li><strong>Research the destination:</strong> Check travel advisories, visa requirements, and local customs.</li>
-              <li><strong>Ask questions:</strong> Use the Stranger Meet flow to ask the organizer anything before committing.</li>
+              <li><strong>Verify Organizer Badges:</strong> Look for the golden verification checkmark for business trips. For buddy trips, inspect profile status.</li>
+              <li><strong>Read Participant Reviews:</strong> Past travelers&apos; authentic feedback is your absolute best trust indicator.</li>
+              <li><strong>Review Full Details:</strong> Confirm the planned itineraries, pricing breakdowns, rules, and refund policies. Paid traveler cancellations follow the platform refund windows: 72 or more hours before start receives 100%, 24 to under 72 hours receives 50%, and under 24 hours is non-refundable. Organizer-cancelled paid trips receive a full captured-payment refund.</li>
+              <li><strong>Research the Destination:</strong> Be proactive in checking travel advisories, visas, weather guides, and local cultures.</li>
+              <li><strong>Communicate First:</strong> Use our chat features to ask questions and interview the organizer before booking.</li>
             </ul>
           </S>
 
-          <S t="2. Protecting Your Personal Information">
+          <S t="2. Protecting Personal Information" icon={Lock}>
             <ul>
-              <li><strong>Never share</strong> your passport, financial details, or home address in trip requests or messages.</li>
-              <li><strong>Use GoTogether messaging</strong> for all initial communication.</li>
-              <li><strong>Be cautious</strong> with photos that reveal your exact location or daily routine.</li>
-              <li><strong>Use a strong, unique password</strong> for your GoTogether account.</li>
+              <li><strong>Keep Data Secure:</strong> Never disclose passport copies, credit cards, banking info, or home addresses in messaging drafts.</li>
+              <li><strong>Keep Chats On-Platform:</strong> Use GoTogether&apos;s secured chat logs for all communication. Avoid transitioning to external apps immediately.</li>
+              <li><strong>Secure Your Credentials:</strong> Maintain password rules. Enable Multi-Factor credentials if available.</li>
+              <li><strong>Photo Awareness:</strong> Exercise caution when sending media containing markers that reveal your immediate location.</li>
             </ul>
           </S>
 
-          <S t="3. Meeting Fellow Travelers">
-            <p>The Stranger Meet flow is designed for safety. Follow these best practices:</p>
+          <S t="3. Meeting Fellow Travelers" icon={Users}>
+            <p>Buddy matching helps you discover adventure groups. Please align with these best practices:</p>
             <ul>
-              <li><strong>First meetings in public:</strong> Always meet new travel companions in a public, well-lit location.</li>
-              <li><strong>Tell someone your plans:</strong> Share your itinerary with a trusted friend or family member.</li>
-              <li><strong>Trust your instincts:</strong> If something feels wrong, it probably is.</li>
-              <li><strong>Travel with essentials:</strong> Keep your phone charged and carry emergency contacts.</li>
-              <li><strong>Group dynamics:</strong> Be respectful of boundaries. Consent is non-negotiable.</li>
+              <li><strong>Public Meetings First:</strong> Meet travel matches in daylight, public settings (cafes, transit points) before starting the journey.</li>
+              <li><strong>Share Itineraries:</strong> Broadcast trip files, destination nodes, and match profiles with emergency contacts or family.</li>
+              <li><strong>Trust Gut Feelings:</strong> If interactions feel uncomfortable, withdraw booking requests instantly.</li>
+              <li><strong>Establish Group Norms:</strong> Respect individual limits, dietary habits, and personal space. Consent is absolute.</li>
             </ul>
           </S>
 
-          <S t="4. During the Trip">
+          <S t="4. During the Trip & Location Tracking" icon={MapPin}>
             <ul>
-              <li><strong>Stay connected:</strong> Keep your phone charged and maintain communication with someone outside the group.</li>
-              <li><strong>Keep copies of documents:</strong> Store digital copies of your passport, ID, and insurance in a secure cloud.</li>
-              <li><strong>Know your exits:</strong> Familiarize yourself with accommodation&apos;s exits and local emergency services.</li>
-              <li><strong>Monitor your belongings:</strong> Use hotel safes and keep valuables secure.</li>
-              <li><strong>Respect local laws:</strong> Abide by the laws and customs of the destination.</li>
-              <li><strong>Alcohol and substances:</strong> Exercise caution. Never leave drinks unattended.</li>
+              <li><strong>Google Maps Location:</strong> Toggle our dashboard Location Tracker to update trusted emergency contacts in real-time.</li>
+              <li><strong>Backup Documents:</strong> Store digital scans of your travel visas, passports, insurance, and medical info in private cloud drives.</li>
+              <li><strong>Stay Fully Charged:</strong> Carry portable power hubs and maintain constant check-ins with friends outside the group.</li>
+              <li><strong>Exits & Safety Nodes:</strong> Familiarize yourself with hotel exit patterns and national emergency response numbers.</li>
             </ul>
           </S>
 
-          <S t="5. For Trip Organizers">
-            <p>As an organizer, you have a responsibility to your participants:</p>
+          <S t="5. For Trip Organizers" icon={UserCheck}>
+            <p>As a verified organizer, you hold duty of care responsibilities towards candidates:</p>
             <ul>
-              <li><strong>Provide accurate listings:</strong> Misrepresenting costs or itineraries may result in permanent ban.</li>
-              <li><strong>Vet participants:</strong> Use the Stranger Meet flow to assess join requests thoughtfully.</li>
-              <li><strong>Have a safety plan:</strong> Share emergency contacts and contingency plans with all participants.</li>
-              <li><strong>Be transparent about costs:</strong> Clearly break down what is included.</li>
-              <li><strong>Report issues promptly:</strong> Report inappropriate behaviour immediately.</li>
+              <li><strong>Publish Truthful Details:</strong> Present precise, actual costs and milestones. Deceptive marketing triggers immediate bans.</li>
+              <li><strong>Screen Travelers Mindfully:</strong> Review applicant profiles, matching metrics, and food habits carefully.</li>
+              <li><strong>Detail Safety Backups:</strong> Prepare emergency exit blueprints, local clinics information, and support contacts list.</li>
             </ul>
           </S>
 
           {/* Warning Callout */}
-          <div className="bg-rose-50 border border-rose-200 rounded-2xl p-6 flex gap-4">
-            <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center text-rose-500 flex-shrink-0 mt-0.5">
-              <AlertTriangle className="w-5 h-5" />
+          <div className="bg-rose-50/50 border border-rose-100 rounded-3xl p-8 flex flex-col sm:flex-row gap-6 relative overflow-hidden shadow-sm">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/5 rounded-full blur-2xl pointer-events-none"></div>
+            <div className="w-14 h-14 rounded-2xl bg-rose-100 border border-rose-200 flex items-center justify-center text-rose-600 flex-shrink-0 shadow-sm">
+              <AlertTriangle className="w-7 h-7" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-rose-700 mb-2">Red Flags to Watch For</h3>
-              <ul className="text-sm text-rose-600 space-y-1.5 list-disc pl-5">
-                <li>Organizers who pressure you to pay outside the Platform.</li>
-                <li>Requests for passport or financial information before meeting.</li>
-                <li>Vague or constantly changing trip details.</li>
-                <li>Refusal to answer reasonable questions about the trip.</li>
-                <li>Profiles with no verification, no reviews, and recently created accounts.</li>
-                <li>Trips priced significantly below market rate (too good to be true).</li>
+              <h3 className="text-xl font-bold text-rose-900 mb-3 tracking-tight">Red Flags to Watch For</h3>
+              <ul className="text-slate-700 text-sm space-y-3 list-none pl-0">
+                {[
+                  "Organizers who pressure you to pay outside the Platform or bypass the approved checkout gateway.",
+                  "Requests for your passport copies, security PINs, or financial details before meeting physically.",
+                  "Vague, undocumented, or constantly changing trip timelines or meeting coordinates.",
+                  "Defensive replies or refusal to answer reasonable questions about the itinerary.",
+                  "Profiles with zero verifications, no reviews, and accounts created within the past 48 hours.",
+                  "Trips priced significantly below standard costs (if it sounds too good to be true, it likely is)."
+                ].map((flag, idx) => (
+                  <li key={idx} className="relative pl-6 before:content-[''] before:absolute before:left-0 before:top-[0.6em] before:w-1.5 before:h-1.5 before:bg-rose-500 before:rounded-full text-justify">
+                    {flag}
+                  </li>
+                ))}
               </ul>
             </div>
           </div>
 
-          <S t="6. Reporting & Getting Help">
-            <p>If you encounter unsafe behavior, fraud, or any violation:</p>
+          <S t="6. Reporting & Getting Help" icon={ShieldAlert}>
+            <p>If you experience any harassment, rule violation, or unsafe behaviors:</p>
             <ul>
-              <li><strong>In-app reporting:</strong> Use the report button on any profile, trip, or message to flag it instantly.</li>
-              <li><strong>Emergency:</strong> If you are in immediate danger, contact local emergency services first (112 in India).</li>
-              <li><strong>Support:</strong> Use the Contact Support button below for general help.</li>
-            </ul>
-            <p>All reports are confidential. We never reveal the reporter&apos;s identity to the reported user.</p>
-          </S>
-
-          <S t="7. Our Moderation Commitment">
-            <ul>
-              <li>All business accounts undergo identity and legitimacy verification before approval.</li>
-              <li>Trip listings from unverified businesses require admin approval before going live.</li>
-              <li>Our admin team monitors the Platform 24/7 for suspicious activity.</li>
-              <li>Repeat offenders are permanently banned with no appeal.</li>
-              <li>We cooperate with law enforcement when criminal activity is suspected.</li>
+              <li><strong>Instant Reporting:</strong> Click the report flags directly on user profiles, message rows, or trip details grids.</li>
+              <li><strong>Emergency Dispatch:</strong> Call local enforcement instantly if in immediate danger (dial 112 in India).</li>
+              <li><strong>Confidential Process:</strong> All reports remain entirely anonymous. We never reveal reporter identities.</li>
             </ul>
           </S>
 
-          <S t="8. Travel Insurance">
-            <p>GoTogether <strong>strongly recommends</strong> comprehensive travel insurance covering:</p>
+          <S t="7. Our Moderation Commitment" icon={ShieldCheck}>
             <ul>
-              <li>Medical emergencies and evacuation.</li>
-              <li>Trip cancellation and interruption.</li>
-              <li>Lost or stolen belongings.</li>
-              <li>Personal liability.</li>
+              <li>Business candidates undergo visual identity audits and license checks.</li>
+              <li>Trips launched by businesses require admin verification before publication.</li>
+              <li>The moderation crew watches live threads 24/7 for suspicious triggers.</li>
+              <li>Banned accounts lose platform access permanently with zero appeal options.</li>
             </ul>
-            <p>GoTogether is not an insurance provider and assumes no liability for incidents during trips.</p>
+          </S>
+
+          <S t="8. Travel Insurance" icon={FileText}>
+            <p>GoTogether strongly encourages securing traveler insurance covering:</p>
+            <ul>
+              <li>Critical medical emergency dispatch, airlifts, and hospital stays.</li>
+              <li>Itinerary updates, delays, or cancellations.</li>
+              <li>Damaged, stolen, or lost personal goods.</li>
+            </ul>
           </S>
 
           {/* Need Help — Contact Support Only */}
-          <div className="bg-slate-900 rounded-2xl p-8 text-center relative overflow-hidden">
-            <div className="absolute -top-10 -right-10 w-40 h-40 bg-orange-500/10 rounded-full blur-2xl" />
-            <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-rose-500/10 rounded-full blur-2xl" />
-            <div className="relative">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-500 to-rose-500 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-orange-500/30">
-                <Headset className="w-7 h-7 text-white" />
+          <div className="bg-slate-950 rounded-[2.5rem] p-10 text-center relative overflow-hidden border border-slate-900 shadow-2xl">
+            <div className="absolute -top-20 -right-20 w-64 h-64 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-gradient-to-tr from-teal-500/10 to-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+            
+            <div className="relative z-10 space-y-6">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/20">
+                <Headset className="w-8 h-8 text-white" />
               </div>
-              <h2 className="text-2xl font-bold text-white mb-2">Need Help?</h2>
-              <p className="text-slate-400 mb-6 max-w-md mx-auto">Our safety team is available around the clock. Reach out and we&apos;ll respond within 24 hours.</p>
-              <button
-                onClick={() => setShowModal(true)}
-                className="inline-flex items-center gap-2 bg-gradient-to-r from-orange-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 text-white font-bold px-8 py-3.5 rounded-full transition-all duration-300 shadow-lg shadow-orange-500/30 hover:shadow-orange-500/40 hover:scale-105"
-              >
-                <Headset className="w-5 h-5" />
-                Contact Support
-              </button>
+              <div className="space-y-2">
+                <h2 className="text-3xl font-extrabold text-white tracking-tight">Still have questions?</h2>
+                <p className="text-slate-400 text-sm md:text-base max-w-md mx-auto">
+                  Our dedicated trust &amp; safety agents are online 24/7 to resolve disputes, review report flags, and guide your journey.
+                </p>
+              </div>
+              <div>
+                <button
+                  onClick={() => setShowModal(true)}
+                  className="inline-flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold px-8 py-4 rounded-full transition-all duration-300 shadow-xl shadow-emerald-500/10 hover:shadow-emerald-500/20 hover:scale-[1.03]"
+                >
+                  <Headset className="w-5 h-5" />
+                  Contact Safety Support
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -156,11 +184,28 @@ export default function SafetyContent() {
   );
 }
 
-function S({ t, children }: { t: string; children: React.ReactNode }) {
+function S({ 
+  t, 
+  icon: Icon, 
+  children 
+}: { 
+  t: string; 
+  icon: React.ComponentType<{ className?: string }>; 
+  children: React.ReactNode 
+}) {
   return (
-    <section>
-      <h2 className="text-xl font-bold text-slate-900 mb-3">{t}</h2>
-      <div className="text-slate-600 text-[15px] leading-relaxed space-y-3 [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:space-y-2 [&_li]:text-slate-600">{children}</div>
+    <section className="bg-white rounded-3xl p-8 border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.01)] hover:shadow-[0_12px_45px_rgba(0,0,0,0.02)] transition-all duration-300 relative overflow-hidden">
+      <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-500/40"></div>
+      <h2 className="text-xl font-bold text-slate-900 mb-5 tracking-tight flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600">
+          <Icon className="w-5 h-5" />
+        </div>
+        {t}
+      </h2>
+      <div className="text-slate-600 text-[14px] leading-relaxed space-y-3 [&_ul]:list-none [&_ul]:pl-0 [&_ul]:space-y-3 [&_li]:relative [&_li]:pl-6 [&_li::before]:content-[''] [&_li::before]:absolute [&_li::before]:left-0 [&_li::before]:top-[0.6em] [&_li::before]:w-2 [&_li::before]:h-2 [&_li::before]:bg-emerald-400 [&_li::before]:rounded-full [&_strong]:text-slate-800 text-justify">
+        {children}
+      </div>
     </section>
   );
 }
+

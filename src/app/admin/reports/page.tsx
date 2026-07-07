@@ -1,9 +1,8 @@
 "use client";
 
 import {
-  Eye, CheckCircle, AlertTriangle, Loader2, MessageSquare, X,
+  CheckCircle, AlertTriangle, Loader2, MessageSquare, X,
   Bug, MapPin, Compass, Clock, User, Mail, Phone, RefreshCw,
-  Sparkles
 } from "lucide-react";
 import { useEffect, useState } from "react";
 

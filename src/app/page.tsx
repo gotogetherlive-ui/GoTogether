@@ -1,29 +1,33 @@
-import Image from "next/image";
 import Link from "next/link";
-import { MapPin, Users, ShieldCheck, ChevronRight, Compass } from "lucide-react";
+import { Users, ShieldCheck, ChevronRight, Compass } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import HeroSlideshow from "@/components/HeroSlideshow";
 import HeroFindBuddyButton from "@/components/HeroFindBuddyButton";
 import HeroGreeting from "@/components/HeroGreeting";
-import TripCard from "@/components/TripCard";
+import TripCard, { type TripSummary } from "@/components/TripCard";
 import MaintenanceGuard from "@/components/MaintenanceGuard";
 import FadeInScroll from "@/components/FadeInScroll";
 import TiltWrapper from "@/components/TiltWrapper";
 import AnimatedButton from "@/components/AnimatedButton";
 import Animated3DText from "@/components/Animated3DText";
-import db from "@/lib/db";
+import { query } from '@/lib/db';
+import { ensureTripSlug } from '@/lib/slugs';
+import { ensureOrganizerSlug } from '@/lib/organizer-slugs';
+
+export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const topTrips = db.prepare(`
-    SELECT t.id, t.title, t.description, t.destination, t.image_url, t.images, t.status, t.is_featured, t.trip_type, t.duration_days, t.duration_nights, t.start_date, t.pickup_point, t.drop_point, t.b2c_price, t.gotogether_price, t.tags,
-           u.full_name as organizer_name, u.role as organizer_role, u.avatar_url as organizer_avatar
+  const topTripRows = await query<TripSummary>(`
+    SELECT t.id, t.slug, t.title, t.description, t.destination, t.image_url, t.images, t.status, t.is_featured, t.trip_type, t.duration_days, t.duration_nights, t.start_date, t.pickup_point, t.drop_point, t.b2c_price, t.gotogether_price, t.tags,
+           u.id as organizer_id, u.full_name as organizer_name, u.role as organizer_role, u.avatar_url as organizer_avatar, u.organizer_slug
     FROM trips t
     JOIN users u ON t.organizer_id = u.id
     WHERE t.status = 'live' AND (t.is_featured = 1 OR t.trip_type = 'business')
     ORDER BY t.is_featured DESC, t.created_at DESC
     LIMIT 2
-  `).all() as any[];
+  `, []);
+  const topTrips = await Promise.all(topTripRows.map(async (trip) => ({ ...trip, slug: await ensureTripSlug(trip), organizer_slug: await ensureOrganizerSlug({ id: trip.organizer_id || "", full_name: trip.organizer_name, organizer_slug: trip.organizer_slug }) })));
   return (
     <MaintenanceGuard>
       <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
@@ -81,7 +85,7 @@ export default async function Home() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {/* Dynamic Top Trips */}
-            {topTrips.map((trip: any) => (
+            {topTrips.map((trip) => (
               <TripCard key={trip.id} trip={trip} linkToTrips />
             ))}
 
@@ -161,3 +165,8 @@ export default async function Home() {
     </MaintenanceGuard>
   );
 }
+
+
+
+
+

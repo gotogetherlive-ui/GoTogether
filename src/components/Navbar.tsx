@@ -10,11 +10,10 @@ import AnimatedButton from "@/components/AnimatedButton";
 const FeedbackModal = dynamic(() => import("@/components/FeedbackModal"), { ssr: false });
 const NotificationBell = dynamic(() => import("@/components/NotificationBell"), { ssr: false });
 
-const ADMIN_EMAIL = "gotogether.live@gmail.com";
-
 const navLinks = [
   { href: "/", label: "Home" },
   { href: "/buddy", label: "Find Buddy" },
+  { href: "/stories", label: "Stories" },
   { href: "/about", label: "About" },
 ];
 
@@ -32,6 +31,7 @@ interface NavUser {
   fooding_habit?: string | null;
   phone_number?: string | null;
   phone_verified?: number;
+  is_admin?: boolean;
 }
 
 export default function Navbar() {
@@ -72,7 +72,7 @@ export default function Navbar() {
   const logoColor =
     mobileOpen || (!isHomepage || scrolled) ? "text-slate-900" : "text-white drop-shadow-md";
 
-  const isAdmin = user?.email === ADMIN_EMAIL;
+  const isAdmin = !!user?.is_admin;
 
   const handleSignOut = async () => {
     await fetch("/api/auth/signout", { method: "POST" });
@@ -83,7 +83,7 @@ export default function Navbar() {
   };
 
   // Avatar initial button
-  const AvatarButton = ({ className = "" }: { className?: string }) => {
+  const renderAvatarButton = (className = "") => {
     const initial = user?.full_name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || "U";
     return (
       <button
@@ -123,7 +123,7 @@ export default function Navbar() {
         <div className={`hidden md:flex items-center gap-6 font-medium ${textColor}`}>
           {navLinks.map((link) => {
             const isProfileComplete = !!(user?.full_name?.trim() && user?.phone_number?.trim() && user?.age && user?.gender && user?.profession && user?.fooding_habit);
-            const isRestricted = link.href.startsWith("/buddy");
+            const isRestricted = link.href.startsWith("/buddy") || link.href.startsWith("/stories");
 
             const handleRestrictedClick = (e: React.MouseEvent) => {
               if (user && !isProfileComplete && isRestricted) {
@@ -196,7 +196,7 @@ export default function Navbar() {
             <>
               {user ? (
                 <div className="relative">
-                  <AvatarButton />
+                  {renderAvatarButton()}
                   {/* Dropdown */}
                   {avatarMenuOpen && (
                     <div className="absolute right-0 top-12 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
@@ -272,7 +272,7 @@ export default function Navbar() {
           <div className="space-y-1">
             {navLinks.map((link) => {
               const isProfileComplete = !!(user?.full_name?.trim() && user?.phone_number?.trim() && user?.age && user?.gender && user?.profession && user?.fooding_habit);
-              const isRestricted = link.href.startsWith("/buddy");
+              const isRestricted = link.href.startsWith("/buddy") || link.href.startsWith("/stories");
 
               const handleRestrictedClick = (e: React.MouseEvent) => {
                 if (user && !isProfileComplete && isRestricted) {
@@ -395,3 +395,4 @@ export default function Navbar() {
     </>
   );
 }
+

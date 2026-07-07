@@ -2,51 +2,71 @@ import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
-import db from '@/lib/db';
+import { queryOne, run } from '@/lib/db';
+import crypto from 'node:crypto';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 function generateOTP(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  return crypto.randomInt(100000, 1000000).toString();
 }
+
+function escapeHtml(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+import { rateLimit, getClientIP } from '@/lib/rateLimit';
 
 export async function POST(request: Request) {
   try {
+    const ip = getClientIP(request);
+    // Rate limit: Max 5 requests per IP address in 10 minutes
+    const limitRes = await rateLimit(`otp_send_${ip}`, 5, 10 * 60 * 1000);
+    if (!limitRes.allowed) {
+      return NextResponse.json(
+        { error: `Too many requests. Please try again after ${Math.ceil(limitRes.retryAfterMs / 1000)} seconds.` },
+        { status: 429 }
+      );
+    }
+
     const { email, password, fullName } = await request.json();
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
 
     // Validate input
-    if (!email || !password || !fullName) {
+    if (!normalizedEmail || !password || !fullName || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
       return NextResponse.json(
         { error: 'All fields are required.' },
         { status: 400 }
       );
     }
 
-    if (password.length < 6) {
+    if (typeof password !== 'string' || password.length < 8 || password.length > 128 || typeof fullName !== 'string' || fullName.trim().length < 2 || fullName.length > 120) {
       return NextResponse.json(
-        { error: 'Password must be at least 6 characters.' },
+        { error: 'Use a valid name and a password between 8 and 128 characters.' },
         { status: 400 }
       );
     }
 
+
     // Check if user already exists
-    const existingUser = db
-      .prepare('SELECT id FROM users WHERE email = ?')
-      .get(email) as { id: string } | undefined;
+    const existingUser = await queryOne('SELECT id FROM users WHERE LOWER(email) = $1 AND deleted_at IS NULL', [normalizedEmail]) as { id: string } | null;
 
     if (existingUser) {
-      return NextResponse.json(
-        { error: 'An account with this email already exists.' },
-        { status: 409 }
-      );
+      const [localPart, domain] = normalizedEmail.split('@');
+      const masked =
+        localPart.charAt(0) +
+        '*'.repeat(Math.max(localPart.length - 2, 1)) +
+        localPart.charAt(localPart.length - 1) +
+        '@' +
+        domain;
+      return NextResponse.json({ success: true, maskedEmail: masked });
     }
 
     // Rate-limit: check if an OTP was sent in the last 60 seconds
-    const recentOtp = db
-      .prepare(
-        "SELECT created_at FROM email_otps WHERE email = ? AND created_at > datetime('now', '-60 seconds') ORDER BY created_at DESC LIMIT 1"
-      )
-      .get(email) as { created_at: string } | undefined;
+    const recentOtp = await queryOne(
+      "SELECT created_at FROM email_otps WHERE email = $1 AND created_at > NOW() - INTERVAL '60 seconds' ORDER BY created_at DESC LIMIT 1",
+      [normalizedEmail]
+    ) as { created_at: string } | null;
 
     if (recentOtp) {
       return NextResponse.json(
@@ -57,22 +77,19 @@ export async function POST(request: Request) {
 
     // Generate and hash OTP
     const otp = generateOTP();
-    const otpHash = bcrypt.hashSync(otp, 10);
-    const passwordHash = bcrypt.hashSync(password, 10);
+    const [otpHash, passwordHash] = await Promise.all([bcrypt.hash(otp, 10), bcrypt.hash(password, 10)]);
 
     // Clean up previous OTPs for this email
-    db.prepare('DELETE FROM email_otps WHERE email = ?').run(email);
+    await run('DELETE FROM email_otps WHERE email = $1', [normalizedEmail]);
 
     // Store pending signup
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-    db.prepare(
-      'INSERT INTO email_otps (id, email, full_name, password_hash, otp_hash, expires_at) VALUES (?, ?, ?, ?, ?, ?)'
-    ).run(uuidv4(), email, fullName, passwordHash, otpHash, expiresAt);
+    await run('INSERT INTO email_otps (id, email, full_name, password_hash, otp_hash, expires_at) VALUES ($1, $2, $3, $4, $5, $6)', [uuidv4(), normalizedEmail, fullName.trim(), passwordHash, otpHash, expiresAt]);
 
     // Send email via Resend
     const { error: sendError } = await resend.emails.send({
-      from: 'GoTogether <onboarding@resend.dev>',
-      to: [email],
+      from: process.env.RESEND_FROM_EMAIL || 'GoTogether <onboarding@resend.dev>',
+      to: [normalizedEmail],
       subject: 'Verify your GoTogether account',
       html: `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 480px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">
@@ -82,7 +99,7 @@ export async function POST(request: Request) {
           </div>
           <div style="padding: 32px;">
             <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 8px;">
-              Hi <strong>${fullName}</strong>,
+              Hi <strong>${escapeHtml(fullName)}</strong>,
             </p>
             <p style="color: #64748b; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">
               Thanks for signing up! Enter this verification code in the app to complete your registration:
@@ -112,18 +129,18 @@ export async function POST(request: Request) {
 
     if (sendError) {
       console.error('Resend error:', sendError);
-      // In development, still proceed — OTP is logged to console for testing
+      // In development, still proceed so local signup can keep moving without exposing OTPs in logs.
       if (process.env.NODE_ENV === 'production') {
         return NextResponse.json(
           { error: 'Failed to send verification email. Please try again.' },
           { status: 500 }
         );
       }
-      console.log(`\n📧 [DEV MODE] Email delivery failed. OTP for ${email}: ${otp}\n`);
+      console.warn('[DEV MODE] Email delivery failed; OTP was generated but not logged.');
     }
 
     // Mask email for display
-    const [localPart, domain] = email.split('@');
+    const [localPart, domain] = normalizedEmail.split('@');
     const masked =
       localPart.charAt(0) +
       '*'.repeat(Math.max(localPart.length - 2, 1)) +

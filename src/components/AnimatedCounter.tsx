@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { useInView, useMotionValue, useSpring, motion } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
 
 interface AnimatedCounterProps {
   value: number;
@@ -15,27 +14,45 @@ export default function AnimatedCounter({
   className = "",
 }: AnimatedCounterProps) {
   const ref = useRef<HTMLSpanElement>(null);
-  const isInView = useInView(ref, { once: true, margin: "-50px" });
-  
-  const motionValue = useMotionValue(0);
-  const springValue = useSpring(motionValue, {
-    damping: 60,
-    stiffness: 100,
-  });
+  const [isInView, setIsInView] = useState(false);
+  const [current, setCurrent] = useState(0);
 
   useEffect(() => {
-    if (isInView) {
-      motionValue.set(value);
-    }
-  }, [isInView, value, motionValue]);
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsInView(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "-50px" }
+    );
+    if (ref.current) observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
-    springValue.on("change", (latest) => {
-      if (ref.current) {
-        ref.current.textContent = Intl.NumberFormat("en-US").format(Math.floor(latest)) + suffix;
+    if (!isInView) return;
+
+    let startTimestamp: number | null = null;
+    const duration = 2000; // 2 seconds
+
+    const step = (timestamp: number) => {
+      if (!startTimestamp) startTimestamp = timestamp;
+      const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+      // easeOutExpo
+      const easeProgress = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+      setCurrent(easeProgress * value);
+
+      if (progress < 1) {
+        window.requestAnimationFrame(step);
+      } else {
+        setCurrent(value);
       }
-    });
-  }, [springValue, suffix]);
+    };
 
-  return <motion.span ref={ref} className={className}>0{suffix}</motion.span>;
+    window.requestAnimationFrame(step);
+  }, [isInView, value]);
+
+  return <span ref={ref} className={className}>{Intl.NumberFormat("en-US").format(Math.floor(current))}{suffix}</span>;
 }

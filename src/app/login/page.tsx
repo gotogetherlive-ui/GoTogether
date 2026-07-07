@@ -210,14 +210,12 @@ function OtpVerificationModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
-        style={{ animation: "fadeIn 0.3s ease-out" }}
+        className="absolute inset-0 bg-slate-900/60 backdrop-blur-md animate-fade-in"
       />
 
       {/* Modal */}
       <div
-        className="relative w-full max-w-md bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 overflow-hidden"
-        style={{ animation: "slideUp 0.4s ease-out" }}
+        className="relative w-full max-w-md bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 overflow-hidden animate-slide-up"
       >
         {/* Header gradient bar */}
         <div className="h-1.5 bg-gradient-to-r from-orange-400 via-rose-400 to-orange-500" />
@@ -235,8 +233,7 @@ function OtpVerificationModal({
           {/* Icon */}
           <div className="flex justify-center mb-5">
             <div
-              className="w-20 h-20 rounded-2xl bg-gradient-to-br from-orange-100 to-rose-100 flex items-center justify-center"
-              style={{ animation: "pulse 2s ease-in-out infinite" }}
+              className="w-20 h-20 rounded-2xl bg-gradient-to-br from-orange-100 to-rose-100 flex items-center justify-center animate-pulse-scale"
             >
               <Mail className="w-9 h-9 text-orange-500" />
             </div>
@@ -257,8 +254,7 @@ function OtpVerificationModal({
 
           {/* Error */}
           {error && (
-            <div className="mb-5 p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm text-center"
-              style={{ animation: "shake 0.4s ease-out" }}
+            <div className="mb-5 p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm text-center animate-shake"
             >
               {error}
             </div>
@@ -323,29 +319,6 @@ function OtpVerificationModal({
           </div>
         </div>
       </div>
-
-      {/* CSS Animations */}
-      <style jsx>{`
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes slideUp {
-          from { opacity: 0; transform: translateY(24px) scale(0.96); }
-          to { opacity: 1; transform: translateY(0) scale(1); }
-        }
-        @keyframes pulse {
-          0%, 100% { transform: scale(1); }
-          50% { transform: scale(1.05); }
-        }
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          20% { transform: translateX(-6px); }
-          40% { transform: translateX(6px); }
-          60% { transform: translateX(-4px); }
-          80% { transform: translateX(4px); }
-        }
-      `}</style>
     </div>
   );
 }
@@ -382,6 +355,10 @@ function LoginContent() {
     }
   }, [searchParams]);
 
+  function handleGoogleSignIn() {
+    window.location.assign("/api/auth/google");
+  }
+
   async function handleSubmit(formData: FormData) {
     setError(null);
     setSuccess(null);
@@ -401,6 +378,7 @@ function LoginContent() {
         setError("Password must be at least 6 characters.");
         return;
       }
+
 
       setIsSendingOtp(true);
       try {
@@ -488,18 +466,18 @@ function LoginContent() {
       </div>
 
       {/* Right Panel - Form */}
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="w-full max-w-md">
+      <div className="flex-1 flex items-center justify-center p-6 md:p-12 bg-slate-50/50">
+        <div className="w-full max-w-md bg-white rounded-[2.5rem] shadow-xl hover:shadow-[0_20px_50px_rgba(0,0,0,0.06)] border border-slate-100/80 p-8 md:p-10 transform transition-all animate-slide-up">
           {/* Mobile Logo */}
-          <Link href="/" className="flex items-center gap-2 text-slate-900 lg:hidden mb-10">
-            <Compass className="w-8 h-8 text-orange-500" />
-            <span className="text-2xl font-bold tracking-tight">GoTogether</span>
+          <Link href="/" className="flex items-center gap-2 text-slate-900 lg:hidden mb-8">
+            <Compass className="w-8 h-8 text-orange-500 animate-spin-slow" />
+            <span className="text-2xl font-extrabold tracking-tight">GoTogether</span>
           </Link>
 
-          <h1 className="text-3xl font-extrabold text-slate-900 mb-2">
+          <h1 className="text-3xl font-extrabold text-slate-900 mb-2 tracking-tight">
             {isSignUp ? "Create account" : "Welcome back"}
           </h1>
-          <p className="text-slate-500 mb-8">
+          <p className="text-slate-500 text-sm mb-8 font-medium">
             {isSignUp
               ? "Start your journey with GoTogether."
               : "Sign in to continue your adventures."}
@@ -507,34 +485,35 @@ function LoginContent() {
 
           {/* Error Message */}
           {error && (
-            <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm">
+            <div className="mb-6 p-4 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 text-sm font-semibold animate-shake">
               {error}
             </div>
           )}
 
           {/* Success Message */}
           {success && (
-            <div className="mb-4 p-3 rounded-xl bg-green-50 border border-green-200 text-green-600 text-sm">
+            <div className="mb-6 p-4 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-600 text-sm font-semibold">
               {success}
             </div>
           )}
 
           {/* Google Sign-In Button */}
-          <a
-            href="/api/auth/google"
-            className="w-full flex items-center justify-center gap-3 bg-white border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold py-3.5 rounded-xl transition-all shadow-sm hover:shadow-md text-sm mb-6"
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            className="w-full flex items-center justify-center gap-3 bg-white border border-slate-200 hover:border-orange-500/30 hover:bg-orange-50/5 text-slate-700 font-bold py-3.5 rounded-2xl transition-all shadow-sm hover:shadow-md text-sm mb-6 active:scale-98"
           >
             <GoogleIcon className="w-5 h-5" />
             Continue with Google
-          </a>
+          </button>
 
           {/* Divider */}
           <div className="relative mb-6">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-slate-200" />
             </div>
-            <div className="relative flex justify-center text-xs">
-              <span className="px-4 bg-slate-50 text-slate-400 font-medium uppercase tracking-wider">
+            <div className="relative flex justify-center text-[10px]">
+              <span className="px-4 bg-white text-slate-400 font-extrabold uppercase tracking-widest">
                 or continue with email
               </span>
             </div>
@@ -542,24 +521,26 @@ function LoginContent() {
 
           <form action={handleSubmit} className="space-y-5">
             {isSignUp && (
-              <div>
-                <label htmlFor="fullName" className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Full Name
-                </label>
-                <input
-                  id="fullName"
-                  name="fullName"
-                  type="text"
-                  placeholder="John Doe"
-                  required
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-400 text-sm transition-all"
-                />
-              </div>
+              <>
+                <div className="space-y-1.5">
+                  <label htmlFor="fullName" className="block text-xs font-extrabold text-slate-500 uppercase tracking-wider">
+                    Full Name
+                  </label>
+                  <input
+                    id="fullName"
+                    name="fullName"
+                    type="text"
+                    placeholder="John Doe"
+                    required
+                    className="premium-input"
+                  />
+                </div>
+              </>
             )}
 
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1.5">
-                Email
+            <div className="space-y-1.5">
+              <label htmlFor="email" className="block text-xs font-extrabold text-slate-500 uppercase tracking-wider">
+                Email Address
               </label>
               <input
                 id="email"
@@ -567,12 +548,12 @@ function LoginContent() {
                 type="email"
                 placeholder="you@example.com"
                 required
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-400 text-sm transition-all"
+                className="premium-input"
               />
             </div>
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-1.5">
+            <div className="space-y-1.5">
+              <label htmlFor="password" className="block text-xs font-extrabold text-slate-500 uppercase tracking-wider">
                 Password
               </label>
               <div className="relative">
@@ -583,12 +564,12 @@ function LoginContent() {
                   placeholder="••••••••"
                   required
                   minLength={6}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-400 text-sm pr-12 transition-all"
+                  className="premium-input-password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors p-1"
                 >
                   {showPassword ? (
                     <EyeOff className="w-4 h-4" />
@@ -599,41 +580,46 @@ function LoginContent() {
               </div>
             </div>
 
-            <AnimatedButton
+            <button
               type="submit"
               disabled={isPending || isSendingOtp}
-              className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl shadow-lg hover:shadow-orange-500/30 text-sm flex items-center justify-center gap-2"
+              className="w-full mt-4 bg-gradient-to-r from-orange-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 text-white font-bold py-4 rounded-2xl shadow-lg hover:shadow-xl hover:shadow-orange-500/25 hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-60 disabled:cursor-not-allowed text-sm flex items-center justify-center gap-2"
             >
               {isPending || isSendingOtp ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  {isSignUp ? "Sending Verification Code..." : "Signing In..."}
+                  {isSignUp ? "Sending Code..." : "Signing In..."}
                 </>
               ) : (
                 isSignUp ? "Continue — Verify Email" : "Sign In"
               )}
-            </AnimatedButton>
+            </button>
           </form>
 
           <div className="mt-6 text-center">
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-slate-500 font-semibold">
               {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
               <button
+                type="button"
                 onClick={() => {
                   setIsSignUp(!isSignUp);
                   setError(null);
                   setSuccess(null);
                 }}
-                className="text-orange-500 font-semibold hover:text-orange-600 transition-colors"
+                className="text-orange-500 font-bold hover:text-orange-600 transition-colors cursor-pointer"
               >
                 {isSignUp ? "Sign In" : "Sign Up"}
               </button>
             </p>
           </div>
 
-
         </div>
       </div>
     </div>
   );
 }
+
+
+
+
+

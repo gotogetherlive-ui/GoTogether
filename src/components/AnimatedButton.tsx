@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import Link from "next/link";
 import { ReactNode } from "react";
 
@@ -18,16 +17,16 @@ export default function AnimatedButton({ href, onClick, children, className = ""
   const hasDisplayClass = /\b(flex|inline-flex|block|inline-block|grid|inline-grid|hidden)\b/.test(className);
   const displayClass = hasDisplayClass ? "" : "inline-block";
 
+  const innerClass = `${displayClass} ${className} transition-transform duration-200 ${disabled ? "opacity-60 cursor-not-allowed" : "hover:scale-105 hover:-translate-y-0.5 active:scale-95 active:translate-y-0.5"}`;
+
   const inner = (
-    <motion.div
-      whileHover={disabled ? {} : { scale: 1.05, y: -2 }}
-      whileTap={disabled ? {} : { scale: 0.95, y: 2 }}
-      className={`${displayClass} ${className} ${disabled ? "opacity-60 cursor-not-allowed" : ""}`}
+    <div
+      className={innerClass}
       onClick={disabled ? undefined : onClick}
       title={title}
     >
       {children}
-    </motion.div>
+    </div>
   );
 
   if (href && !disabled) {

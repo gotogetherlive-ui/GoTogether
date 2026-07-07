@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
+import { isAdminUser } from '@/lib/admin';
 
 export async function GET() {
   try {
@@ -7,6 +8,7 @@ export async function GET() {
     if (!user) {
       return NextResponse.json({ user: null }, { status: 200 });
     }
+    const isAdmin = await isAdminUser(user);
     // Only expose safe fields to the client
     return NextResponse.json({
       user: {
@@ -25,6 +27,8 @@ export async function GET() {
         phone_verified: user.phone_verified,
         created_at: user.created_at,
         last_login_at: user.last_login_at,
+        terms_accepted_at: user.terms_accepted_at,
+        is_admin: isAdmin,
       },
     });
   } catch {

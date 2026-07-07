@@ -1,0 +1,34 @@
+import { NextResponse } from "next/server";
+import { ensureSchema, getPoolInstance } from "@/lib/db";
+
+export const dynamic = "force-dynamic";
+
+export async function GET() {
+  const startedAt = Date.now();
+
+  try {
+    await ensureSchema();
+    await getPoolInstance().query("SELECT 1");
+
+    return NextResponse.json(
+      {
+        status: "ok",
+        database: "reachable",
+        responseTimeMs: Date.now() - startedAt,
+      },
+      { headers: { "Cache-Control": "no-store" } }
+    );
+  } catch {
+    return NextResponse.json(
+      {
+        status: "unavailable",
+        database: "unreachable",
+        responseTimeMs: Date.now() - startedAt,
+      },
+      {
+        status: 503,
+        headers: { "Cache-Control": "no-store" },
+      }
+    );
+  }
+}

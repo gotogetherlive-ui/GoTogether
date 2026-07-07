@@ -1,7 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
 
 interface Animated3DTextProps {
   children: ReactNode;
@@ -10,19 +9,28 @@ interface Animated3DTextProps {
 }
 
 export default function Animated3DText({ children, className = "", delay = 0 }: Animated3DTextProps) {
-  // A subtle 3D text effect that pops out of the screen
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    // Small timeout to ensure the browser has rendered the initial state before adding the transition class
+    const t = setTimeout(() => setMounted(true), 10);
+    return () => clearTimeout(t);
+  }, []);
+
   return (
-    <motion.div
-      initial={{ opacity: 0, rotateX: 90, z: -100 }}
-      animate={{ opacity: 1, rotateX: 0, z: 0 }}
-      transition={{ duration: 1, delay, ease: [0.22, 1, 0.36, 1] }}
-      className={`inline-block ${className}`}
+    <div
+      className={`inline-block transition-all duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] ${className}`}
       style={{
         transformStyle: "preserve-3d",
         perspective: "1000px",
+        opacity: mounted ? 1 : 0,
+        transform: mounted ? "rotateX(0) translateZ(0)" : "rotateX(90deg) translateZ(-100px)",
+        transitionDelay: `${delay}s`,
+        willChange: "transform, opacity",
+        verticalAlign: "bottom",
       }}
     >
       {children}
-    </motion.div>
+    </div>
   );
 }

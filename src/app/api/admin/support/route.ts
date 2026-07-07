@@ -1,17 +1,16 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import db from '@/lib/db';
-
-const ADMIN_EMAIL = 'gotogether.live@gmail.com';
+import { query } from '@/lib/db';
+import { isAdminUser } from '@/lib/admin';
 
 export async function GET() {
   try {
     const user = await getSession();
-    if (!user || user.email !== ADMIN_EMAIL) {
+    if (!user || !(await isAdminUser(user))) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const tickets = db.prepare(`
+    const tickets = await query(`
       SELECT st.id, st.full_name, st.email, st.phone, st.category, st.subject, st.message,
              st.status, st.admin_notes, st.notification_seen, st.created_at,
              u.full_name as user_account_name, u.avatar_url as user_avatar,
@@ -19,7 +18,7 @@ export async function GET() {
       FROM support_tickets st
       LEFT JOIN users u ON st.user_id = u.id
       ORDER BY st.created_at DESC
-    `).all();
+    `, []);
 
     return NextResponse.json({ tickets });
   } catch (err) {
