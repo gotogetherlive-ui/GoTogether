@@ -86,7 +86,7 @@ export default function PrivacyPage() {
               </div>
               <h3 className="font-bold text-slate-900 mb-2">Full User Control</h3>
               <p className="text-slate-600 text-xs leading-relaxed">
-                Easily download or delete your entire history and restrict location tracking permissions.
+                Request access, correction, deletion, or data portability, and manage location permission in your browser.
               </p>
             </div>
           </div>

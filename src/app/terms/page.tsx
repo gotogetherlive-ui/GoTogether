@@ -273,7 +273,7 @@ export default function TermsPage() {
 
               <Section id="termination" title="11. Termination">
                 <p>
-                  You may delete your account at any time through your account settings. GoTogether
+                  You may request account deletion by contacting support or privacy support. GoTogether
                   may suspend or terminate your account at any time for violation of these Terms,
                   with or without notice.
                 </p>
