@@ -218,15 +218,20 @@ export function validateProductionEnv(env = process.env) {
     errors.push('PAYMENT_PROVIDER must be included in ENABLED_ORGANIZER_PAYMENT_PROVIDERS');
   }
 
+  const requiresPlatformProviderCredentials = paymentMode(env) === 'PLATFORM_CONTROLLED';
   for (const provider of enabledProviders) {
     const missing = (providerEnv[provider] || []).filter((name) => !value(env, name));
-    if (missing.length) {
-      errors.push(`${provider} gateway env vars are missing (${missing.join(', ')}). Enabled production providers require the gateway credentials used for API and signature verification.`);
+    if (requiresPlatformProviderCredentials && missing.length) {
+      errors.push(`${provider} gateway env vars are missing (${missing.join(', ')}). PLATFORM_CONTROLLED mode requires platform gateway credentials for API and signature verification.`);
     }
     for (const name of providerEnv[provider] || []) {
       const raw = value(env, name);
       if (raw && hasPlaceholder(raw)) errors.push(`${name} still looks like a placeholder`);
     }
+  }
+
+  if (paymentMode(env) === 'ORGANIZER_OWNED') {
+    warnings.push('ORGANIZER_OWNED mode uses each organizer\'s verified encrypted provider account credentials; platform Razorpay/Cashfree env vars are optional unless used as fallback credentials.');
   }
 
   return { errors, warnings };

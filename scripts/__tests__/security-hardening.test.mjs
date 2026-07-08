@@ -48,9 +48,25 @@ test("production env validator rejects non-canonical origins and weak secrets", 
   assert(result.errors.some((error) => error.includes("SESSION_SECRET")));
 });
 
-test("production env validator requires enabled provider credentials", () => {
-  const result = validateProductionEnv(strongEnv({ RAZORPAY_WEBHOOK_SECRET: "" }));
-  assert(result.errors.some((error) => error.includes("RAZORPAY gateway env vars are missing")));
+test("production env validator allows organizer-owned mode without platform provider credentials", () => {
+  const result = validateProductionEnv(strongEnv({
+    RAZORPAY_KEY_ID: "",
+    RAZORPAY_KEY_SECRET: "",
+    RAZORPAY_WEBHOOK_SECRET: "",
+    NEXT_PUBLIC_RAZORPAY_KEY_ID: "",
+    CASHFREE_APP_ID: "",
+    CASHFREE_SECRET_KEY: "",
+  }));
+  assert.deepEqual(result.errors, []);
+  assert(result.warnings.some((warning) => warning.includes("ORGANIZER_OWNED mode uses each organizer")));
+});
+
+test("production env validator requires platform provider credentials in platform-controlled mode", () => {
+  const result = validateProductionEnv(strongEnv({
+    PAYMENT_MODE: "PLATFORM_CONTROLLED",
+    RAZORPAY_WEBHOOK_SECRET: "",
+  }));
+  assert(result.errors.some((error) => error.includes("PLATFORM_CONTROLLED mode requires platform gateway credentials")));
 });
 test("production env validator requires verify-full database SSL", () => {
   const result = validateProductionEnv(strongEnv({ DATABASE_URL: "postgresql://app_user:prod-pass@db.gotogether.internal:5432/gotogether?sslmode=require", PGSSLMODE: "require" }));

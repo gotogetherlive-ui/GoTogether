@@ -24,6 +24,7 @@ Required for every production deployment:
 - `PAYMENT_MODE=ORGANIZER_OWNED`, `PLATFORM_CONTROLLED`, or `MARKETPLACE`.
 - `ENABLED_ORGANIZER_PAYMENT_PROVIDERS` and `NEXT_PUBLIC_ENABLED_ORGANIZER_PAYMENT_PROVIDERS`: matching comma-separated provider list, for example `RAZORPAY,CASHFREE`.
 - `PAYMENT_PROVIDER`: required only for `PLATFORM_CONTROLLED`, where platform credentials select the default checkout gateway.
+- Platform Razorpay/Cashfree env credentials are optional in `ORGANIZER_OWNED`; checkout uses each organizer's active verified encrypted provider account instead.
 - Cloudinary, Google OAuth, and Resend credentials.
 - `TRUST_PROXY=true` only when the app is behind a trusted proxy that overwrites forwarding headers.
 - `PG_POOL_MAX` and `WEB_CONCURRENCY` sized for the database connection limit.
