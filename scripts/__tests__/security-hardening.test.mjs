@@ -72,6 +72,11 @@ test("production env validator requires verify-full database SSL", () => {
   const result = validateProductionEnv(strongEnv({ DATABASE_URL: "postgresql://app_user:prod-pass@db.gotogether.internal:5432/gotogether?sslmode=require", PGSSLMODE: "require" }));
   assert(result.errors.some((error) => error.includes("PostgreSQL SSL must use verify-full")));
 });
+test("production env validator warns when unverified database SSL is explicitly enabled", () => {
+  const result = validateProductionEnv(strongEnv({ ALLOW_UNVERIFIED_DATABASE_SSL: "true" }));
+  assert.deepEqual(result.errors, []);
+  assert(result.warnings.some((warning) => warning.includes("certificate-chain verification is skipped")));
+});
 
 
 test("database SSL verifies certificates by default in production", () => {
@@ -83,7 +88,7 @@ test("database SSL verifies certificates by default in production", () => {
 test("database SSL fails closed when production disables TLS verification", () => {
   assert.throws(() => getDatabaseSsl(strongEnv({ NODE_ENV: "production", PGSSLMODE: "disable" })), /cannot be disabled/);
 });
-test("database SSL allows unverified TLS only outside production", () => {
+test("database SSL allows unverified TLS only with explicit opt-in", () => {
   const devSsl = getDatabaseSsl({
     NODE_ENV: "development",
     DATABASE_URL: "postgresql://postgres:postgres@db.supabase.test:5432/postgres?sslmode=verify-full",
@@ -96,7 +101,7 @@ test("database SSL allows unverified TLS only outside production", () => {
     NODE_ENV: "production",
     ALLOW_UNVERIFIED_DATABASE_SSL: "true",
   }));
-  assert.equal(prodSsl.rejectUnauthorized, true);
+  assert.deepEqual(prodSsl, { rejectUnauthorized: false });
 });
 
 test("database SSL keeps localhost development compatible", () => {

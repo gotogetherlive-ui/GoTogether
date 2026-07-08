@@ -7,6 +7,7 @@ export default async function JsonLd({ data }: { data: unknown }) {
   return (
     <script
       nonce={nonce}
+      suppressHydrationWarning
       type="application/ld+json"
       dangerouslySetInnerHTML={{ __html: safeJsonLd(data) }}
     />

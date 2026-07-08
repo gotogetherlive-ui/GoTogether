@@ -199,8 +199,10 @@ export function validateProductionEnv(env = process.env) {
   if (['prefer', 'allow', 'require', 'verify-ca'].includes(effectiveSslMode)) {
     errors.push('PostgreSQL SSL must use verify-full in production; set PGSSLMODE=verify-full or add ?sslmode=verify-full to DATABASE_URL');
   }
-  if (effectiveSslMode === 'verify-full' && !hasTrustedDatabaseCa) {
-    warnings.push('If the database presents a private or self-signed certificate chain, configure PGSSLROOTCERT or PGSSLCA with the trusted CA before deployment.');
+  if (isTruthy(env, 'ALLOW_UNVERIFIED_DATABASE_SSL')) {
+    warnings.push('ALLOW_UNVERIFIED_DATABASE_SSL is enabled; PostgreSQL traffic stays encrypted but certificate-chain verification is skipped. Prefer PGSSLROOTCERT or PGSSLCA when your database provider supplies a trusted CA.');
+  } else if (effectiveSslMode === 'verify-full' && !hasTrustedDatabaseCa) {
+    warnings.push('If the database presents a private or self-signed certificate chain, configure PGSSLROOTCERT or PGSSLCA with the trusted CA before deployment, or explicitly set ALLOW_UNVERIFIED_DATABASE_SSL=true for managed free-tier compatibility.');
   }
   if (isTruthy(env, 'ALLOW_PAYMENT_SIMULATION') && !isTruthy(env, 'ALLOW_UNSAFE_PRODUCTION_PAYMENT_SIMULATION')) {
     errors.push('ALLOW_PAYMENT_SIMULATION=true is unsafe in production without ALLOW_UNSAFE_PRODUCTION_PAYMENT_SIMULATION=true');

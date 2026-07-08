@@ -55,6 +55,7 @@ export default async function RootLayout({
       <body className="min-h-full flex flex-col bg-slate-50 text-slate-900">
         <script
           nonce={nonce}
+          suppressHydrationWarning
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: safeJsonLd([organizationJsonLd(), websiteJsonLd()]) }}
         />
