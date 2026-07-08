@@ -220,7 +220,7 @@ export default function PrivacyPage() {
                 <ul>
                   <li><strong>Data Protection:</strong> privacy@gotogethertrip.com</li>
                   <li><strong>Support:</strong> support@gotogethertrip.com</li>
-                  <li><strong>Address:</strong> GoTogether, New Delhi, India</li>
+                  <li><strong>Address:</strong> GoTogether, Patna, Bihar, India</li>
                 </ul>
               </S>
             </div>
