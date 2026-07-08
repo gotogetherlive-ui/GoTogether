@@ -47,6 +47,10 @@ export function getDatabaseSsl(env = process.env) {
     return false;
   }
 
+  if (!isProd && allowUnverified) {
+    return { rejectUnauthorized: false };
+  }
+
   if (mode === "verify-ca" || mode === "verify-full") {
     return verifiedSsl(env);
   }
