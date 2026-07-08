@@ -4,7 +4,7 @@ import MaintenanceGuard from "@/components/MaintenanceGuard";
 import { Lock, ShieldCheck, EyeOff, UserCheck, ChevronRight, FileText } from "lucide-react";
 
 export const metadata = {
-  title: "Privacy Policy Ã¢â‚¬â€ GoTogether",
+  title: "Privacy Policy - GoTogether",
   description: "Learn how GoTogether collects, uses, and protects your personal data.",
 };
 

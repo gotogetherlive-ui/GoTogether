@@ -4,7 +4,7 @@ import MaintenanceGuard from "@/components/MaintenanceGuard";
 import { Scale, ShieldCheck, AlertTriangle, UserCheck, ChevronRight, FileText } from "lucide-react";
 
 export const metadata = {
-  title: "Terms of Service Ã¢â‚¬â€ GoTogether",
+  title: "Terms of Service - GoTogether",
   description:
     "Read the GoTogether Terms of Service. Understand your rights, responsibilities, and the rules governing your use of our travel platform.",
 };
@@ -159,15 +159,15 @@ export default function TermsPage() {
                 <p>GoTogether operates with three user roles, each with specific permissions:</p>
                 <ul>
                   <li>
-                    <strong>Regular Users</strong> Ã¢â‚¬â€ Can browse trips, submit join requests, and
+                    <strong>Regular Users</strong> - Can browse trips, submit join requests, and
                     create personal trips visible to other users.
                   </li>
                   <li>
-                    <strong>Business Accounts</strong> Ã¢â‚¬â€ Verified businesses that can post commercial
+                    <strong>Business Accounts</strong> - Verified businesses that can post commercial
                     trips. Subject to additional verification requirements and moderation.
                   </li>
                   <li>
-                    <strong>Super Admins</strong> Ã¢â‚¬â€ Platform administrators responsible for content
+                    <strong>Super Admins</strong> - Platform administrators responsible for content
                     moderation, user management, and platform operations.
                   </li>
                 </ul>
