@@ -52,6 +52,11 @@ test("production env validator requires enabled provider credentials", () => {
   const result = validateProductionEnv(strongEnv({ RAZORPAY_WEBHOOK_SECRET: "" }));
   assert(result.errors.some((error) => error.includes("RAZORPAY gateway env vars are missing")));
 });
+test("production env validator requires verify-full database SSL", () => {
+  const result = validateProductionEnv(strongEnv({ DATABASE_URL: "postgresql://app_user:prod-pass@db.gotogether.internal:5432/gotogether?sslmode=require", PGSSLMODE: "require" }));
+  assert(result.errors.some((error) => error.includes("PostgreSQL SSL must use verify-full")));
+});
+
 
 test("database SSL verifies certificates by default in production", () => {
   const ssl = getDatabaseSsl(strongEnv({ NODE_ENV: "production", PGSSLCA: "-----BEGIN CERTIFICATE-----\nCA\n-----END CERTIFICATE-----" }));

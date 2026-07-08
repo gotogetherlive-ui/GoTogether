@@ -1,8 +1,12 @@
+import { headers } from "next/headers";
 import { safeJsonLd } from "@/lib/seo";
 
-export default function JsonLd({ data }: { data: unknown }) {
+export default async function JsonLd({ data }: { data: unknown }) {
+  const nonce = (await headers()).get("x-nonce") || undefined;
+
   return (
     <script
+      nonce={nonce}
       type="application/ld+json"
       dangerouslySetInnerHTML={{ __html: safeJsonLd(data) }}
     />

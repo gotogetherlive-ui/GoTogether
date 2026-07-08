@@ -185,6 +185,10 @@ export function validateProductionEnv(env = process.env) {
     errors.push('DATABASE_URL must be a valid PostgreSQL connection URL');
   }
   const effectiveSslMode = pgSslMode || dbSslMode;
+  const hasTrustedDatabaseCa = Boolean(value(env, 'PGSSLCA') || value(env, 'PGSSLROOTCERT'));
+  if (!effectiveSslMode) {
+    errors.push('PostgreSQL SSL mode must be explicit in production; set PGSSLMODE=verify-full or add ?sslmode=verify-full to DATABASE_URL');
+  }
   if (effectiveSslMode === 'disable') {
     if (!isTruthy(env, 'ALLOW_UNVERIFIED_DATABASE_SSL')) {
       errors.push('PostgreSQL SSL must not be disabled in production without ALLOW_UNVERIFIED_DATABASE_SSL=true');
@@ -192,11 +196,11 @@ export function validateProductionEnv(env = process.env) {
       warnings.push('ALLOW_UNVERIFIED_DATABASE_SSL is enabled; use only for an explicitly approved temporary exception.');
     }
   }
-  if (['prefer', 'allow'].includes(effectiveSslMode)) {
-    errors.push('PGSSLMODE must require TLS in production; use verify-full or verify-ca when possible');
+  if (['prefer', 'allow', 'require', 'verify-ca'].includes(effectiveSslMode)) {
+    errors.push('PostgreSQL SSL must use verify-full in production; set PGSSLMODE=verify-full or add ?sslmode=verify-full to DATABASE_URL');
   }
-  if (effectiveSslMode === 'require') {
-    warnings.push('PGSSLMODE=require will be upgraded to certificate verification by the application; prefer verify-full with a trusted CA.');
+  if (effectiveSslMode === 'verify-full' && !hasTrustedDatabaseCa) {
+    warnings.push('If the database presents a private or self-signed certificate chain, configure PGSSLROOTCERT or PGSSLCA with the trusted CA before deployment.');
   }
   if (isTruthy(env, 'ALLOW_PAYMENT_SIMULATION') && !isTruthy(env, 'ALLOW_UNSAFE_PRODUCTION_PAYMENT_SIMULATION')) {
     errors.push('ALLOW_PAYMENT_SIMULATION=true is unsafe in production without ALLOW_UNSAFE_PRODUCTION_PAYMENT_SIMULATION=true');

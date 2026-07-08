@@ -16,7 +16,7 @@ Use `.env.production.example` as the deployment template. Never commit real valu
 
 Required for every production deployment:
 
-- `DATABASE_URL`: PostgreSQL connection string. Use SSL for managed databases, for example `?sslmode=require` or `PGSSLMODE=require`.
+- `DATABASE_URL`: PostgreSQL connection string. Use `?sslmode=verify-full` or `PGSSLMODE=verify-full` in production. If your provider uses a private or self-signed CA chain, mount the provider CA certificate and set `PGSSLROOTCERT=/path/to/ca.pem` or provide the PEM in `PGSSLCA`.
 - `NEXT_PUBLIC_BASE_URL` and `NEXT_PUBLIC_APP_URL`: the same public `https://` origin for payment callbacks, OAuth callbacks, and browser redirects.
 - `SUPER_ADMIN_EMAIL`: initial super-admin identity. Add the same normalized email to `admin_accounts`.
 - `CRON_SECRET`: long random secret sent as `Authorization: Bearer ...` to cron routes.
@@ -66,7 +66,7 @@ Webhook confirmation is the source of truth. Frontend checkout acknowledgement o
 ## Deployment
 
 1. Use TLS at the platform edge or load balancer. Do not run production payment callbacks over plain HTTP.
-2. Restrict PostgreSQL and management interfaces to private networks.
+2. Restrict PostgreSQL and management interfaces to private networks. Configure PostgreSQL TLS with hostname verification (`verify-full`) and a trusted CA (`PGSSLROOTCERT` or `PGSSLCA`) when the server certificate is not trusted by the system bundle.
 3. Run all SQL migrations in `db/migrations` before deploying code that depends on them.
 4. Configure provider webhook/callback URLs using the exact public origin in `NEXT_PUBLIC_BASE_URL`.
 5. Run `npm ci`, then `npm run release:check` with production environment variables present.

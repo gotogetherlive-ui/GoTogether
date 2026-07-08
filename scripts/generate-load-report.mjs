@@ -131,7 +131,7 @@ Not inferred from this report. Attach \`npm test\` output.
 
 ## 7. DB-Backed Booking Concurrency Result
 
-Not inferred from this report. Attach \`npm run test:bookings\` output.
+Not inferred from this report. Attach \`npm test\` output and any booking-specific regression evidence from the release run.
 
 ## 8. k6 Profiles Executed
 

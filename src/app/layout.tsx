@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import "./globals.css";
 import { getAppSettings } from "@/lib/settings";
 import SessionProvider from "@/components/SessionProvider";
@@ -16,6 +17,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const nonce = (await headers()).get("x-nonce") || undefined;
   // Server-side: fetch settings (uses fast 60s cache, not dynamic)
   const settings = await getAppSettings();
   const sessionUser = await getSession();
@@ -52,6 +54,7 @@ export default async function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-slate-50 text-slate-900">
         <script
+          nonce={nonce}
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: safeJsonLd([organizationJsonLd(), websiteJsonLd()]) }}
         />
