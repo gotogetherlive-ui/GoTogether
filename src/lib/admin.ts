@@ -8,17 +8,27 @@ import type { SessionUser } from './auth';
 export const SUPER_ADMIN_EMAIL =
   (process.env.SUPER_ADMIN_EMAIL || 'gotogether.live@gmail.com').trim().toLowerCase();
 
-// ─── Admin Email Cache (refreshed every 2 minutes) ──────────────────
-// Admin list rarely changes, cache it to avoid a DB query per request.
+const ADMIN_CACHE_TTL = 2 * 60 * 1000;
+let cachedAdminEmails: Set<string> | null = null;
+let adminCacheExpiresAt = 0;
+
 /** Invalidate admin cache (call after adding/removing admins) */
 export function invalidateAdminCache() {
-  // Retained for API compatibility; authorization now reads PostgreSQL directly.
+  cachedAdminEmails = null;
+  adminCacheExpiresAt = 0;
 }
 
 async function getAdminEmails(): Promise<Set<string>> {
+  const now = Date.now();
+  if (cachedAdminEmails && now < adminCacheExpiresAt) {
+    return cachedAdminEmails;
+  }
+
   await ensureSchema();
   const rows = await query<{ email: string }>('SELECT email FROM admin_accounts');
-  return new Set(rows.map(r => r.email.trim().toLowerCase()));
+  cachedAdminEmails = new Set(rows.map(r => r.email.trim().toLowerCase()));
+  adminCacheExpiresAt = now + ADMIN_CACHE_TTL;
+  return cachedAdminEmails;
 }
 
 /**

@@ -22,7 +22,7 @@ function hashSessionToken(token: string): string {
 }
 
 // ─── Session Cache (reduces DB lookups by ~80%) ──────────────────────
-const SESSION_CACHE_TTL = 0; // authorization changes must take effect immediately
+const SESSION_CACHE_TTL = 30 * 1000; // short TTL avoids repeated DB hits during navigation
 const sessionCache = new Map<string, { user: SessionUser; expiresAt: number }>();
 
 // Periodic cleanup of expired cache entries (every 10 minutes)

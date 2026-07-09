@@ -14,7 +14,7 @@ export interface AppSettings {
 }
 
 // Simple in-memory cache to prevent database reads on every route invocation.
-// Caches settings for 5 seconds.
+// Caches settings for 60 seconds.
 let cachedSettings: AppSettings | null = null;
 let cacheExpiry = 0;
 
@@ -60,7 +60,7 @@ export async function getAppSettings(): Promise<AppSettings> {
     };
 
     cachedSettings = settings;
-    cacheExpiry = now + 5000; // 5 seconds cache
+    cacheExpiry = now + 60 * 1000; // 60 seconds cache
     return settings;
   } catch (err) {
     console.error('[SETTINGS] Failed to read app settings:', err);

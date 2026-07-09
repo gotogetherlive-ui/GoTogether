@@ -18,9 +18,11 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const nonce = (await headers()).get("x-nonce") || undefined;
-  // Server-side: fetch settings (uses fast 60s cache, not dynamic)
-  const settings = await getAppSettings();
-  const sessionUser = await getSession();
+  const [settings, sessionUser] = await Promise.all([
+    getAppSettings(),
+    getSession(),
+  ]);
+  const isAdmin = sessionUser ? await isAdminUser(sessionUser) : false;
   const serverUser = sessionUser
     ? {
         id: sessionUser.id,
@@ -39,10 +41,9 @@ export default async function RootLayout({
         created_at: sessionUser.created_at,
         last_login_at: sessionUser.last_login_at,
         terms_accepted_at: sessionUser.terms_accepted_at,
-        is_admin: await isAdminUser(sessionUser),
+        is_admin: isAdmin,
       }
     : null;
-
   const maintenanceMode = !!settings?.maintenance_mode;
 
   return (
