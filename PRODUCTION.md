@@ -16,7 +16,7 @@ Use `.env.production.example` as the deployment template. Never commit real valu
 
 Required for every production deployment:
 
-- `DATABASE_URL`: PostgreSQL connection string. Use `?sslmode=verify-full` or `PGSSLMODE=verify-full` in production. If your provider uses a private or self-signed CA chain, mount the provider CA certificate and set `PGSSLROOTCERT=/path/to/ca.pem` or provide the PEM in `PGSSLCA`. For managed free-tier databases where the CA is not available, explicitly set `ALLOW_UNVERIFIED_DATABASE_SSL=true`; traffic remains encrypted but certificate-chain verification is skipped.
+- `DATABASE_URL`: PostgreSQL connection string. Use `?sslmode=verify-full` or `PGSSLMODE=verify-full` in production. If the database password contains special characters such as `@`, `#`, `%`, `/`, `?`, `:`, or spaces, URL-encode the password in the connection string before deploying. If your provider uses a private or self-signed CA chain, mount the provider CA certificate and set `PGSSLROOTCERT=/path/to/ca.pem` or provide the PEM in `PGSSLCA`. For managed free-tier databases where the CA is not available, explicitly set `ALLOW_UNVERIFIED_DATABASE_SSL=true`; traffic remains encrypted but certificate-chain verification is skipped.
 - `NEXT_PUBLIC_BASE_URL` and `NEXT_PUBLIC_APP_URL`: the same public `https://` origin for payment callbacks, OAuth callbacks, and browser redirects.
 - `SUPER_ADMIN_EMAIL`: initial super-admin identity. Add the same normalized email to `admin_accounts`.
 - `CRON_SECRET`: long random secret sent as `Authorization: Bearer ...` to cron routes.

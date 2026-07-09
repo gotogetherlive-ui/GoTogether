@@ -68,6 +68,13 @@ test("production env validator requires platform provider credentials in platfor
   }));
   assert(result.errors.some((error) => error.includes("PLATFORM_CONTROLLED mode requires platform gateway credentials")));
 });
+
+test("production env validator explains malformed database URLs", () => {
+  const result = validateProductionEnv(strongEnv({
+    DATABASE_URL: "postgresql://app_user:bad#password@db.gotogether.internal:5432/gotogether?sslmode=verify-full",
+  }));
+  assert(result.errors.some((error) => error.includes("URL-encode the password")));
+});
 test("production env validator requires verify-full database SSL", () => {
   const result = validateProductionEnv(strongEnv({ DATABASE_URL: "postgresql://app_user:prod-pass@db.gotogether.internal:5432/gotogether?sslmode=require", PGSSLMODE: "require" }));
   assert(result.errors.some((error) => error.includes("PostgreSQL SSL must use verify-full")));
@@ -104,6 +111,16 @@ test("database SSL allows unverified TLS only with explicit opt-in", () => {
   assert.deepEqual(prodSsl, { rejectUnauthorized: false });
 });
 
+
+test("database SSL allows Supabase pooler TLS without local CA bundle", () => {
+  const ssl = getDatabaseSsl(strongEnv({
+    NODE_ENV: "production",
+    DATABASE_URL: "postgresql://postgres.project:encoded@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=verify-full",
+    PGSSLROOTCERT: "",
+    PGSSLCA: "",
+  }));
+  assert.deepEqual(ssl, { rejectUnauthorized: false });
+});
 test("database SSL keeps localhost development compatible", () => {
   const ssl = getDatabaseSsl({ NODE_ENV: "development", DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/gotogether" });
   assert.equal(ssl, false);

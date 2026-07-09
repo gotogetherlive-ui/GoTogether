@@ -28,6 +28,10 @@ function verifiedSsl(env) {
   return ca ? { rejectUnauthorized: true, ca } : { rejectUnauthorized: true };
 }
 
+function isSupabasePoolerHost(hostname) {
+  return typeof hostname === "string" && hostname.endsWith(".pooler.supabase.com");
+}
+
 export function getDatabaseSsl(env = process.env) {
   const nodeEnv = env.NODE_ENV || "development";
   const isProd = nodeEnv === "production";
@@ -48,6 +52,13 @@ export function getDatabaseSsl(env = process.env) {
   }
 
   if (allowUnverified) {
+    return { rejectUnauthorized: false };
+  }
+
+  // Supabase transaction/session pooler endpoints can present a certificate
+  // chain that is not trusted by some serverless runtimes. Keep TLS encrypted
+  // while skipping chain verification for those pooler hosts only.
+  if (!configuredCa(env) && isSupabasePoolerHost(parsedUrl?.hostname)) {
     return { rejectUnauthorized: false };
   }
 

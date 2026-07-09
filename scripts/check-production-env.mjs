@@ -3,6 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { parse as parseDatabaseConnectionString } from 'pg-connection-string';
 
 const required = [
   'DATABASE_URL',
@@ -180,9 +181,9 @@ export function validateProductionEnv(env = process.env) {
   const pgSslMode = value(env, 'PGSSLMODE').toLowerCase();
   let dbSslMode = '';
   try {
-    dbSslMode = dbUrl ? new URL(dbUrl).searchParams.get('sslmode')?.toLowerCase() || '' : '';
+    dbSslMode = dbUrl ? parseDatabaseConnectionString(dbUrl).sslmode?.toLowerCase() || new URL(dbUrl).searchParams.get('sslmode')?.toLowerCase() || '' : '';
   } catch {
-    errors.push('DATABASE_URL must be a valid PostgreSQL connection URL');
+    errors.push('DATABASE_URL must be a valid PostgreSQL connection URL. If the password contains special characters such as @, #, %, /, ?, :, or spaces, URL-encode the password.');
   }
   const effectiveSslMode = pgSslMode || dbSslMode;
   const hasTrustedDatabaseCa = Boolean(value(env, 'PGSSLCA') || value(env, 'PGSSLROOTCERT'));

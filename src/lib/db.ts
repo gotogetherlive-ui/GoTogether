@@ -1,6 +1,7 @@
 import { Pool, PoolClient } from 'pg';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { getDatabaseSsl } from './databaseSsl';
+import { parse as parseDatabaseConnectionString } from 'pg-connection-string';
 
 // Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
 // PostgreSQL Connection Pool
@@ -14,19 +15,33 @@ const globalForDb = globalThis as unknown as {
   __schemaRetryAt?: number;
 };
 
+function getDatabaseUrl(): string {
+  const databaseUrl = process.env.DATABASE_URL?.trim();
+  if (!databaseUrl) {
+    throw new Error('DATABASE_URL is required. Set it to your PostgreSQL connection string.');
+  }
+
+  try {
+    parseDatabaseConnectionString(databaseUrl);
+  } catch {
+    throw new Error('DATABASE_URL is not a valid PostgreSQL URL. If the database password contains special characters such as @, #, %, /, ?, :, or spaces, URL-encode the password before deploying.');
+  }
+
+  return databaseUrl;
+}
+
 function getPool(): Pool {
   if (globalForDb.__pgPool) {
     return globalForDb.__pgPool;
   }
 
   const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: getDatabaseUrl(),
     ssl: getDatabaseSsl(),
     max: Math.max(1, parseInt(process.env.PG_POOL_MAX || '5', 10)),
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 5000,
   });
-
   pool.on('error', (err) => {
     console.error('[PG POOL] Unexpected error on idle client', err);
   });
