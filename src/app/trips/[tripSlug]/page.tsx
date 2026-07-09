@@ -31,6 +31,8 @@ type TripDetails = {
   b2c_price?: string | null;
   gotogether_price?: string | null;
   start_date?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
   max_capacity?: number | null;
   registration_closed?: number | null;
   organizer_id: string;
@@ -64,10 +66,24 @@ function numericPrice(value: string | null): number | null {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
+function isoDate(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString().slice(0, 10);
+}
+
+function tripEndDate(startDate: string | null, durationDays: number): string | null {
+  if (!startDate || durationDays <= 0) return null;
+  const date = new Date(`${startDate}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime())) return null;
+  date.setUTCDate(date.getUTCDate() + Math.max(durationDays - 1, 0));
+  return date.toISOString().slice(0, 10);
+}
 async function getPublicTripById(id: string): Promise<TripDetails | null> {
   return queryOne<TripDetails>(`
     SELECT
-      t.id, t.organizer_id, t.title, t.description, t.destination, t.duration_days, t.duration_nights, t.image_url, t.images, t.status, t.slug, t.trip_type, t.pickup_point, t.drop_point, t.b2b_price, t.b2c_price, t.gotogether_price, t.start_date, t.max_capacity, t.registration_closed,
+      t.id, t.organizer_id, t.title, t.description, t.destination, t.duration_days, t.duration_nights, t.image_url, t.images, t.status, t.slug, t.trip_type, t.pickup_point, t.drop_point, t.b2b_price, t.b2c_price, t.gotogether_price, t.start_date, t.created_at, t.updated_at, t.max_capacity, t.registration_closed,
       u.full_name as organizer_name, u.organizer_slug, u.role as organizer_role, u.avatar_url as organizer_avatar
     FROM trips t
     JOIN users u ON t.organizer_id = u.id
@@ -86,7 +102,7 @@ function looksLikeTripId(value: string): boolean {
 async function getPublicTripBySlug(slug: string): Promise<TripDetails | null> {
   return queryOne<TripDetails>(`
     SELECT
-      t.id, t.organizer_id, t.title, t.description, t.destination, t.duration_days, t.duration_nights, t.image_url, t.images, t.status, t.slug, t.trip_type, t.pickup_point, t.drop_point, t.b2b_price, t.b2c_price, t.gotogether_price, t.start_date, t.max_capacity, t.registration_closed,
+      t.id, t.organizer_id, t.title, t.description, t.destination, t.duration_days, t.duration_nights, t.image_url, t.images, t.status, t.slug, t.trip_type, t.pickup_point, t.drop_point, t.b2b_price, t.b2c_price, t.gotogether_price, t.start_date, t.created_at, t.updated_at, t.max_capacity, t.registration_closed,
       u.full_name as organizer_name, u.organizer_slug, u.role as organizer_role, u.avatar_url as organizer_avatar
     FROM trips t
     JOIN users u ON t.organizer_id = u.id
@@ -101,7 +117,7 @@ async function getPublicTripBySlug(slug: string): Promise<TripDetails | null> {
 async function getPublicTripByOldSlug(slug: string): Promise<TripDetails | null> {
   return queryOne<TripDetails>(`
     SELECT
-      t.id, t.organizer_id, t.title, t.description, t.destination, t.duration_days, t.duration_nights, t.image_url, t.images, t.status, t.slug, t.trip_type, t.pickup_point, t.drop_point, t.b2b_price, t.b2c_price, t.gotogether_price, t.start_date, t.max_capacity, t.registration_closed,
+      t.id, t.organizer_id, t.title, t.description, t.destination, t.duration_days, t.duration_nights, t.image_url, t.images, t.status, t.slug, t.trip_type, t.pickup_point, t.drop_point, t.b2b_price, t.b2c_price, t.gotogether_price, t.start_date, t.created_at, t.updated_at, t.max_capacity, t.registration_closed,
       u.full_name as organizer_name, u.organizer_slug, u.role as organizer_role, u.avatar_url as organizer_avatar
     FROM public.trip_slug_history h
     JOIN trips t ON h.trip_id = t.id
@@ -191,6 +207,9 @@ export default async function TripDetailsPage({ params, searchParams }: Props) {
   const imageList = parseImages(trip);
   const displayedPrice = priceText(trip);
   const offerPrice = numericPrice(displayedPrice);
+  const startDate = isoDate(trip.start_date);
+  const endDate = tripEndDate(startDate, durationDays);
+  const tripDuration = durationDays > 0 ? `P${durationDays}D` : undefined;
   const faqs = [
     {
       question: `What is included in ${trip.title}?`,
@@ -208,7 +227,8 @@ export default async function TripDetailsPage({ params, searchParams }: Props) {
     "@type": "Product",
     name: trip.title,
     description: trip.description,
-    image: imageList,
+    image: imageList.length ? imageList : undefined,
+    url: absoluteUrl(`/trips/${canonicalSlug}`),
     brand: { "@type": "Brand", name: "GoTogether" },
     category: trip.trip_type || "Group trip",
     offers: offerPrice
@@ -218,7 +238,7 @@ export default async function TripDetailsPage({ params, searchParams }: Props) {
           price: offerPrice,
           availability: trip.registration_closed ? "https://schema.org/SoldOut" : "https://schema.org/InStock",
           url: absoluteUrl(`/trips/${canonicalSlug}`),
-          seller: { "@type": "Organization", name: trip.organizer_name || "Verified Organizer" },
+          seller: { "@type": "Organization", name: trip.organizer_name || "Verified Organizer", url: absoluteUrl(`/organizers/${organizerSlug}`) },
         }
       : undefined,
   };
@@ -228,7 +248,12 @@ export default async function TripDetailsPage({ params, searchParams }: Props) {
     "@type": "TouristTrip",
     name: trip.title,
     description: trip.description,
-    image: imageList,
+    image: imageList.length ? imageList : undefined,
+    url: absoluteUrl(`/trips/${canonicalSlug}`),
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
+    duration: tripDuration,
+    touristDestination: { "@type": "TouristDestination", name: trip.destination },
     touristType: "Group travelers",
     provider: {
       "@type": "Organization",
@@ -241,6 +266,16 @@ export default async function TripDetailsPage({ params, searchParams }: Props) {
         { "@type": "ListItem", position: 1, name: trip.destination },
       ],
     },
+    offers: offerPrice
+      ? {
+          "@type": "Offer",
+          priceCurrency: "INR",
+          price: offerPrice,
+          availability: trip.registration_closed ? "https://schema.org/SoldOut" : "https://schema.org/InStock",
+          url: absoluteUrl(`/trips/${canonicalSlug}`),
+          seller: { "@type": "Organization", name: trip.organizer_name || "Verified Organizer", url: absoluteUrl(`/organizers/${organizerSlug}`) },
+        }
+      : undefined,
   };
 
   const tripView = {
@@ -314,9 +349,3 @@ export default async function TripDetailsPage({ params, searchParams }: Props) {
     </div>
   );
 }
-
-
-
-
-
-

@@ -170,7 +170,7 @@ export function organizationJsonLd() {
     "@type": "Organization",
     name: SITE_NAME,
     url: absoluteUrl("/"),
-    logo: absoluteUrl(DEFAULT_OG_IMAGE),
+    logo: absoluteUrl("/favicon.ico"),
     description:
       "GoTogether is an India-focused travel marketplace that helps users discover and book verified group trips, backpacking trips, weekend trips, trekking trips, bike trips, women-only trips, solo travel groups, and curated travel experiences from trusted organizers.",
     sameAs: [INSTAGRAM_URL, WHATSAPP_COMMUNITY_URL],

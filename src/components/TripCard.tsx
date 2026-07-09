@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { MapPin, Calendar, ShieldCheck } from "lucide-react";
 import Tilt from "react-parallax-tilt";
@@ -110,11 +111,13 @@ export default function TripCard({ trip, linkToTrips = false }: TripCardProps) {
         {imageList.length > 0 ? (
           <>
             {imageList.map((src, idx) => (
-              <img
+              <Image
                 key={idx}
                 src={src}
-                alt={trip.destination}
-                className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${
+                alt={`${trip.title} group trip image in ${trip.destination}`}
+                fill
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                className={`object-cover transition-opacity duration-700 ${
                   idx === currentImageIndex ? "opacity-100" : "opacity-0"
                 } group-hover:scale-105 transition-transform duration-700`}
               />
@@ -217,7 +220,7 @@ export default function TripCard({ trip, linkToTrips = false }: TripCardProps) {
           <Link href={trip.organizer_slug ? `/organizers/${trip.organizer_slug}` : href} className="flex items-center gap-2 min-w-0">
             <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-white shadow-inner ${trip.organizer_role === 'super_admin' ? 'bg-gradient-to-tr from-orange-400 to-rose-400' : 'bg-blue-100 text-blue-600 border border-blue-200'}`}>
               {trip.organizer_avatar ? (
-                <img src={trip.organizer_avatar} alt="Avatar" className="w-full h-full rounded-full object-cover" />
+                <Image src={trip.organizer_avatar} alt={`${trip.organizer_name || "Organizer"} profile image`} width={32} height={32} className="w-full h-full rounded-full object-cover" />
               ) : (
                 trip.organizer_name?.charAt(0) || "O"
               )}
@@ -240,8 +243,3 @@ export default function TripCard({ trip, linkToTrips = false }: TripCardProps) {
     </Tilt>
   );
 }
-
-
-
-
-

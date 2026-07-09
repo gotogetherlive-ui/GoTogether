@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import JsonLd from "@/components/JsonLd";
 import { query } from "@/lib/db";
-import { buildMetadata } from "@/lib/seo";
+import { absoluteUrl, breadcrumbJsonLd, buildMetadata } from "@/lib/seo";
 import { ensureOrganizerSlug } from "@/lib/organizer-slugs";
 
 export const dynamic = "force-dynamic";
@@ -45,6 +46,24 @@ export default async function OrganizersPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
+      <JsonLd data={breadcrumbJsonLd([{ name: "Home", path: "/" }, { name: "Organizers", path: "/organizers" }])} />
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "CollectionPage",
+          name: "Verified Travel Organizers on GoTogether",
+          url: absoluteUrl("/organizers"),
+          mainEntity: {
+            "@type": "ItemList",
+            itemListElement: organizers.map((organizer, index) => ({
+              "@type": "ListItem",
+              position: index + 1,
+              name: organizer.full_name || "Verified Organizer",
+              url: absoluteUrl(`/organizers/${organizer.organizer_slug}`),
+            })),
+          },
+        }}
+      />
       <Navbar />
       <main className="flex-1 pt-28 pb-20 px-6 md:px-12 max-w-6xl mx-auto w-full">
         <h1 className="text-4xl md:text-6xl font-extrabold mb-5">Verified Travel Organizers</h1>

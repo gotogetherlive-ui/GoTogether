@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { buildMetadata } from "@/lib/seo";
+import JsonLd from "@/components/JsonLd";
+import { absoluteUrl, breadcrumbJsonLd, buildMetadata } from "@/lib/seo";
 import { guidePages } from "@/lib/seo-content";
 
 export const metadata: Metadata = buildMetadata({
@@ -15,6 +16,24 @@ export const metadata: Metadata = buildMetadata({
 export default function GuidesPage() {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
+      <JsonLd data={breadcrumbJsonLd([{ name: "Home", path: "/" }, { name: "Guides", path: "/guides" }])} />
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "CollectionPage",
+          name: "GoTogether Group Trip Guides",
+          url: absoluteUrl("/guides"),
+          mainEntity: {
+            "@type": "ItemList",
+            itemListElement: guidePages.map((guide, index) => ({
+              "@type": "ListItem",
+              position: index + 1,
+              name: guide.title,
+              url: absoluteUrl(`/guides/${guide.slug}`),
+            })),
+          },
+        }}
+      />
       <Navbar />
       <main className="flex-1 pt-28 pb-20 px-6 md:px-12 max-w-6xl mx-auto w-full">
         <h1 className="text-4xl md:text-6xl font-extrabold mb-5">Group Trip Guides</h1>

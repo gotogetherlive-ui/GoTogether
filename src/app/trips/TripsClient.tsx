@@ -6,7 +6,7 @@ import { Search } from "lucide-react";
 
 export default function TripsClient({ initialTrips }: { initialTrips: TripSummary[] }) {
   // Search & Filter State
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(() => typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("q") || "");
   const [filterDate, setFilterDate] = useState("");
   const [filterDuration, setFilterDuration] = useState("");
 

@@ -73,10 +73,20 @@ export default async function DestinationPage({ params }: Props) {
           name: `${destination.name} Group Trips`,
           url: absoluteUrl(`/destinations/${destination.slug}`),
           description: `Verified ${destination.name} group trips and travel experiences on GoTogether.`,
+          mainEntity: { "@id": absoluteUrl(`/destinations/${destination.slug}#destination`) },
+        },
+        {
+          "@context": "https://schema.org",
+          "@type": "TouristDestination",
+          "@id": absoluteUrl(`/destinations/${destination.slug}#destination`),
+          name: destination.name,
+          url: absoluteUrl(`/destinations/${destination.slug}`),
+          description: `${destination.name} travel destination page covering group trips, best time to visit, popular experiences, and booking checks.`,
+          touristType: "Group travelers",
+          subjectOf: { "@type": "WebPage", url: absoluteUrl(`/destinations/${destination.slug}`) },
         },
         faqJsonLd(faqs),
       ]}
     />
   );
 }
-

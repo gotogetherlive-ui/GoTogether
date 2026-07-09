@@ -311,8 +311,9 @@ export default function TripDetailsClient({ trip }: { trip: any }) {
               <Image
                 key={idx}
                 src={src}
-                alt={trip.title}
+                alt={`${trip.title} trip image in ${trip.destination}`}
                 fill
+                sizes="(max-width: 768px) 100vw, 896px"
                 className={`object-cover transition-opacity duration-500 ${idx === currentImg ? "opacity-100" : "opacity-0"}`}
               />
             ))}
@@ -322,12 +323,14 @@ export default function TripDetailsClient({ trip }: { trip: any }) {
                 <button
                   onClick={() => setCurrentImg((p) => (p - 1 + imageList.length) % imageList.length)}
                   className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm text-white flex items-center justify-center hover:bg-black/60 transition-colors z-10"
+                  aria-label="Show previous trip image"
                 >
                   <ChevronLeft className="w-5 h-5" />
                 </button>
                 <button
                   onClick={() => setCurrentImg((p) => (p + 1) % imageList.length)}
                   className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm text-white flex items-center justify-center hover:bg-black/60 transition-colors z-10"
+                  aria-label="Show next trip image"
                 >
                   <ChevronRight className="w-5 h-5" />
                 </button>
@@ -337,6 +340,7 @@ export default function TripDetailsClient({ trip }: { trip: any }) {
                     <button
                       key={idx}
                       onClick={() => setCurrentImg(idx)}
+                      aria-label={`Show ${trip.title} image ${idx + 1}`}
                       className={`w-2 h-2 rounded-full transition-all duration-300 ${
                         idx === currentImg ? "bg-white w-6" : "bg-white/50"
                       }`}
@@ -410,7 +414,7 @@ export default function TripDetailsClient({ trip }: { trip: any }) {
                       idx === currentImg ? "border-orange-500 ring-2 ring-orange-200" : "border-slate-200 hover:border-slate-300"
                     }`}
                   >
-                    <img src={src} alt={`Gallery ${idx + 1}`} className="w-full h-full object-cover" />
+                    <Image src={src} alt={`${trip.title} gallery image ${idx + 1} in ${trip.destination}`} width={160} height={160} className="w-full h-full object-cover" />
                   </button>
                 ))}
               </div>

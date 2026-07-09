@@ -156,11 +156,21 @@ export default async function OrganizerPage({ params }: Props) {
       <JsonLd
         data={{
           "@context": "https://schema.org",
-          "@type": "Organization",
+          "@type": organizer.role === "business" ? "TravelAgency" : "Organization",
           name: organizer.full_name || "Verified Organizer",
+          description: `Public GoTogether organizer profile for ${organizer.full_name || "this organizer"}, showing live public trips and destinations served.`,
           url: absoluteUrl(`/organizers/${canonicalSlug}`),
+          logo: organizer.avatar_url || undefined,
           image: organizer.avatar_url || undefined,
-          makesOffer: trips.map((trip) => ({ "@type": "Offer", itemOffered: { "@type": "TouristTrip", name: trip.title, url: absoluteUrl(`/trips/${trip.slug}`) } })),
+          makesOffer: trips.map((trip) => ({
+            "@type": "Offer",
+            itemOffered: {
+              "@type": "TouristTrip",
+              name: trip.title,
+              url: absoluteUrl(`/trips/${trip.slug}`),
+              touristDestination: trip.destination ? { "@type": "TouristDestination", name: trip.destination } : undefined,
+            },
+          })),
         }}
       />
       <Navbar />

@@ -6,6 +6,9 @@ import { commonFaqs, faqJsonLd, guidePages } from "@/lib/seo-content";
 
 type Props = { params: Promise<{ guideSlug: string }> };
 
+const GUIDE_CONTENT_PUBLISHED_AT = "2026-07-07T15:43:05+05:30";
+const GUIDE_CONTENT_MODIFIED_AT = "2026-07-09T00:00:00+05:30";
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { guideSlug } = await params;
   const guide = guidePages.find((item) => item.slug === guideSlug);
@@ -64,8 +67,13 @@ export default async function GuidePage({ params }: Props) {
           "@context": "https://schema.org",
           "@type": "Article",
           headline: guide.title,
+          description: `${guide.title} from GoTogether helps travelers compare public trip details, organizer profiles, safety notes, policies, and booking checks before joining a group trip.`,
+          author: { "@type": "Organization", name: "GoTogether", url: absoluteUrl("/") },
+          publisher: { "@type": "Organization", name: "GoTogether", url: absoluteUrl("/") },
+          datePublished: GUIDE_CONTENT_PUBLISHED_AT,
+          dateModified: GUIDE_CONTENT_MODIFIED_AT,
+          mainEntityOfPage: { "@type": "WebPage", "@id": absoluteUrl(`/guides/${guide.slug}`) },
           url: absoluteUrl(`/guides/${guide.slug}`),
-          publisher: { "@type": "Organization", name: "GoTogether" },
         },
         faqJsonLd(faqs),
       ]}

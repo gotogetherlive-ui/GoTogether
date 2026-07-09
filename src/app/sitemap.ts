@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { query } from "@/lib/db";
-import { absoluteUrl } from "@/lib/seo";
+import { absoluteUrl, isPrivatePath } from "@/lib/seo";
 import { categories, cityPages, destinations, guidePages, trustPages } from "@/lib/seo-content";
 import { ensureTripSlug } from "@/lib/slugs";
 import { ensureOrganizerSlug } from "@/lib/organizer-slugs";
@@ -9,27 +9,43 @@ export const dynamic = "force-dynamic";
 
 type SitemapEntry = MetadataRoute.Sitemap[number];
 
-function entry(path: string, priority: number, changeFrequency: SitemapEntry["changeFrequency"] = "weekly"): SitemapEntry {
+const STATIC_LAST_MODIFIED = new Date("2026-07-09T00:00:00.000+05:30");
+
+function entry(path: string, priority: number, changeFrequency: SitemapEntry["changeFrequency"] = "weekly", lastModified: SitemapEntry["lastModified"] = STATIC_LAST_MODIFIED): SitemapEntry {
   return {
     url: absoluteUrl(path),
+    lastModified,
     changeFrequency,
     priority,
   };
 }
 
+function publicEntry(path: string, priority: number, changeFrequency: SitemapEntry["changeFrequency"] = "weekly"): SitemapEntry | null {
+  return isPrivatePath(path) ? null : entry(path, priority, changeFrequency);
+}
+
+function uniqueEntries(entries: SitemapEntry[]): MetadataRoute.Sitemap {
+  const seen = new Set<string>();
+  return entries.filter((item) => {
+    if (seen.has(item.url)) return false;
+    seen.add(item.url);
+    return true;
+  });
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const staticEntries: SitemapEntry[] = [
-    entry("/", 1, "daily"),
-    entry("/trips", 0.95, "daily"),
-    entry("/destinations", 0.9),
-    entry("/organizers", 0.8),
-    entry("/guides", 0.75),
-    ...categories.map((category) => entry(`/${category.slug}`, 0.85)),
-    ...cityPages.map((page) => entry(`/${page.slug}`, 0.82)),
-    ...destinations.map((destination) => entry(`/destinations/${destination.slug}`, 0.86)),
-    ...guidePages.map((guide) => entry(`/guides/${guide.slug}`, 0.7, "monthly")),
-    ...trustPages.map((page) => entry(page.path, 0.65, "monthly")),
-  ];
+  const staticEntries = [
+    publicEntry("/", 1, "daily"),
+    publicEntry("/trips", 0.95, "daily"),
+    publicEntry("/destinations", 0.9),
+    publicEntry("/organizers", 0.8),
+    publicEntry("/guides", 0.75),
+    ...categories.map((category) => publicEntry(`/${category.slug}`, 0.85)),
+    ...cityPages.map((page) => publicEntry(`/${page.slug}`, 0.82)),
+    ...destinations.map((destination) => publicEntry(`/destinations/${destination.slug}`, 0.86)),
+    ...guidePages.map((guide) => publicEntry(`/guides/${guide.slug}`, 0.7, "monthly")),
+    ...trustPages.map((page) => publicEntry(page.path, 0.65, "monthly")),
+  ].filter((item): item is SitemapEntry => Boolean(item));
 
   try {
     const trips = await query<{ id: string; title: string; destination?: string | null; slug?: string | null; updated_at?: string | null; created_at?: string | null; image_url?: string | null }>(
@@ -56,29 +72,30 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       const tripSlug = await ensureTripSlug(trip);
       return {
         url: absoluteUrl(`/trips/${tripSlug}`),
-        lastModified: trip.updated_at || trip.created_at || undefined,
+        lastModified: trip.updated_at || trip.created_at || STATIC_LAST_MODIFIED,
         changeFrequency: "weekly" as const,
         priority: 0.78,
         images: trip.image_url ? [trip.image_url] : undefined,
       };
     }));
 
-    return [
+    const organizerEntries = await Promise.all(organizers.map(async (organizer) => {
+      const organizerSlug = await ensureOrganizerSlug(organizer);
+      return {
+        url: absoluteUrl(`/organizers/${organizerSlug}`),
+        lastModified: organizer.updated_at || organizer.created_at || STATIC_LAST_MODIFIED,
+        changeFrequency: "weekly" as const,
+        priority: 0.72,
+      };
+    }));
+
+    return uniqueEntries([
       ...staticEntries,
       ...tripEntries,
-      ...(await Promise.all(organizers.map(async (organizer) => {
-        const organizerSlug = await ensureOrganizerSlug(organizer);
-        return {
-          url: absoluteUrl(`/organizers/${organizerSlug}`),
-          lastModified: organizer.updated_at || organizer.created_at || undefined,
-          changeFrequency: "weekly" as const,
-          priority: 0.72,
-        };
-      }))),
-    ];
+      ...organizerEntries,
+    ]);
   } catch (error) {
     console.error("Failed to load dynamic sitemap entries", error);
-    return staticEntries;
+    return uniqueEntries(staticEntries);
   }
 }
-
