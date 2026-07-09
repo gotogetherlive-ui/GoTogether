@@ -321,15 +321,15 @@ export default function BuddyClient() {
               <h4 className="text-xs font-bold text-orange-800 uppercase tracking-widest">DNA quiz unlocks:</h4>
               <ul className="space-y-2 text-sm text-slate-700 font-medium">
                 <li className="flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs font-bold">âœ“</span>
+                  <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs font-bold">OK</span>
                   11-factor weighted compatibility engine
                 </li>
                 <li className="flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs font-bold">âœ“</span>
+                  <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs font-bold">OK</span>
                   Overlapping trip budget matches
                 </li>
                 <li className="flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs font-bold">âœ“</span>
+                  <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs font-bold">OK</span>
                   Detailed match breakdowns per trip organizer
                 </li>
               </ul>
@@ -419,7 +419,7 @@ export default function BuddyClient() {
               onClick={() => setShowBudgetEditor(true)}
               className="flex-1 md:flex-initial bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
             >
-              <Wallet className="w-3.5 h-3.5 text-rose-500" /> Edit Budget (â‚¹)
+              <Wallet className="w-3.5 h-3.5 text-rose-500" /> Edit Budget (INR)
             </button>
           </div>
         </div>
@@ -459,14 +459,14 @@ export default function BuddyClient() {
                 />
                 <select value={filterDuration} onChange={(e) => setFilterDuration(e.target.value)}
                   className="premium-select">
-                  <option value="">â± Duration</option>
+                  <option value="">Duration</option>
                   <option value="1-3">1-3 Days</option>
                   <option value="4-7">4-7 Days</option>
                   <option value="8+">8+ Days</option>
                 </select>
                 <select value={filterGender} onChange={(e) => setFilterGender(e.target.value)}
                   className="premium-select">
-                  <option value="">ðŸ‘¤ Gender</option>
+                  <option value="">Gender</option>
                   <option value="Male">Male</option>
                   <option value="Female">Female</option>
                   <option value="Other">Other</option>
@@ -599,7 +599,7 @@ export default function BuddyClient() {
                             </div>
                             <div>
                               <p className="text-sm font-bold text-slate-900">{trip.organizer_name}</p>
-                              <p className="text-xs text-slate-500">{trip.organizer_age} yrs â€¢ {trip.organizer_gender}</p>
+                              <p className="text-xs text-slate-500">{trip.organizer_age} yrs / {trip.organizer_gender}</p>
                             </div>
                           </div>
 
@@ -694,7 +694,7 @@ export default function BuddyClient() {
                             onClick={() => router.push(`/chat/${trip.id}`)}
                             className="mt-auto w-full bg-emerald-500 text-white font-bold py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 hover:bg-emerald-600 shadow-md shadow-emerald-500/20 hover:shadow-lg text-sm"
                           >
-                            <CheckCircle className="w-4 h-4" /> Accepted â€” Go to Chat
+                            <CheckCircle className="w-4 h-4" /> Accepted - Go to Chat
                           </button>
                         ) : trip.user_request_status === 'rejected' ? (
                           <button disabled className="mt-auto w-full bg-rose-50 text-rose-500 font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 cursor-not-allowed ring-1 ring-rose-200 text-sm">

@@ -600,9 +600,7 @@ export default function TripDetailsClient({ trip }: { trip: any }) {
               </div>
               <div className="flex justify-between items-center pb-3 border-b border-slate-100">
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Amount</span>
-                <span className="font-extrabold text-emerald-600 text-lg">
-                  Ã¢â€šÂ¹{(simulatedData.amount / 100).toFixed(2)}
-                </span>
+                <span className="font-extrabold text-emerald-600 text-lg">{`INR ${(simulatedData.amount / 100).toFixed(2)}`}</span>
               </div>
               <div className="flex justify-between items-center pb-3 border-b border-slate-100">
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Passengers</span>

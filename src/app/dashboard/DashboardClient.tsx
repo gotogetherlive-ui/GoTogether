@@ -213,7 +213,7 @@ export default function DashboardClient() {
             <User className="w-5 h-5" />
           </div>
           <div className="flex-1">
-            <p className="font-bold text-lg">Complete your profile ðŸ‘‹</p>
+            <p className="font-bold text-lg">Complete your profile</p>
             <p className="text-white/80 text-sm">
               Fill in a few details so other travelers can connect with you.
             </p>
@@ -328,7 +328,7 @@ export default function DashboardClient() {
                     ) : (
                       <Save className="w-4 h-4" />
                     )}
-                    {saving ? "Savingâ€¦" : "Save Profile"}
+                    {saving ? "Saving..." : "Save Profile"}
                   </button>
                 </>
               ) : (
@@ -531,13 +531,13 @@ export default function DashboardClient() {
                 <textarea
                   value={form.bio}
                   onChange={(e) => setForm((f) => ({ ...f, bio: e.target.value }))}
-                  placeholder="A short bio â€” travel style, interests, anything you want fellow travelers to knowâ€¦"
+                  placeholder="A short bio - travel style, interests, anything you want fellow travelers to know..."
                   rows={3}
                   className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none text-slate-900 font-medium transition resize-none"
                 />
               ) : (
                 <p className="text-slate-700 leading-relaxed">
-                  {profile?.bio || <span className="text-slate-400">No bio yet â€” add one!</span>}
+                  {profile?.bio || <span className="text-slate-400">No bio yet - add one!</span>}
                 </p>
               )}
             </div>

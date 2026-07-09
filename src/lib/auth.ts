@@ -81,11 +81,8 @@ export async function createSession(userId: string): Promise<string> {
   const sessionId = uuidv4();
   const expiresAt = new Date(Date.now() + SESSION_DURATION_MS).toISOString();
 
-  // Clean up expired sessions for this user
-  await run(
-    `DELETE FROM sessions WHERE user_id = $1 OR expires_at < NOW()`,
-    [userId]
-  );
+  // Clean up expired sessions without signing out other active devices.
+  await run('DELETE FROM sessions WHERE expires_at < NOW()');
 
   // Create new session
   await run(
@@ -110,9 +107,6 @@ export async function createSession(userId: string): Promise<string> {
   } catch (err) {
     console.error('Failed to log DAU entry', err);
   }
-
-  // Invalidate any old cached sessions for this user
-  invalidateUserSessions(userId);
 
   // Set cookie
   const cookieStore = await cookies();

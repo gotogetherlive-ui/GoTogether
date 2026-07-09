@@ -52,7 +52,7 @@ export default function NotificationBell() {
   // ── REST fallback ────────────────────────────────────────────
   const fetchCounts = async () => {
     try {
-      const res = await fetch("/api/notifications");
+      const res = await fetch("/api/notifications", { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
         setCounts((prev) => ({ ...prev, ...data }));
@@ -69,6 +69,7 @@ export default function NotificationBell() {
 
     const connect = () => {
       if (destroyed) return;
+      fetchCounts();
       es = new EventSource("/api/notifications/sse");
       es.onmessage = (e) => {
         retryDelay = 3000;
@@ -97,15 +98,21 @@ export default function NotificationBell() {
           if (retryTimeout) { clearTimeout(retryTimeout); retryTimeout = null; }
         } else {
           retryDelay = 3000;
+          fetchCounts();
           connect();
         }
       };
+      const handleFocus = () => fetchCounts();
+      window.addEventListener("focus", handleFocus);
+      const interval = setInterval(fetchCounts, 45000);
       document.addEventListener("visibilitychange", handleVisibility);
       return () => {
         destroyed = true;
         es?.close();
         if (retryTimeout) clearTimeout(retryTimeout);
         document.removeEventListener("visibilitychange", handleVisibility);
+        window.removeEventListener("focus", handleFocus);
+        clearInterval(interval);
       };
     } else {
       fetchCounts();

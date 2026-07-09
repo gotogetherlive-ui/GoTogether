@@ -525,11 +525,11 @@ export default function BusinessDashboard() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">B2B Price *</label>
-                  <input required type="text" value={form.b2b_price} onChange={(e) => setForm({ ...form, b2b_price: e.target.value })} placeholder="e.g. â‚¹50,000" className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition-all font-medium" />
+                  <input required type="text" value={form.b2b_price} onChange={(e) => setForm({ ...form, b2b_price: e.target.value })} placeholder="e.g. INR 50,000" className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition-all font-medium" />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">B2C Price *</label>
-                  <input required type="text" value={form.b2c_price} onChange={(e) => setForm({ ...form, b2c_price: e.target.value })} placeholder="e.g. â‚¹65,000" className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition-all font-medium" />
+                  <input required type="text" value={form.b2c_price} onChange={(e) => setForm({ ...form, b2c_price: e.target.value })} placeholder="e.g. INR 65,000" className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition-all font-medium" />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">Max Seats <span className="text-slate-400 font-normal">(optional)</span></label>
