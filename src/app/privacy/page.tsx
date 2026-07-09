@@ -192,7 +192,7 @@ export default function PrivacyPage() {
                   <li><strong>Restrict</strong> or <strong>object</strong> to certain processing.</li>
                   <li><strong>Withdraw consent</strong> at any time.</li>
                 </ul>
-                <p className="mt-4">Contact <strong className="text-blue-600">privacy@gotogethertrip.com</strong> to exercise these rights. We respond within 30 days.</p>
+                <p className="mt-4">Contact GoTogether support to exercise these rights. We respond within 30 days.</p>
               </S>
 
               <S id="cookies" t="7. Cookies">
@@ -218,9 +218,7 @@ export default function PrivacyPage() {
 
               <S id="contact" t="11. Contact Us">
                 <ul>
-                  <li><strong>Data Protection:</strong> privacy@gotogethertrip.com</li>
                   <li><strong>Support:</strong> support@gotogethertrip.com</li>
-                  <li><strong>Address:</strong> GoTogether, Patna, Bihar, India</li>
                 </ul>
               </S>
             </div>

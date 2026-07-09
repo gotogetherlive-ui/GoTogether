@@ -298,7 +298,6 @@ export default function TermsPage() {
                   If you have questions about these Terms, please contact us:
                 </p>
                 <ul>
-                  <li><strong>Email:</strong> legal@gotogethertrip.com</li>
                   <li><strong>Support:</strong> support@gotogethertrip.com</li>
                 </ul>
               </Section>
