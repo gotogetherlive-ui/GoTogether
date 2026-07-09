@@ -6,7 +6,7 @@ import { queryOne, run } from '@/lib/db'
 import { verifyPassword, createSession, destroySession } from '@/lib/auth'
 import { rateLimit } from '@/lib/rateLimit'
 
-export async function signIn(formData: FormData): Promise<{ error?: string; success?: string } | void> {
+export async function signIn(formData: FormData): Promise<{ error?: string; success?: string; redirectTo?: string }> {
   const email = formData.get('email') as string
   const password = formData.get('password') as string
 
@@ -43,7 +43,7 @@ export async function signIn(formData: FormData): Promise<{ error?: string; succ
   }
 
   await createSession(user.id)
-  redirect('/')
+  return { redirectTo: '/' }
 }
 
 export async function signOut() {

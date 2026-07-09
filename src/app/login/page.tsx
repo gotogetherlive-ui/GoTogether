@@ -415,6 +415,10 @@ function LoginContent() {
         if (result?.success) {
           setSuccess(result.success);
         }
+        if (result?.redirectTo) {
+          router.replace(result.redirectTo);
+          router.refresh();
+        }
       });
     }
   }
