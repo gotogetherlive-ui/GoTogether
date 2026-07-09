@@ -436,7 +436,7 @@ function LoginContent() {
             setOtpMaskedEmail("");
           }}
           onVerified={() => {
-            router.push("/");
+            window.location.replace("/");
           }}
         />
       )}

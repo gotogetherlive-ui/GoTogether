@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { queryOne, run } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
+import { hasCompleteProfile } from '@/lib/profile';
 
 export async function POST(
   request: Request,
@@ -11,6 +12,10 @@ export async function POST(
     const user = await getSession();
     if (!user) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+
+    if (!hasCompleteProfile(user)) {
+      return NextResponse.json({ error: 'Complete your profile before showing interest in buddy trips.' }, { status: 403 });
     }
 
     // Wait for params inside API route

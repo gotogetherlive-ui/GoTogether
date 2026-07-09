@@ -7,6 +7,7 @@ import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import AnimatedButton from "@/components/AnimatedButton";
 import { useSession } from "@/components/SessionProvider";
+import { hasCompleteProfile } from "@/lib/profile";
 
 const FeedbackModal = dynamic(() => import("@/components/FeedbackModal"), { ssr: false });
 const NotificationBell = dynamic(() => import("@/components/NotificationBell"), { ssr: false });
@@ -96,11 +97,24 @@ export default function Navbar() {
         {/* Desktop Nav */}
         <div className={`hidden md:flex items-center gap-6 font-medium ${textColor}`}>
           {navLinks.map((link) => {
-            const isProfileComplete = !!(user?.full_name?.trim() && user?.phone_number?.trim() && user?.age && user?.gender && user?.profession && user?.fooding_habit);
-            const isRestricted = link.href.startsWith("/buddy") || link.href.startsWith("/stories");
+            const isProfileComplete = hasCompleteProfile(user);
+            const requiresAuth = link.href.startsWith("/buddy");
+            const requiresProfile = requiresAuth || link.href.startsWith("/stories");
 
             const handleRestrictedClick = (e: React.MouseEvent) => {
-              if (user && !isProfileComplete && isRestricted) {
+              if (!requiresProfile) return;
+              if (!userLoaded) {
+                e.preventDefault();
+                return;
+              }
+              if (!user) {
+                if (requiresAuth) {
+                  e.preventDefault();
+                  router.push("/login");
+                }
+                return;
+              }
+              if (!isProfileComplete) {
                 e.preventDefault();
                 alert("Please complete your profile in the Dashboard before accessing this feature.");
                 router.push("/dashboard");
@@ -113,8 +127,8 @@ export default function Navbar() {
                 href={link.href}
                 onClick={handleRestrictedClick}
                 className={`hover:text-orange-500 transition-colors relative py-1 ${pathname === link.href ? "text-orange-500" : ""
-                  } ${(user && !isProfileComplete && isRestricted) ? "opacity-50 cursor-not-allowed" : ""}`}
-                title={(user && !isProfileComplete && isRestricted) ? "Complete profile to unlock" : ""}
+                  } ${((!userLoaded || (requiresAuth && !user) || (user && !isProfileComplete)) && requiresProfile) ? "opacity-50 cursor-not-allowed" : ""}`}
+                title={requiresProfile ? (!userLoaded ? "Checking account" : requiresAuth && !user ? "Sign in to unlock" : user && !isProfileComplete ? "Complete profile to unlock" : "") : ""}
               >
                 {link.label}
                 {pathname === link.href && (
@@ -245,18 +259,35 @@ export default function Navbar() {
         <div className="fixed inset-0 z-40 bg-white flex flex-col pt-20 px-6 md:hidden animate-in slide-in-from-top-2">
           <div className="space-y-1">
             {navLinks.map((link) => {
-              const isProfileComplete = !!(user?.full_name?.trim() && user?.phone_number?.trim() && user?.age && user?.gender && user?.profession && user?.fooding_habit);
-              const isRestricted = link.href.startsWith("/buddy") || link.href.startsWith("/stories");
+              const isProfileComplete = hasCompleteProfile(user);
+              const requiresAuth = link.href.startsWith("/buddy");
+              const requiresProfile = requiresAuth || link.href.startsWith("/stories");
 
               const handleRestrictedClick = (e: React.MouseEvent) => {
-                if (user && !isProfileComplete && isRestricted) {
+                if (!requiresProfile) {
+                  setMobileOpen(false);
+                  return;
+                }
+                if (!userLoaded) {
+                  e.preventDefault();
+                  return;
+                }
+                if (!user) {
+                  if (requiresAuth) {
+                    e.preventDefault();
+                    router.push("/login");
+                    setMobileOpen(false);
+                  }
+                  return;
+                }
+                if (!isProfileComplete) {
                   e.preventDefault();
                   alert("Please complete your profile in the Dashboard before accessing this feature.");
                   router.push("/dashboard");
                   setMobileOpen(false);
-                } else {
-                  setMobileOpen(false);
+                  return;
                 }
+                setMobileOpen(false);
               };
 
               return (
@@ -267,7 +298,7 @@ export default function Navbar() {
                   className={`block px-4 py-3 rounded-xl text-lg font-medium transition-colors ${pathname === link.href
                       ? "bg-orange-50 text-orange-600"
                       : "text-slate-700 hover:bg-slate-50"
-                    } ${(user && !isProfileComplete && isRestricted) ? "opacity-50" : ""}`}
+                    } ${((!userLoaded || (requiresAuth && !user) || (user && !isProfileComplete)) && requiresProfile) ? "opacity-50" : ""}`}
                 >
                   {link.label}
                 </Link>

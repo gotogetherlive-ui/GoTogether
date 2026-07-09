@@ -4,11 +4,16 @@ import BuddyClient from "./BuddyClient";
 import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Page3DWrapper from "@/components/Page3DWrapper";
+import { hasCompleteProfile } from "@/lib/profile";
 
 export default async function BuddyPage() {
   const user = await getSession();
   if (!user) {
     redirect("/login");
+  }
+
+  if (!hasCompleteProfile(user)) {
+    redirect("/dashboard");
   }
 
   return (

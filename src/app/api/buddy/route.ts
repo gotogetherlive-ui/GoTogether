@@ -3,6 +3,7 @@ import { getSession } from '@/lib/auth';
 import { query, queryOne, run } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
 import { computeMatch, type CompatibilityProfile, type BudgetProfile } from '@/lib/matchEngine';
+import { hasCompleteProfile } from '@/lib/profile';
 
 export async function GET() {
   try {
@@ -106,6 +107,10 @@ export async function POST(request: Request) {
     const user = await getSession();
     if (!user) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+
+    if (!hasCompleteProfile(user)) {
+      return NextResponse.json({ error: 'Complete your profile before creating a buddy trip.' }, { status: 403 });
     }
 
     const body = await request.json();
