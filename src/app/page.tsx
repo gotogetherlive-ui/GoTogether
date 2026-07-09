@@ -18,16 +18,23 @@ import { ensureOrganizerSlug } from '@/lib/organizer-slugs';
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const topTripRows = await query<TripSummary>(`
-    SELECT t.id, t.slug, t.title, t.description, t.destination, t.image_url, t.images, t.status, t.is_featured, t.trip_type, t.duration_days, t.duration_nights, t.start_date, t.pickup_point, t.drop_point, t.b2c_price, t.gotogether_price, t.tags,
-           u.id as organizer_id, u.full_name as organizer_name, u.role as organizer_role, u.avatar_url as organizer_avatar, u.organizer_slug
-    FROM trips t
-    JOIN users u ON t.organizer_id = u.id
-    WHERE t.status = 'live' AND (t.is_featured = 1 OR t.trip_type = 'business')
-    ORDER BY t.is_featured DESC, t.created_at DESC
-    LIMIT 2
-  `, []);
-  const topTrips = await Promise.all(topTripRows.map(async (trip) => ({ ...trip, slug: await ensureTripSlug(trip), organizer_slug: await ensureOrganizerSlug({ id: trip.organizer_id || "", full_name: trip.organizer_name, organizer_slug: trip.organizer_slug }) })));
+  let topTrips: TripSummary[] = [];
+
+  try {
+    const topTripRows = await query<TripSummary>(`
+      SELECT t.id, t.slug, t.title, t.description, t.destination, t.image_url, t.images, t.status, t.is_featured, t.trip_type, t.duration_days, t.duration_nights, t.start_date, t.pickup_point, t.drop_point, t.b2c_price, t.gotogether_price, t.tags,
+             u.id as organizer_id, u.full_name as organizer_name, u.role as organizer_role, u.avatar_url as organizer_avatar, u.organizer_slug
+      FROM trips t
+      JOIN users u ON t.organizer_id = u.id
+      WHERE t.status = 'live' AND (t.is_featured = 1 OR t.trip_type = 'business')
+      ORDER BY t.is_featured DESC, t.created_at DESC
+      LIMIT 2
+    `, []);
+    topTrips = await Promise.all(topTripRows.map(async (trip) => ({ ...trip, slug: await ensureTripSlug(trip), organizer_slug: await ensureOrganizerSlug({ id: trip.organizer_id || "", full_name: trip.organizer_name, organizer_slug: trip.organizer_slug }) })));
+  } catch (error) {
+    console.error("Failed to load home top trips", error);
+  }
+
   return (
     <MaintenanceGuard>
       <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
