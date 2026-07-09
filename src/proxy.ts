@@ -17,9 +17,17 @@ function isOriginExemptPath(pathname: string): boolean {
     || pathname.startsWith('/api/cron/');
 }
 
+function firstHeaderValue(value: string | null): string | null {
+  return value?.split(',')[0]?.trim() || null;
+}
+
+function getRequestHost(request: NextRequest): string | null {
+  return firstHeaderValue(request.headers.get('x-forwarded-host')) || firstHeaderValue(request.headers.get('host'));
+}
+
 function getRequestOrigin(request: NextRequest): string | null {
-  const expectedHost = request.headers.get('x-forwarded-host') || request.headers.get('host');
-  const protocol = request.headers.get('x-forwarded-proto') || request.nextUrl.protocol.replace(':', '') || 'http';
+  const expectedHost = getRequestHost(request);
+  const protocol = firstHeaderValue(request.headers.get('x-forwarded-proto')) || request.nextUrl.protocol.replace(':', '') || 'http';
   return expectedHost ? `${protocol}://${expectedHost}` : null;
 }
 
@@ -34,6 +42,32 @@ function getExpectedOrigin(): string | null {
   }
 
   return null;
+}
+
+function getTrustedOrigins(request: NextRequest): Set<string> {
+  const origins = new Set<string>();
+  const requestOrigin = getRequestOrigin(request);
+  const expectedOrigin = getExpectedOrigin();
+
+  if (requestOrigin) origins.add(requestOrigin);
+  if (expectedOrigin) origins.add(expectedOrigin);
+
+  const requestHost = getRequestHost(request);
+  if (requestHost) {
+    origins.add(`https://${requestHost}`);
+    origins.add(`http://${requestHost}`);
+  }
+
+  for (const configured of [process.env.NEXT_PUBLIC_APP_URL, process.env.NEXT_PUBLIC_BASE_URL]) {
+    if (!configured) continue;
+    try {
+      origins.add(new URL(configured).origin);
+    } catch {
+      // Invalid deployment config is handled by checkUnsafeApiOrigin.
+    }
+  }
+
+  return origins;
 }
 
 function buildContentSecurityPolicy(nonce: string): string {
@@ -97,17 +131,9 @@ function checkUnsafeApiOrigin(request: NextRequest): NextResponse | null {
   }
 
   try {
-    const requestOrigin = getRequestOrigin(request);
-    const requestMatchesDevServer = process.env.NODE_ENV !== 'production'
-      && requestOrigin
-      && new URL(origin).origin === requestOrigin;
-
-    if (requestMatchesDevServer) {
-      return null;
-    }
-
-    const expectedOrigin = getExpectedOrigin();
-    if (!expectedOrigin || new URL(origin).origin !== expectedOrigin) {
+    const actualOrigin = new URL(origin).origin;
+    const trustedOrigins = getTrustedOrigins(request);
+    if (!trustedOrigins.has(actualOrigin)) {
       return NextResponse.json({ error: 'Invalid request origin' }, { status: 403 });
     }
   } catch {

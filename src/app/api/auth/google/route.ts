@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import crypto from 'node:crypto'
+import { getGoogleRedirectUri } from '@/lib/googleOAuth'
 
 export async function GET() {
   const clientId = process.env.GOOGLE_CLIENT_ID
@@ -8,7 +9,7 @@ export async function GET() {
     return NextResponse.json({ error: 'Google OAuth not configured' }, { status: 500 })
   }
 
-  const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/auth/google/callback`
+  const redirectUri = getGoogleRedirectUri()
   const state = crypto.randomBytes(32).toString('base64url')
   const cookieStore = await cookies()
   cookieStore.set('gt_oauth_state', state, {

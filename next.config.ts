@@ -1,6 +1,38 @@
 import type { NextConfig } from "next";
 
+function serverActionAllowedOrigins(): string[] {
+  const origins = new Set<string>([
+    'gotogethertrip.com',
+    'www.gotogethertrip.com',
+    'staging.gotogethertrip.com',
+  ]);
+
+  for (const value of [
+    process.env.NEXT_PUBLIC_APP_URL,
+    process.env.NEXT_PUBLIC_BASE_URL,
+    process.env.NEXT_SERVER_ACTION_ALLOWED_ORIGINS,
+  ]) {
+    if (!value) continue;
+    for (const entry of value.split(',')) {
+      const trimmed = entry.trim();
+      if (!trimmed) continue;
+      try {
+        origins.add(new URL(trimmed).hostname);
+      } catch {
+        origins.add(trimmed.replace(/^https?:\/\//, '').replace(/\/$/, ''));
+      }
+    }
+  }
+
+  return Array.from(origins);
+}
+
 const nextConfig: NextConfig = {
+  experimental: {
+    serverActions: {
+      allowedOrigins: serverActionAllowedOrigins(),
+    },
+  },
   distDir: process.env.NEXT_DIST_DIR || ".next",
   poweredByHeader: false,
   compress: true,

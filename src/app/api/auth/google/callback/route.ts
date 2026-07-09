@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
 import { queryOne, run } from '@/lib/db';import { createSession } from '@/lib/auth'
 import { cookies } from 'next/headers'
+import { getGoogleRedirectOrigin, getGoogleRedirectUri } from '@/lib/googleOAuth'
 
 interface GoogleTokenResponse {
   access_token: string
@@ -27,7 +28,7 @@ export async function GET(request: Request) {
   cookieStore.delete('gt_oauth_state')
 
   const requestOrigin = new URL(request.url).origin
-  const origin = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || requestOrigin
+  const origin = getGoogleRedirectOrigin(requestOrigin)
 
   if (error || !code || !state || !expectedState || state !== expectedState) {
     return NextResponse.redirect(`${origin}/login?error=google_auth_failed`)
@@ -35,7 +36,7 @@ export async function GET(request: Request) {
 
   try {
     // Exchange code for tokens
-    const redirectUri = `${origin}/api/auth/google/callback`
+    const redirectUri = getGoogleRedirectUri(requestOrigin)
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

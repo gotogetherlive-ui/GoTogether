@@ -25,7 +25,7 @@ Required for every production deployment:
 - `ENABLED_ORGANIZER_PAYMENT_PROVIDERS` and `NEXT_PUBLIC_ENABLED_ORGANIZER_PAYMENT_PROVIDERS`: matching comma-separated provider list, for example `RAZORPAY,CASHFREE`.
 - `PAYMENT_PROVIDER`: required only for `PLATFORM_CONTROLLED`, where platform credentials select the default checkout gateway.
 - Platform Razorpay/Cashfree env credentials are optional in `ORGANIZER_OWNED`; checkout uses each organizer's active verified encrypted provider account instead.
-- Cloudinary, Google OAuth, and Resend credentials.
+- Cloudinary, Google OAuth, and Resend credentials. Set `GOOGLE_REDIRECT_URI` to the exact authorized Google OAuth callback, for example `https://gotogethertrip.com/api/auth/google/callback`.
 - `TRUST_PROXY=true` only when the app is behind a trusted proxy that overwrites forwarding headers.
 - `PG_POOL_MAX` and `WEB_CONCURRENCY` sized for the database connection limit.
 
@@ -33,6 +33,7 @@ Recommended for rolling or multi-instance deployments:
 
 - `NEXT_DEPLOYMENT_ID` or `DEPLOYMENT_VERSION`: stable release id, usually a git SHA.
 - `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`: shared base64 key for Server Functions across all instances.
+- `NEXT_SERVER_ACTION_ALLOWED_ORIGINS`: optional comma-separated hostnames/origins for Server Actions when a reverse proxy or custom domain changes the request host. Include `gotogethertrip.com` and any `www`/staging host you serve.
 
 ## Payment Providers
 
