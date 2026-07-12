@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 export const SITE_NAME = "GoTogether";
+export const SITE_ALTERNATE_NAMES = ["Go Together", "GoTogether Trip", "GoTogetherTrip"] as const;
 export const DEFAULT_TITLE = "GoTogether | Verified Group Trips & Travel Experiences in India";
 export const DEFAULT_DESCRIPTION =
   "Discover and book verified group trips, weekend trips, backpacking trips, trekking trips, bike trips, and curated travel experiences in India with trusted organizers.";
@@ -119,11 +120,18 @@ export function buildMetadata({
     creator: SITE_NAME,
     publisher: SITE_NAME,
     category: "travel",
-    alternates: { canonical },
+    verification: {
+      google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || undefined,
+      other: process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION
+        ? { "msvalidate.01": process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION }
+        : undefined,
+    },
+    alternates: { canonical, languages: { "en-IN": canonical } },
     robots: index ? { index: true, follow: true } : { index: false, follow: false },
     openGraph: {
       type,
       siteName: SITE_NAME,
+      locale: "en_IN",
       title,
       description,
       url: canonical,
@@ -169,10 +177,18 @@ export function organizationJsonLd() {
     "@context": "https://schema.org",
     "@type": "Organization",
     name: SITE_NAME,
+    alternateName: [...SITE_ALTERNATE_NAMES],
     url: absoluteUrl("/"),
     logo: absoluteUrl("/favicon.ico"),
     description:
       "GoTogether is an India-focused travel marketplace that helps users discover and book verified group trips, backpacking trips, weekend trips, trekking trips, bike trips, women-only trips, solo travel groups, and curated travel experiences from trusted organizers.",
+    address: {
+      "@type": "PostalAddress",
+      addressLocality: "Patna",
+      addressRegion: "Bihar",
+      addressCountry: "IN",
+    },
+    areaServed: { "@type": "Country", name: "India" },
     sameAs: [INSTAGRAM_URL, WHATSAPP_COMMUNITY_URL],
     contactPoint: [
       {
@@ -190,7 +206,9 @@ export function websiteJsonLd() {
     "@context": "https://schema.org",
     "@type": "WebSite",
     name: SITE_NAME,
+    alternateName: [...SITE_ALTERNATE_NAMES],
     url: absoluteUrl("/"),
+    inLanguage: "en-IN",
     potentialAction: {
       "@type": "SearchAction",
       target: `${absoluteUrl("/trips")}?q={search_term_string}`,

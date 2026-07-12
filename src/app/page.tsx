@@ -42,7 +42,7 @@ export default async function Home() {
         <Navbar />
 
         {/* Hero Section */}
-        <section className="relative min-h-[100dvh] md:min-h-[90vh] py-32 md:py-0 flex items-center justify-center overflow-hidden">
+        <section className="relative min-h-[100dvh] py-32 md:min-h-[90vh] md:pt-28 md:pb-24 flex items-center justify-center overflow-hidden">
           {/* Auto-changing background slideshow */}
           <HeroSlideshow />
 
@@ -99,7 +99,11 @@ export default async function Home() {
             {/* Trip Card 3 - CTA Card */}
             <FadeInScroll delay={0.4} className="h-full">
               <TiltWrapper className="h-full">
-                <div className="bg-gradient-to-br from-orange-500 to-rose-500 rounded-3xl overflow-hidden shadow-lg hover:shadow-xl transition-all flex flex-col items-center justify-center p-8 text-center text-white min-h-[400px] h-full relative group">
+                <Link
+                  href="/trips"
+                  aria-label="Browse all trips"
+                  className="bg-gradient-to-br from-orange-500 to-rose-500 rounded-3xl overflow-hidden shadow-lg hover:shadow-xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-orange-300 transition-all flex flex-col items-center justify-center p-8 text-center text-white min-h-[400px] h-full relative group cursor-pointer"
+                >
                   <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-white/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
                   <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center mb-6 transform group-hover:scale-110 group-hover:rotate-12 transition-all duration-500">
                     <Compass className="w-8 h-8 text-white" />
@@ -110,13 +114,10 @@ export default async function Home() {
                   <p className="text-white/80 mb-8 max-w-xs transform group-hover:translate-y-[-5px] transition-transform duration-500 delay-75">
                     Browse hundreds of verified trips or create your own adventure.
                   </p>
-                  <AnimatedButton
-                    href="/trips"
-                    className="bg-white text-orange-600 font-bold px-8 py-3 rounded-full shadow-xl hover:shadow-white/40 active:shadow-inner"
-                  >
+                  <span className="bg-white text-orange-600 font-bold px-8 py-3 rounded-full shadow-xl group-hover:shadow-white/40 group-active:shadow-inner transition-shadow">
                     Browse All Trips
-                  </AnimatedButton>
-                </div>
+                  </span>
+                </Link>
               </TiltWrapper>
             </FadeInScroll>
           </div>

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Compass, Menu, X, ShieldCheck, MessageSquare } from "lucide-react";
+import { Compass, Menu, X, ShieldCheck, MessageSquare, MessageCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import AnimatedButton from "@/components/AnimatedButton";
@@ -24,10 +24,11 @@ export default function Navbar() {
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const { user, isLoaded: userLoaded, refreshSession } = useSession();
+  const { user, isLoaded: userLoaded, setSessionSignedOut } = useSession();
   const [avatarFailed, setAvatarFailed] = useState(false);
   const [avatarMenuOpen, setAvatarMenuOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [hasTeamChats, setHasTeamChats] = useState(false);
 
   const isHomepage = pathname === "/";
 
@@ -39,6 +40,18 @@ export default function Navbar() {
   useEffect(() => {
     setAvatarFailed(false);
   }, [user?.avatar_url]);
+  useEffect(() => {
+    if (!user?.id) {
+      setHasTeamChats(false);
+      return;
+    }
+    const controller = new AbortController();
+    fetch("/api/chat/trips", { signal: controller.signal, cache: "no-store" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => setHasTeamChats(Boolean(data?.hasTeamChats)))
+      .catch(() => { if (!controller.signal.aborted) setHasTeamChats(false); });
+    return () => controller.abort();
+  }, [user?.id, pathname]);
 
   const navBg =
     mobileOpen || (!isHomepage || scrolled)
@@ -52,8 +65,9 @@ export default function Navbar() {
   const isAdmin = !!user?.is_admin;
 
   const handleSignOut = async () => {
-    await fetch("/api/auth/signout", { method: "POST" });
-    refreshSession();
+    const res = await fetch("/api/auth/signout", { method: "POST" });
+    if (!res.ok) return;
+    setSessionSignedOut();
     setAvatarMenuOpen(false);
     router.push("/");
     router.refresh();
@@ -98,8 +112,8 @@ export default function Navbar() {
         <div className={`hidden md:flex items-center gap-6 font-medium ${textColor}`}>
           {navLinks.map((link) => {
             const isProfileComplete = hasCompleteProfile(user);
-            const requiresAuth = link.href.startsWith("/buddy");
-            const requiresProfile = requiresAuth || link.href.startsWith("/stories");
+            const requiresAuth = false;
+            const requiresProfile = link.href.startsWith("/stories");
 
             const handleRestrictedClick = (e: React.MouseEvent) => {
               if (!requiresProfile) return;
@@ -137,6 +151,16 @@ export default function Navbar() {
               </Link>
             );
           })}
+
+          {userLoaded && user && hasTeamChats && (
+            <Link
+              href="/team-chat"
+              className={`hover:text-orange-500 transition-colors relative py-1 flex items-center gap-1.5 ${pathname === "/team-chat" || pathname.startsWith("/chat/") ? "text-orange-500" : ""}`}
+            >
+              <MessageCircle className="w-4 h-4" /> Team Chat
+              {(pathname === "/team-chat" || pathname.startsWith("/chat/")) && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-orange-500 rounded-full" />}
+            </Link>
+          )}
 
           {/* Business Link */}
           {userLoaded && user && !isAdmin && (
@@ -260,8 +284,8 @@ export default function Navbar() {
           <div className="space-y-1">
             {navLinks.map((link) => {
               const isProfileComplete = hasCompleteProfile(user);
-              const requiresAuth = link.href.startsWith("/buddy");
-              const requiresProfile = requiresAuth || link.href.startsWith("/stories");
+              const requiresAuth = false;
+              const requiresProfile = link.href.startsWith("/stories");
 
               const handleRestrictedClick = (e: React.MouseEvent) => {
                 if (!requiresProfile) {
@@ -304,6 +328,16 @@ export default function Navbar() {
                 </Link>
               );
             })}
+
+            {userLoaded && user && hasTeamChats && (
+              <Link
+                href="/team-chat"
+                onClick={() => setMobileOpen(false)}
+                className={`flex items-center gap-2 px-4 py-3 rounded-xl text-lg font-medium transition-colors ${pathname === "/team-chat" || pathname.startsWith("/chat/") ? "bg-orange-50 text-orange-600" : "text-slate-700 hover:bg-slate-50"}`}
+              >
+                <MessageCircle className="w-5 h-5" /> Team Chat
+              </Link>
+            )}
 
             {/* Business Link — mobile */}
             {userLoaded && user && !isAdmin && (

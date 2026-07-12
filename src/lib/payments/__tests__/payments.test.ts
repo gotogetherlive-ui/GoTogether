@@ -87,7 +87,7 @@ describe('GoTogether Payments Subsystem Tests', () => {
     );
 
     // Create organizer payment credentials profile
-    const apiKeyEnc = SecretManager.encrypt('mock_key_id');
+    const apiKeyEnc = SecretManager.encrypt('rzp_test_your_key_id');
     const apiSecretEnc = SecretManager.encrypt('mock_key_secret');
     const webhookSecretEnc = SecretManager.encrypt('mock_webhook_secret');
     
@@ -178,7 +178,7 @@ describe('GoTogether Payments Subsystem Tests', () => {
   test('Order Lifecycle - Complete booking, acknowledgement, and webhook confirmation', async () => {
     // 1. Create payment order (using correct snake_case validation payload)
     const orderResult = await createBookingPaymentOrder(
-      { id: testUser.id, email: testUser.email, role: 'regular', full_name: testUser.full_name } as any,
+      { id: testUser.id, email: testUser.email, role: 'regular', full_name: testUser.full_name, phone_number: '9999999999', age: 29, gender: 'Other', profession: 'Tester', fooding_habit: 'Any' } as any,
       {
         trip_id: testTrip.id,
         male_count: 1,
@@ -211,7 +211,7 @@ describe('GoTogether Payments Subsystem Tests', () => {
       }
     );
 
-    assert.ok(ackResult.ok);
+    assert.ok(ackResult.ok, `Frontend acknowledgement failed: ${JSON.stringify(ackResult)}`);
     assert.strictEqual(ackResult.body.status, 'confirmed');
 
     // Frontend signature verification now finalizes the payment immediately.
@@ -254,7 +254,7 @@ describe('GoTogether Payments Subsystem Tests', () => {
   test('Webhook Security & Duplicate Event Prevention', async () => {
     // Trigger confirmPaymentFromWebhook twice with same details
     const orderResult = await createBookingPaymentOrder(
-      { id: testUser.id, email: testUser.email, role: 'regular', full_name: testUser.full_name } as any,
+      { id: testUser.id, email: testUser.email, role: 'regular', full_name: testUser.full_name, phone_number: '9999999999', age: 29, gender: 'Other', profession: 'Tester', fooding_habit: 'Any' } as any,
       {
         trip_id: testTrip.id,
         male_count: 1,
@@ -300,7 +300,7 @@ describe('GoTogether Payments Subsystem Tests', () => {
 
     // Create user A booking
     const bookingA = await createBookingPaymentOrder(
-      { id: testUser.id, email: testUser.email, role: 'regular', full_name: testUser.full_name } as any,
+      { id: testUser.id, email: testUser.email, role: 'regular', full_name: testUser.full_name, phone_number: '9999999999', age: 29, gender: 'Other', profession: 'Tester', fooding_habit: 'Any' } as any,
       {
         trip_id: tinyTripId,
         male_count: 1,
@@ -315,7 +315,7 @@ describe('GoTogether Payments Subsystem Tests', () => {
 
     // Create user B booking (using testUserB to prevent duplicate_user unique constraint violation)
     const bookingB = await createBookingPaymentOrder(
-      { id: testUserB.id, email: testUserB.email, role: 'regular', full_name: testUserB.full_name } as any,
+      { id: testUserB.id, email: testUserB.email, role: 'regular', full_name: testUserB.full_name, phone_number: '9999999998', age: 31, gender: 'Other', profession: 'Tester', fooding_habit: 'Any' } as any,
       {
         trip_id: tinyTripId,
         male_count: 1,
@@ -372,7 +372,7 @@ describe('GoTogether Payments Subsystem Tests', () => {
   test('Booking Expiry Webhook Refunds', async () => {
     // 1. Create order
     const bookingResult = await createBookingPaymentOrder(
-      { id: testUser.id, email: testUser.email, role: 'regular', full_name: testUser.full_name } as any,
+      { id: testUser.id, email: testUser.email, role: 'regular', full_name: testUser.full_name, phone_number: '9999999999', age: 29, gender: 'Other', profession: 'Tester', fooding_habit: 'Any' } as any,
       {
         trip_id: testTrip.id,
         male_count: 1,
@@ -423,7 +423,7 @@ describe('GoTogether Payments Subsystem Tests', () => {
 
     try {
       const result = await createBookingPaymentOrder(
-        { id: testUser.id, email: testUser.email, role: 'regular', full_name: testUser.full_name } as any,
+        { id: testUser.id, email: testUser.email, role: 'regular', full_name: testUser.full_name, phone_number: '9999999999', age: 29, gender: 'Other', profession: 'Tester', fooding_habit: 'Any' } as any,
         {
           trip_id: testTrip.id,
           male_count: 1,
@@ -451,7 +451,7 @@ describe('GoTogether Payments Subsystem Tests', () => {
   test('Failure Injection - Refund Gateway Outage and Reconciliation Retry', async () => {
     // Setup confirmed booking
     const bookingResult = await createBookingPaymentOrder(
-      { id: testUser.id, email: testUser.email, role: 'regular', full_name: testUser.full_name } as any,
+      { id: testUser.id, email: testUser.email, role: 'regular', full_name: testUser.full_name, phone_number: '9999999999', age: 29, gender: 'Other', profession: 'Tester', fooding_habit: 'Any' } as any,
       {
         trip_id: testTrip.id,
         male_count: 1,

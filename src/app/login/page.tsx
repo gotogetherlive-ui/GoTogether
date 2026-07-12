@@ -6,6 +6,7 @@ import { Suspense, useState, useTransition, useEffect, useRef, useCallback } fro
 import { signIn } from "@/app/actions/auth";
 import { useSearchParams, useRouter } from "next/navigation";
 import AnimatedButton from "@/components/AnimatedButton";
+import { useSession } from "@/components/SessionProvider";
 
 function GoogleIcon({ className }: { className?: string }) {
   return (
@@ -333,6 +334,7 @@ export default function LoginPage() {
 }
 
 function LoginContent() {
+  const { broadcastSessionChange, refreshSession } = useSession();
   const searchParams = useSearchParams();
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
@@ -374,8 +376,8 @@ function LoginContent() {
         return;
       }
 
-      if (password.length < 6) {
-        setError("Password must be at least 6 characters.");
+      if (password.length < 8) {
+        setError("Password must be at least 8 characters.");
         return;
       }
 
@@ -390,9 +392,13 @@ function LoginContent() {
 
         const data = await res.json();
 
+        if (res.status === 409) {
+          setError("An account already exists with this email. Please sign in instead.");
+          return;
+        }
+
         if (!res.ok || data.error) {
-          setError(data.error || "Failed to send verification code.");
-          setIsSendingOtp(false);
+          setError(data.error || "We could not start your registration. Please try again.");
           return;
         }
 
@@ -416,6 +422,8 @@ function LoginContent() {
           setSuccess(result.success);
         }
         if (result?.redirectTo) {
+          broadcastSessionChange("SIGNED_IN");
+          void refreshSession();
           router.replace(result.redirectTo);
           router.refresh();
         }
@@ -436,6 +444,7 @@ function LoginContent() {
             setOtpMaskedEmail("");
           }}
           onVerified={() => {
+            broadcastSessionChange("SIGNED_IN");
             window.location.replace("/");
           }}
         />

@@ -219,6 +219,7 @@ export default function PrivacyPage() {
               <S id="contact" t="11. Contact Us">
                 <ul>
                   <li><strong>Support:</strong> support@gotogethertrip.com</li>
+                  <li><strong>Address:</strong> Patna, Bihar, India</li>
                 </ul>
               </S>
             </div>

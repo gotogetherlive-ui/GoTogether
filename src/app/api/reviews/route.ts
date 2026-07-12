@@ -11,7 +11,7 @@ export async function POST(request: Request) {
 
     const { trip_id, reviewee_id, rating, comment } = await request.json();
 
-    if (!trip_id || !reviewee_id || !rating) {
+    if (typeof trip_id !== 'string' || !trip_id.trim() || typeof reviewee_id !== 'string' || !reviewee_id.trim() || rating === undefined) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
     if (!Number.isInteger(rating) || rating < 1 || rating > 5) {

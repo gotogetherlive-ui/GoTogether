@@ -39,23 +39,26 @@ export async function PUT(request: Request) {
     if (age !== undefined && age !== null && age > 100) {
       return NextResponse.json({ error: 'Age must be between 18 and 100' }, { status: 400 });
     }
-    if (full_name && (full_name.trim().length < 2 || full_name.length > 120)) {
+    if (full_name !== undefined && (typeof full_name !== 'string' || full_name.trim().length < 2 || full_name.length > 120)) {
       return NextResponse.json({ error: 'Name must be between 2 and 120 characters' }, { status: 400 });
     }
-    if (bio && (typeof bio !== 'string' || bio.length > 2000)) return NextResponse.json({ error: 'Bio is too long' }, { status: 400 });
-    if (profession && (typeof profession !== 'string' || profession.length > 120)) return NextResponse.json({ error: 'Profession is too long' }, { status: 400 });
-    if (phone_number && (typeof phone_number !== 'string' || phone_number.length > 30)) return NextResponse.json({ error: 'Invalid phone number' }, { status: 400 });
-    if (avatar_url && (typeof avatar_url !== 'string' || (!avatar_url.startsWith('data:') && !avatar_url.startsWith('http://') && !avatar_url.startsWith('https://')))) {
+    if (bio !== undefined && bio !== null && (typeof bio !== 'string' || bio.length > 2000)) return NextResponse.json({ error: 'Invalid bio' }, { status: 400 });
+    if (profession !== undefined && profession !== null && (typeof profession !== 'string' || profession.length > 120)) return NextResponse.json({ error: 'Invalid profession' }, { status: 400 });
+    if (phone_number !== undefined && phone_number !== null && (typeof phone_number !== 'string' || phone_number.length > 30)) return NextResponse.json({ error: 'Invalid phone number' }, { status: 400 });
+    if (avatar_url !== undefined && avatar_url !== null && avatar_url !== '' && (typeof avatar_url !== 'string' || avatar_url.length > 2000 || (!avatar_url.startsWith('data:') && !avatar_url.startsWith('http://') && !avatar_url.startsWith('https://')))) {
       return NextResponse.json({ error: 'Invalid avatar URL' }, { status: 400 });
     }
-    if (gender && !['male', 'female', 'non-binary', 'other', 'prefer-not-to-say', 'Male', 'Female', 'Other', 'Non-binary', 'Prefer not to say'].includes(gender)) {
+    if (gender !== undefined && gender !== null && (typeof gender !== 'string' || !['male', 'female', 'non-binary', 'other', 'prefer-not-to-say', 'Male', 'Female', 'Other', 'Non-binary', 'Prefer not to say'].includes(gender))) {
       return NextResponse.json({ error: 'Invalid gender' }, { status: 400 });
+    }
+    if (fooding_habit !== undefined && fooding_habit !== null && (typeof fooding_habit !== 'string' || fooding_habit.length > 80)) {
+      return NextResponse.json({ error: 'Invalid food preference' }, { status: 400 });
     }
     const normalizedRazorpayAccountId = typeof razorpay_account_id === 'string'
       ? razorpay_account_id.trim()
       : null;
     const isConfiguringRazorpay = Boolean(normalizedRazorpayAccountId);
-    const current = await queryOne<{ role: string }>('SELECT role FROM users WHERE id = $1', [user.id]);
+    const current = await queryOne<{ role: string; full_name: string; age: number | null; gender: string | null; bio: string | null; profession: string | null; fooding_habit: string | null; avatar_url: string | null; phone_number: string | null }>('SELECT role, full_name, age, gender, bio, profession, fooding_habit, avatar_url, phone_number FROM users WHERE id = $1', [user.id]);
     if (isConfiguringRazorpay && current?.role !== 'business' && current?.role !== 'super_admin') {
       return NextResponse.json({ error: 'Only approved businesses can configure payment accounts' }, { status: 403 });
     }
@@ -75,14 +78,14 @@ export async function PUT(request: Request) {
           phone_number = $8,
           razorpay_account_id = CASE WHEN $9::text IS NULL THEN razorpay_account_id ELSE $9 END
       WHERE id = $10
-    `, [full_name ?? null,
-      age ?? null,
-      gender ?? null,
-      bio ?? null,
-      profession ?? null,
-      fooding_habit ?? null,
-      avatar_url ?? null,
-      phone_number ?? null,
+    `, [full_name === undefined ? current?.full_name ?? null : full_name.trim(),
+      age === undefined ? current?.age ?? null : age,
+      gender === undefined ? current?.gender ?? null : gender,
+      bio === undefined ? current?.bio ?? null : bio,
+      profession === undefined ? current?.profession ?? null : profession,
+      fooding_habit === undefined ? current?.fooding_habit ?? null : fooding_habit,
+      avatar_url === undefined ? current?.avatar_url ?? null : avatar_url,
+      phone_number === undefined ? current?.phone_number ?? null : phone_number,
       isConfiguringRazorpay ? normalizedRazorpayAccountId : null,
       user.id]);
 

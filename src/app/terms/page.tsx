@@ -250,7 +250,7 @@ export default function TermsPage() {
                 </ul>
                 <p className="mt-4">
                   Users may appeal moderation decisions by contacting{" "}
-                  <strong className="text-orange-600">appeals@gotogethertrip.com</strong> within 14 days.
+                  <strong className="text-orange-600">support@gotogethertrip.com</strong> within 14 days.
                 </p>
               </Section>
 
@@ -288,8 +288,8 @@ export default function TermsPage() {
                 <p>
                   These Terms are governed by the laws of India. Any disputes arising from or relating
                   to these Terms or the Platform shall be resolved through binding arbitration in
-                  accordance with the Arbitration and Conciliation Act, 1996, seated in New Delhi,
-                  India.
+                  accordance with the Arbitration and Conciliation Act, 1996, seated in Patna,
+                  Bihar, India.
                 </p>
               </Section>
 
@@ -299,6 +299,7 @@ export default function TermsPage() {
                 </p>
                 <ul>
                   <li><strong>Support:</strong> support@gotogethertrip.com</li>
+                  <li><strong>Address:</strong> Patna, Bihar, India</li>
                 </ul>
               </Section>
             </div>

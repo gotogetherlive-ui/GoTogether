@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { queryOne, run } from '@/lib/db';
+import { queryOne } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
 import { hasCompleteProfile } from '@/lib/profile';
 
@@ -16,6 +16,11 @@ export async function POST(
 
     if (!hasCompleteProfile(user)) {
       return NextResponse.json({ error: 'Complete your profile before showing interest in buddy trips.' }, { status: 403 });
+    }
+
+    const compatibilityProfile = await queryOne('SELECT 1 FROM compatibility_profiles WHERE user_id = $1', [user.id]);
+    if (!compatibilityProfile) {
+      return NextResponse.json({ error: 'Complete your Travel DNA before showing interest in buddy trips.' }, { status: 403 });
     }
 
     // Wait for params inside API route
@@ -41,12 +46,6 @@ export async function POST(
       return NextResponse.json({ error: 'Cannot request your own trip' }, { status: 400 });
     }
 
-    // Check if already requested
-    const existing = await queryOne('SELECT id FROM trip_requests WHERE trip_id = $1 AND requester_id = $2', [tripId, user.id]);
-    if (existing) {
-      return NextResponse.json({ error: 'Already showed interest in this trip' }, { status: 400 });
-    }
-
     // Create the request
     const candidateDetails = JSON.stringify({
       full_name: user.full_name,
@@ -58,10 +57,16 @@ export async function POST(
     });
 
     const requestId = uuidv4();
-    await run(`
+    const created = await queryOne<{ id: string }>(`
       INSERT INTO trip_requests (id, trip_id, requester_id, candidate_details, status)
       VALUES ($1, $2, $3, $4, 'pending')
+      ON CONFLICT (trip_id, requester_id) DO NOTHING
+      RETURNING id
     `, [requestId, tripId, user.id, candidateDetails]);
+
+    if (!created) {
+      return NextResponse.json({ error: 'You have already shown interest in this trip' }, { status: 409 });
+    }
 
     return NextResponse.json({ success: true, message: 'Interest shown successfully!' }, { status: 201 });
   } catch (err) {

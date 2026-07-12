@@ -59,11 +59,12 @@ export class PaymentOrchestrator {
   static async confirmRefund(input: { providerRefundId: string; status: 'processed' | 'failed'; raw: unknown }) {
     return transaction(async (client) => {
       const refund = await client.query(
-        `SELECT r.refund_id, o.booking_id, tb.booking_status, tb.trip_id
+        `SELECT r.refund_id, o.booking_id, tb.booking_status, tb.trip_id, trip.status AS trip_status
          FROM payments.refunds r
          JOIN payments.transactions pt ON r.transaction_id = pt.transaction_id
          JOIN payments.orders o ON pt.order_id = o.id
          JOIN public.trip_bookings tb ON o.booking_id = tb.id
+         JOIN public.trips trip ON trip.id = tb.trip_id
          WHERE r.provider_refund_id = $1 FOR UPDATE`,
         [input.providerRefundId]
       ).then(res => res.rows[0]);
@@ -75,8 +76,8 @@ export class PaymentOrchestrator {
       // Determine if this booking is part of an organizer-initiated trip cancellation.
       // After a failed refund retry, booking_status is 'refund_failed', not 'trip_cancelled',
       // so we also check the trip's status to preserve the trip_cancelled semantics.
-      const isTripCancellation = refund.booking_status === "trip_cancelled" 
-        || refund.booking_status === "refund_failed";
+      const isTripCancellation = refund.booking_status === "trip_cancelled"
+        || ["cancelling", "refunds_processing", "refunds_completed", "cancelled"].includes(refund.trip_status);
       const nextBookingStatus = input.status === "processed"
         ? (isTripCancellation ? "trip_cancelled" : "cancelled")
         : "refund_failed";

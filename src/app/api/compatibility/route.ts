@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { queryOne, run } from '@/lib/db';
 
-const VALID_FOOD = ['Veg', 'Non-Veg', 'Vegan', 'Jain', 'Eggetarian'];
+const VALID_FOOD = ['Any', 'Veg', 'Non-Veg', 'Vegan', 'Jain', 'Eggetarian'];
 const VALID_TRAVEL_STYLE = ['Luxury', 'Comfort', 'Budget', 'Backpacker'];
 const VALID_ENERGY = ['Early Bird', 'Flexible', 'Night Owl'];
 const VALID_SOCIAL = ['Introvert', 'Ambivert', 'Extrovert'];

@@ -14,10 +14,10 @@ import {
   Loader2,
   Building2,
   Headset,
+  Mail,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
-const ADMIN_EMAIL = "gotogether.live@gmail.com";
 
 const sidebarLinks = [
   { href: "/admin", label: "Dashboard", icon: BarChart3, exact: true },
@@ -26,6 +26,7 @@ const sidebarLinks = [
   { href: "/admin/user-trips", label: "User Trips", icon: Compass },
   { href: "/admin/business-apps", label: "Business Apps", icon: Building2 },
   { href: "/admin/support", label: "Support Tickets", icon: Headset },
+  { href: "/admin/campaigns", label: "User Campaigns", icon: Mail },
   { href: "/admin/reports", label: "Feedback", icon: MessageSquare },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
@@ -34,6 +35,7 @@ interface AdminUser {
   email: string;
   full_name: string;
   avatar_url: string | null;
+  is_admin?: boolean;
 }
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -46,7 +48,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     fetch("/api/auth/me")
       .then((r) => r.json())
       .then(({ user }) => {
-        if (!user || user.email !== ADMIN_EMAIL) {
+        if (!user || !user.is_admin) {
           router.replace("/login");
         } else {
           setAdminUser(user);

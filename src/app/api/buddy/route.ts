@@ -113,19 +113,46 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Complete your profile before creating a buddy trip.' }, { status: 403 });
     }
 
+    const compatibilityProfile = await queryOne('SELECT 1 FROM compatibility_profiles WHERE user_id = $1', [user.id]);
+    if (!compatibilityProfile) {
+      return NextResponse.json({ error: 'Complete your Travel DNA before creating a buddy trip.' }, { status: 403 });
+    }
+
     const body = await request.json();
     const { starting_location, destination, trip_date, duration_days, duration_nights, image_url } = body;
 
-    if (!starting_location || !destination || !trip_date || !duration_days) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    if (typeof starting_location !== 'string' || typeof destination !== 'string' || typeof trip_date !== 'string') {
+      return NextResponse.json({ error: 'Starting location, destination, and trip date are required.' }, { status: 400 });
     }
-    if ([starting_location, destination, image_url || ''].some((value) => typeof value !== 'string' || value.length > 500)) {
-      return NextResponse.json({ error: 'Invalid or oversized trip details' }, { status: 400 });
+    const normalizedStartingLocation = starting_location.trim();
+    const normalizedDestination = destination.trim();
+    const normalizedTripDate = trip_date.trim();
+    const parsedDurationDays = Number(duration_days);
+    const parsedDurationNights = duration_nights === undefined || duration_nights === '' ? 0 : Number(duration_nights);
+    if (!normalizedStartingLocation || !normalizedDestination || normalizedStartingLocation.length > 200 || normalizedDestination.length > 200) {
+      return NextResponse.json({ error: 'Use valid locations of 200 characters or fewer.' }, { status: 400 });
+    }
+    if (!Number.isInteger(parsedDurationDays) || parsedDurationDays < 1 || parsedDurationDays > 365 ||
+        !Number.isInteger(parsedDurationNights) || parsedDurationNights < 0 || parsedDurationNights > 365) {
+      return NextResponse.json({ error: 'Use a valid trip duration.' }, { status: 400 });
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(normalizedTripDate)) {
+      return NextResponse.json({ error: 'Use a valid trip date.' }, { status: 400 });
+    }
+    const parsedTripDate = new Date(`${normalizedTripDate}T00:00:00.000Z`);
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    if (Number.isNaN(parsedTripDate.getTime()) || parsedTripDate < today) {
+      return NextResponse.json({ error: 'Trip date must be today or in the future.' }, { status: 400 });
+    }
+    if (image_url !== undefined && image_url !== null && image_url !== '' &&
+        (typeof image_url !== 'string' || image_url.length > 2000 || !/^https:\/\//i.test(image_url))) {
+      return NextResponse.json({ error: 'Use a valid uploaded trip image.' }, { status: 400 });
     }
 
     const tripId = uuidv4();
-    const title = `Trip to ${destination}`;
-    const description = `Looking for a buddy to travel to ${destination} for ${duration_days} days and ${duration_nights || 0} nights.`;
+    const title = `Trip to ${normalizedDestination}`;
+    const description = `Looking for a buddy to travel to ${normalizedDestination} for ${parsedDurationDays} days and ${parsedDurationNights} nights.`;
 
     await run(`
       INSERT INTO trips (id, organizer_id, title, description, starting_location, destination, start_date, duration_days, duration_nights, image_url, status, trip_type)
@@ -134,11 +161,11 @@ export async function POST(request: Request) {
       user.id,
       title,
       description,
-      starting_location,
-      destination,
-      trip_date,
-      parseInt(duration_days),
-      parseInt(duration_nights || '0'),
+      normalizedStartingLocation,
+      normalizedDestination,
+      normalizedTripDate,
+      parsedDurationDays,
+      parsedDurationNights,
       image_url || null]);
 
     return NextResponse.json({ success: true, tripId }, { status: 201 });

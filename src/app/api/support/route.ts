@@ -15,8 +15,11 @@ export async function POST(request: Request) {
     if (!full_name || typeof full_name !== 'string' || full_name.trim().length === 0) {
       return NextResponse.json({ error: 'Full name is required' }, { status: 400 });
     }
-    if (!email || typeof email !== 'string' || email.trim().length === 0) {
-      return NextResponse.json({ error: 'Email is required' }, { status: 400 });
+    if (!email || typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      return NextResponse.json({ error: 'A valid email is required' }, { status: 400 });
+    }
+    if (phone !== undefined && phone !== null && phone !== '' && (typeof phone !== 'string' || phone.length > 30)) {
+      return NextResponse.json({ error: 'Invalid phone number' }, { status: 400 });
     }
     if (!category || !['general', 'safety', 'billing', 'account', 'trip', 'other'].includes(category)) {
       return NextResponse.json({ error: 'Invalid category' }, { status: 400 });
@@ -27,7 +30,7 @@ export async function POST(request: Request) {
     if (!message || typeof message !== 'string' || message.trim().length === 0) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 });
     }
-    if (full_name.length > 120 || email.length > 254 || (phone && phone.length > 30) || subject.length > 200 || message.length > 5000) {
+    if (full_name.length > 120 || email.length > 254 || subject.length > 200 || message.length > 5000) {
       return NextResponse.json({ error: 'One or more fields exceed the allowed length' }, { status: 400 });
     }
 

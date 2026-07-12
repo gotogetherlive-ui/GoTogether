@@ -7,6 +7,7 @@ import {
   Briefcase, GraduationCap, CheckCircle, Loader2, ChevronRight,
 } from "lucide-react";
 import { uploadToCloudinary } from "@/lib/cloudinaryClient";
+import { useSession } from "@/components/SessionProvider";
 
 interface Profile {
   id: string;
@@ -43,6 +44,7 @@ function isProfileComplete(p: Profile): boolean {
 }
 
 export default function DashboardClient() {
+  const { updateSessionUser } = useSession();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -152,6 +154,15 @@ export default function DashboardClient() {
       const updated = data.profile;
       if (updated) {
         setProfile(updated);
+        updateSessionUser({
+          full_name: updated.full_name,
+          avatar_url: updated.avatar_url,
+          age: updated.age,
+          gender: updated.gender,
+          profession: updated.profession,
+          fooding_habit: updated.fooding_habit,
+          phone_number: updated.phone_number,
+        });
         setEditing(false);
         setSavedMsg(true);
         setTimeout(() => setSavedMsg(false), 3000);

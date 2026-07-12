@@ -122,6 +122,10 @@ export function validateProductionEnv(env = process.env) {
   const errors = [];
   const warnings = [];
 
+  if (isTruthy(env, 'E2E_TEST_MODE')) {
+    errors.push('E2E_TEST_MODE must not be enabled in production');
+  }
+
   for (const name of required) {
     const raw = value(env, name);
     if (!raw) errors.push(`${name} is required`);

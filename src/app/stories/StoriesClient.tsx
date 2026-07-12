@@ -244,6 +244,10 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
       setLoadingMore(false);
     }
   };
+  const fetchStoriesRef = useRef(fetchStories);
+  useEffect(() => {
+    fetchStoriesRef.current = fetchStories;
+  }, [fetchStories]);
 
   useEffect(() => {
     void fetchStories(true);
@@ -252,32 +256,72 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
     if (typeof window === "undefined" || !window.EventSource) return;
 
     let refreshTimer: ReturnType<typeof setTimeout> | null = null;
-    const es = new EventSource("/api/stories/sse");
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let es: EventSource | null = null;
+    let retryDelay = 1000;
+    let destroyed = false;
+    let hasConnected = false;
 
-    es.onmessage = (event) => {
-      try {
-        const payload = JSON.parse(event.data);
-        if (payload.type !== "stories_changed") return;
-        setRealtimePulse(true);
-        if (refreshTimer) clearTimeout(refreshTimer);
-        refreshTimer = setTimeout(() => {
-          void fetchStories(true);
-          setRealtimePulse(false);
-        }, 450);
-      } catch {
-        // Ignore malformed realtime payloads.
+    const scheduleRefresh = () => {
+      setRealtimePulse(true);
+      if (refreshTimer) clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(() => {
+        void fetchStoriesRef.current(true);
+        setRealtimePulse(false);
+      }, 450);
+    };
+
+    const connect = () => {
+      if (destroyed || es || retryTimer) return;
+      const source = new EventSource("/api/stories/sse");
+      es = source;
+      source.onopen = () => {
+        if (destroyed || es !== source) return;
+        retryDelay = 1000;
+        if (hasConnected) void fetchStoriesRef.current(true);
+        hasConnected = true;
+      };
+      source.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          if (payload.type === "stories_changed") scheduleRefresh();
+        } catch {
+          // Ignore malformed realtime payloads.
+        }
+      };
+      source.onerror = () => {
+        if (es === source) es = null;
+        source.close();
+        setRealtimePulse(false);
+        if (destroyed || retryTimer) return;
+        const delay = retryDelay;
+        retryDelay = Math.min(retryDelay * 2, 30000);
+        retryTimer = setTimeout(() => {
+          retryTimer = null;
+          connect();
+        }, delay);
+      };
+    };
+
+    const reconcile = () => {
+      if (!document.hidden) {
+        void fetchStoriesRef.current(true);
+        if (!es && !retryTimer) connect();
       }
     };
 
-    es.onerror = () => {
-      es.close();
-      if (refreshTimer) clearTimeout(refreshTimer);
-      setRealtimePulse(false);
-    };
+    connect();
+    window.addEventListener("focus", reconcile);
+    document.addEventListener("visibilitychange", reconcile);
 
     return () => {
-      es.close();
+      destroyed = true;
+      es?.close();
+      es = null;
       if (refreshTimer) clearTimeout(refreshTimer);
+      if (retryTimer) clearTimeout(retryTimer);
+      window.removeEventListener("focus", reconcile);
+      document.removeEventListener("visibilitychange", reconcile);
     };
   }, []);
 

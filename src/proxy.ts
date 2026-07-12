@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
-const ORIGIN_EXEMPT_PATHS = new Set(['/api/webhooks/razorpay']);
+const ORIGIN_EXEMPT_PATHS = new Set(['/api/webhooks/razorpay', '/api/bookings/cashfree-return']);
 const PAYMENT_SOURCES = [
   'https://checkout.razorpay.com',
   'https://api.razorpay.com',
@@ -48,6 +48,11 @@ function getTrustedOrigins(request: NextRequest): Set<string> {
   const origins = new Set<string>();
   const requestOrigin = getRequestOrigin(request);
   const expectedOrigin = getExpectedOrigin();
+
+  if (process.env.NODE_ENV === 'production' && expectedOrigin) {
+    origins.add(expectedOrigin);
+    return origins;
+  }
 
   if (requestOrigin) origins.add(requestOrigin);
   if (expectedOrigin) origins.add(expectedOrigin);

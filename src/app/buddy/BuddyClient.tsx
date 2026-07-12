@@ -37,7 +37,13 @@ interface Trip {
   organizer_languages?: string | null;
 }
 
-export default function BuddyClient() {
+export default function BuddyClient({
+  isAuthenticated,
+  hasCompletedProfile,
+}: {
+  isAuthenticated: boolean;
+  hasCompletedProfile: boolean;
+}) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"search" | "create">("search");
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -81,7 +87,7 @@ export default function BuddyClient() {
   const [hasCompatibilityProfile, setHasCompatibilityProfile] = useState(false);
   const [showWizard, setShowWizard] = useState(false);
   const [showBudgetEditor, setShowBudgetEditor] = useState(false);
-  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [loadingProfile, setLoadingProfile] = useState(isAuthenticated);
 
   const fetchCompatibilityStatus = async () => {
     try {
@@ -134,8 +140,12 @@ export default function BuddyClient() {
   }, []);
 
   useEffect(() => {
-    fetchCompatibilityStatus();
-  }, []);
+    if (isAuthenticated) {
+      fetchCompatibilityStatus();
+    } else {
+      setLoadingProfile(false);
+    }
+  }, [isAuthenticated]);
 
   const handleWizardComplete = () => {
     setShowWizard(false);
@@ -267,7 +277,29 @@ export default function BuddyClient() {
     }
   };
 
+  const requireBuddyAccess = () => {
+    if (!isAuthenticated) {
+      router.push("/login?next=/buddy");
+      return false;
+    }
+    if (!hasCompletedProfile) {
+      alert("Please complete your profile before using Find Buddy.");
+      router.push("/dashboard");
+      return false;
+    }
+    if (!hasCompatibilityProfile) {
+      setShowWizard(true);
+      return false;
+    }
+    return true;
+  };
+
+  const openCreatePlan = () => {
+    if (requireBuddyAccess()) setActiveTab("create");
+  };
+
   const handleShowInterest = async (tripId: string) => {
+    if (!requireBuddyAccess()) return;
     try {
       const res = await fetch(`/api/trips/${tripId}/request`, { method: "POST" });
       const data = await res.json();
@@ -297,7 +329,19 @@ export default function BuddyClient() {
   }
 
   // â”€â”€â”€ Mandatory Onboarding Screen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  if (!hasCompatibilityProfile) {
+  if (isAuthenticated && !hasCompletedProfile) {
+    return (
+      <main className="flex-1 pt-28 pb-20 px-4 md:px-8 max-w-6xl mx-auto w-full flex flex-col items-center justify-center min-h-[70vh]">
+        <div className="max-w-xl rounded-3xl border border-orange-100 bg-white p-8 text-center shadow-xl">
+          <h2 className="text-3xl font-extrabold text-slate-900">Complete Your Profile</h2>
+          <p className="mt-3 text-slate-600">Complete your dashboard profile before creating plans, showing interest, or starting Travel DNA.</p>
+          <button onClick={() => router.push("/dashboard")} className="mt-6 rounded-2xl bg-orange-500 px-7 py-3.5 font-bold text-white">Complete Profile</button>
+        </div>
+      </main>
+    );
+  }
+
+  if (isAuthenticated && !hasCompatibilityProfile) {
     return (
       <main className="flex-1 pt-28 pb-20 px-4 md:px-8 max-w-6xl mx-auto w-full flex flex-col items-center justify-center min-h-[70vh]">
         <div className="bg-white/80 backdrop-blur-xl p-8 md:p-12 rounded-[2.5rem] shadow-xl border border-slate-100/80 max-w-2xl text-center relative overflow-hidden animate-slide-up">
@@ -383,7 +427,7 @@ export default function BuddyClient() {
                 <Search className="w-4 h-4 inline mr-1.5 -mt-0.5" /> Search Trips
               </button>
               <button
-                onClick={() => setActiveTab("create")}
+                onClick={openCreatePlan}
                 className={`px-7 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === "create"
                     ? "bg-white text-orange-600 shadow-lg"
                     : "text-white/80 hover:text-white hover:bg-white/10"
@@ -395,6 +439,16 @@ export default function BuddyClient() {
           </div>
         </div>
       </div>
+
+      {!isAuthenticated && (
+        <div className="mb-8 flex flex-col items-center justify-between gap-4 rounded-3xl border border-orange-200 bg-orange-50 p-5 text-center shadow-sm md:flex-row md:text-left">
+          <div>
+            <p className="font-extrabold text-slate-900">Preview Find Buddy trips</p>
+            <p className="text-sm text-slate-600">Sign in, complete your profile, and finish Travel DNA to create a plan, see match scores, or show interest.</p>
+          </div>
+          <button onClick={() => router.push("/login?next=/buddy")} className="shrink-0 rounded-2xl bg-orange-500 px-6 py-3 font-bold text-white shadow-md hover:bg-orange-600">Sign In to Continue</button>
+        </div>
+      )}
 
       {/* Compatibility DNA Status Bar */}
       {hasCompatibilityProfile && activeTab === "search" && (
@@ -493,7 +547,7 @@ export default function BuddyClient() {
                 <h3 className="text-2xl font-bold text-slate-900 mb-2">No trips found</h3>
                 <p className="text-slate-500 mb-8 max-w-sm mx-auto">Be the first to create a trip plan and find your travel companion!</p>
                 <button
-                  onClick={() => setActiveTab("create")}
+                  onClick={openCreatePlan}
                   className="bg-gradient-to-r from-orange-500 to-rose-500 text-white px-8 py-3.5 rounded-2xl font-bold shadow-lg shadow-orange-500/25 hover:shadow-xl hover:-translate-y-0.5 transition-all"
                 >
                   Create a Plan

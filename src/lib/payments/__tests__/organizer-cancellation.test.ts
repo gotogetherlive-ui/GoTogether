@@ -24,7 +24,7 @@ describe('GoTogether Organizer Trip Cancellation & Refund Suite', () => {
   let originalRefundPayment: any;
 
   before(async () => {
-    Object.defineProperty(process.env, 'NODE_ENV', { value: 'test', configurable: true });
+    Reflect.set(process.env, 'NODE_ENV', 'test');
     // Clean all tables referencing trips/users to avoid constraint violations
     await run('DELETE FROM public.booking_tickets');
     await run('DELETE FROM public.booking_cancellations');
@@ -65,7 +65,7 @@ describe('GoTogether Organizer Trip Cancellation & Refund Suite', () => {
     );
 
     // Setup stub default provider account for organizer
-    const apiKeyEnc = SecretManager.encrypt('mock_key_id');
+    const apiKeyEnc = SecretManager.encrypt('rzp_test_your_key_id');
     const apiSecretEnc = SecretManager.encrypt('mock_key_secret');
     const webhookSecretEnc = SecretManager.encrypt('mock_webhook_secret');
     
@@ -127,7 +127,7 @@ describe('GoTogether Organizer Trip Cancellation & Refund Suite', () => {
     );
 
     // 3. Generate Payment Order & Confirm capturing webhook (Transitions to confirmed / paid)
-    const orderRes = await createBookingPaymentOrder({ id: travelerUser.id, role: 'regular', email: travelerUser.email } as any, {
+    const orderRes = await createBookingPaymentOrder({ id: travelerUser.id, role: 'regular', email: travelerUser.email, full_name: travelerUser.full_name, phone_number: '9999999999', age: 29, gender: 'Other', profession: 'Tester', fooding_habit: 'Any' } as any, {
       trip_id: tripId,
       trip_date: '2026-06-30',
       male_count: 1,
@@ -237,7 +237,7 @@ describe('GoTogether Organizer Trip Cancellation & Refund Suite', () => {
     assert.strictEqual(retryRes.status, 200);
 
     const retriedBooking = await queryOne(`SELECT * FROM public.trip_bookings WHERE id = $1`, [bookingId]);
-    assert.strictEqual(retriedBooking.booking_status, 'refund_failed');
+    assert.strictEqual(retriedBooking.booking_status, 'refund_pending');
     assert.strictEqual(retriedBooking.payment_status, 'refund_pending');
 
     (global as any).mockSessionUser = null;

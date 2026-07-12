@@ -25,7 +25,7 @@ export async function signIn(formData: FormData): Promise<{ error?: string; succ
   }
 
   const user = await queryOne<{ id: string; password_hash: string | null }>(
-    'SELECT id, password_hash FROM users WHERE email = $1 AND deleted_at IS NULL',
+    'SELECT id, password_hash FROM users WHERE LOWER(email) = $1 AND deleted_at IS NULL',
     [normalizedEmail]
   )
 
@@ -57,6 +57,11 @@ export async function updateUserLocation(latitude: number, longitude: number) {
 
   if (!user) {
     return { error: 'Not authenticated' }
+  }
+
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude) ||
+      latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+    return { error: 'Invalid coordinates' }
   }
 
   await run(

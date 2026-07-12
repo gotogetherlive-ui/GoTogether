@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Loader2, Send, ArrowLeft, ShieldAlert } from "lucide-react";
+import { Loader2, Send, ArrowLeft, ShieldAlert, Users, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 interface Message {
@@ -12,6 +12,22 @@ interface Message {
   full_name: string;
   avatar_url: string | null;
 }
+interface ChatMember {
+  id: string;
+  full_name: string;
+  avatar_url: string | null;
+  is_organizer: boolean;
+}
+
+interface ChatInfo {
+  name: string;
+  default_name: string;
+  organizer_id: string;
+  organizer_name: string;
+  is_organizer: boolean;
+  member_count: number;
+  members: ChatMember[];
+}
 
 export default function ChatPage({ params }: { params: Promise<{ tripId: string }> }) {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -20,8 +36,16 @@ export default function ChatPage({ params }: { params: Promise<{ tripId: string 
   const [error, setError] = useState<string | null>(null);
   const [tripId, setTripId] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [chat, setChat] = useState<ChatInfo | null>(null);
+  const [showChatInfo, setShowChatInfo] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [chatName, setChatName] = useState("");
+  const [savingName, setSavingName] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesRequestGenerationRef = useRef(0);
+  const messagesControllerRef = useRef<AbortController | null>(null);
   const router = useRouter();
 
   // Extract params
@@ -41,23 +65,37 @@ export default function ChatPage({ params }: { params: Promise<{ tripId: string 
 
   const fetchMessages = async () => {
     if (!tripId) return;
+    const generation = ++messagesRequestGenerationRef.current;
+    messagesControllerRef.current?.abort();
+    const controller = new AbortController();
+    messagesControllerRef.current = controller;
     try {
-      const res = await fetch(`/api/chat/${tripId}`);
+      const res = await fetch(`/api/chat/${tripId}`, { signal: controller.signal, cache: "no-store" });
+      if (generation !== messagesRequestGenerationRef.current) return;
       if (res.status === 403) {
         setError("You are not authorized to view this chat.");
         setLoading(false);
         return;
       }
       const data = await res.json();
+      if (generation !== messagesRequestGenerationRef.current) return;
       if (data.messages) {
         setMessages(data.messages);
+        if (data.chat) {
+          setChat(data.chat);
+          setChatName((current) => current || data.chat.name);
+        }
       } else if (data.error) {
         setError(data.error);
       }
     } catch (err) {
+      if (controller.signal.aborted) return;
       console.error(err);
     } finally {
-      setLoading(false);
+      if (generation === messagesRequestGenerationRef.current) {
+        setLoading(false);
+        messagesControllerRef.current = null;
+      }
     }
   };
 
@@ -66,7 +104,12 @@ export default function ChatPage({ params }: { params: Promise<{ tripId: string 
       fetchMessages();
       // Set up short polling every 3 seconds
       const interval = setInterval(fetchMessages, 3000);
-      return () => clearInterval(interval);
+      return () => {
+        clearInterval(interval);
+        ++messagesRequestGenerationRef.current;
+        messagesControllerRef.current?.abort();
+        messagesControllerRef.current = null;
+      };
     }
   }, [tripId]);
 
@@ -137,16 +180,41 @@ export default function ChatPage({ params }: { params: Promise<{ tripId: string 
         >
           <ArrowLeft className="w-5 h-5 text-slate-800" />
         </button>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-orange-400 to-rose-400 flex items-center justify-center text-white font-bold shadow-sm">
-            T
+        <button type="button" onClick={() => setShowChatInfo(true)} className="flex min-w-0 flex-1 items-center gap-3 rounded-xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400" aria-label="View trip chat members and details">
+          <div className="w-10 h-10 shrink-0 rounded-full bg-gradient-to-tr from-orange-400 to-rose-400 flex items-center justify-center text-white font-bold shadow-sm">{(chat?.name || "T").charAt(0).toUpperCase()}</div>
+          <div className="min-w-0 flex flex-col">
+            <h1 className="truncate text-[17px] font-bold text-slate-900 leading-tight">{chat?.name || "Trip Group Chat"}</h1>
+            <p className="text-[12px] text-slate-500 font-medium">{chat ? `${chat.member_count} member${chat.member_count === 1 ? "" : "s"} - Tap for info` : "Coordinate your journey"}</p>
           </div>
-          <div className="flex flex-col">
-            <h1 className="text-[17px] font-bold text-slate-900 leading-tight">Trip Group Chat</h1>
-            <p className="text-[12px] text-slate-500 font-medium">Coordinate your journey</p>
-          </div>
-        </div>
+        </button>
+        <Users className="ml-3 h-5 w-5 shrink-0 text-slate-400" aria-hidden="true" />
       </div>
+
+      {showChatInfo && chat && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/40" role="dialog" aria-modal="true" aria-label="Trip chat information" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowChatInfo(false); }}>
+          <aside className="flex h-full w-full max-w-md flex-col bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+              <div><h2 className="text-xl font-extrabold text-slate-900">Chat info</h2><p className="text-sm text-slate-500">{chat.member_count} member{chat.member_count === 1 ? "" : "s"}</p></div>
+              <button type="button" onClick={() => setShowChatInfo(false)} className="rounded-full p-2 hover:bg-slate-100" aria-label="Close chat information"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="border-b border-slate-200 p-5">
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Trip chat</p>
+              <p className="mt-1 truncate text-lg font-extrabold text-slate-900">{chat.name}</p>
+              <p className="mt-1 text-sm text-slate-500">This group name follows the trip title.</p>
+            </div>            <div className="flex-1 overflow-y-auto p-5">
+              <h3 className="mb-3 text-sm font-extrabold uppercase tracking-wide text-slate-500">Members</h3>
+              <div className="space-y-2">
+                {chat.members.map((member) => (
+                  <div key={member.id} className="flex items-center gap-3 rounded-2xl p-3 hover:bg-slate-50">
+                    <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-orange-400 to-rose-500 text-white flex items-center justify-center font-bold">{member.avatar_url ? <img src={member.avatar_url} alt="" className="h-full w-full object-cover" /> : member.full_name.charAt(0).toUpperCase()}</div>
+                    <div className="min-w-0 flex-1"><p className="truncate font-bold text-slate-900">{member.full_name || "Traveler"}</p>{member.is_organizer && <p className="text-xs font-semibold text-orange-600">Trip organizer</p>}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </aside>
+        </div>
+      )}
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto px-4 py-6 space-y-3 flex flex-col bg-[#fafafa]">

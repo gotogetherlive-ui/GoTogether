@@ -45,7 +45,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { title, description, destination, duration_days, duration_nights, tags, images, brochure_url, pickup_point, drop_point, b2b_price, b2c_price, start_date, max_capacity } = body;
 
-    if (!title || !description || !destination || !duration_days || !images || !images.length) {
+    if (typeof title !== 'string' || typeof description !== 'string' || typeof destination !== 'string' || !title.trim() || !description.trim() || !destination.trim() || !duration_days || !Array.isArray(images) || images.length === 0) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
     if (title.length > 160 || description.length > 10000 || destination.length > 200 || images.length > 8) {

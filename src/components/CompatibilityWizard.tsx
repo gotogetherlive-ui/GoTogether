@@ -9,6 +9,7 @@ import {
 
 // ─── Step Configuration ──────────────────────────────────────────────
 const FOOD_OPTIONS = [
+  { value: "Any", label: "ANY", emoji: "🍽️" },
   { value: "Veg", label: "Vegetarian", emoji: "🥗" },
   { value: "Non-Veg", label: "Non-Veg", emoji: "🍗" },
   { value: "Vegan", label: "Vegan", emoji: "🌱" },
@@ -308,7 +309,7 @@ export default function CompatibilityWizard({
     <button
       type="button"
       onClick={onClick}
-      className={`relative w-full text-left rounded-2xl border-2 transition-all duration-200 cursor-pointer group ${
+      className={`relative min-w-0 w-full overflow-hidden text-left rounded-2xl border-2 transition-all duration-200 cursor-pointer group ${
         compact ? "p-3.5" : "p-5"
       } ${
         selected
@@ -321,8 +322,8 @@ export default function CompatibilityWizard({
           <Check className="w-3.5 h-3.5 text-white" />
         </div>
       )}
-      <div className="flex items-center gap-3">
-        <span className={`${compact ? "text-xl" : "text-2xl"} group-hover:scale-110 transition-transform`}>{emoji}</span>
+      <div className="flex min-w-0 items-center gap-3">
+        <span className={`${compact ? "text-xl" : "text-2xl"} shrink-0 group-hover:scale-110 transition-transform`}>{emoji}</span>
         <div>
           <p className={`font-bold ${selected ? "text-orange-700" : "text-slate-800"} ${compact ? "text-sm" : "text-base"}`}>
             {label}
@@ -566,7 +567,7 @@ export default function CompatibilityWizard({
                 <h3 className="text-lg font-bold text-slate-900">Smoking</h3>
               </div>
               <p className="text-sm text-slate-500 mb-3">Your smoking preference?</p>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-3">
                 {SMOKING_OPTIONS.map((opt) => (
                   <SelectCard
                     key={opt.value}

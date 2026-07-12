@@ -13,7 +13,10 @@
     "check-production-env": "node scripts/check-production-env.mjs",
     "db:migrate:check": "node scripts/check-migrations.mjs",
     "load:k6": "node scripts/run-k6-profile.mjs",
-    "test": "node --test scripts/__tests__/*.test.mjs",
+    "test": "npm run test:unit && npm run test:payments",
+    "test:unit": "node --test scripts/__tests__/*.test.mjs",
+    "test:payments": "node scripts/run-payment-tests.mjs",
+    "test:e2e": "playwright test",
     "test:security": "node --test scripts/__tests__/security-hardening.test.mjs",
     "release:check": "npm run check:env && npm run lint && npm run typecheck && npm run build",
     "load:smoke": "node scripts/run-k6-profile.mjs smoke",
@@ -40,17 +43,18 @@
     "cloudinary": "^2.10.0",
     "jspdf": "^4.2.1",
     "lucide-react": "^1.8.0",
-    "next": "16.2.4",
+    "next": "16.2.10",
     "pg": "^8.20.0",
     "qrcode": "^1.5.4",
     "razorpay": "^2.9.6",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-parallax-tilt": "^1.7.326",
-    "resend": "^6.12.2",
-    "uuid": "^13.0.0"
+    "resend": "^6.17.2",
+    "uuid": "^13.0.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/pg": "^8.20.0",
@@ -60,6 +64,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
     "tailwindcss": "^4",
+    "tsx": "^4.23.0",
     "typescript": "^5"
   }
 }

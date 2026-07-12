@@ -68,7 +68,7 @@ const termsSections = [
     title: "9. Moderation and Enforcement",
     body: [
       "GoTogether may review, edit, restrict, or remove content that violates these Terms or creates safety, legal, fraud, or platform integrity risks.",
-      "Appeals may be sent to appeals@gotogethertrip.com within 14 days of an enforcement action.",
+      "Appeals may be sent to support@gotogethertrip.com within 14 days of an enforcement action.",
     ],
   },
   {
@@ -88,12 +88,12 @@ const termsSections = [
   {
     title: "12. Governing Law and Disputes",
     body: [
-      "These Terms are governed by the laws of India. Disputes relating to these Terms or the platform may be resolved through appropriate courts or arbitration seated in New Delhi, India, where applicable.",
+      "These Terms are governed by the laws of India. Disputes relating to these Terms or the platform may be resolved through appropriate courts or arbitration seated in Patna, Bihar, India, where applicable.",
     ],
   },
   {
     title: "13. Contact",
-    body: ["For legal questions, contact legal@gotogethertrip.com. For account or trip support, contact support@gotogethertrip.com."],
+    body: ["For all questions, contact support@gotogethertrip.com. Address: Patna, Bihar, India."],
   },
 ];
 
@@ -134,7 +134,7 @@ const privacySections = [
   {
     title: "6. Your Rights",
     body: [
-      "Depending on your jurisdiction, you may request access, correction, deletion, portability, restriction, objection, or withdrawal of consent. Contact privacy@gotogethertrip.com for privacy requests.",
+      "Depending on your jurisdiction, you may request access, correction, deletion, portability, restriction, objection, or withdrawal of consent. Contact support@gotogethertrip.com for privacy requests.",
     ],
   },
   {
@@ -152,7 +152,7 @@ const privacySections = [
   },
   {
     title: "9. Privacy Contact",
-    body: ["For privacy questions or requests, contact privacy@gotogethertrip.com or support@gotogethertrip.com."],
+    body: ["For privacy questions or requests, contact support@gotogethertrip.com. Address: Patna, Bihar, India."],
   },
 ];
 
@@ -213,8 +213,8 @@ export default function TermsAcceptanceGate() {
           </div>
         </div>
 
-        <div className="mx-5 min-h-0 flex-1 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:mx-7 sm:p-5">
-          <article className="space-y-5">
+        <div className="mx-5 min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:mx-7 sm:p-5">
+          <article className="min-w-0 space-y-5 break-words">
             <header className="space-y-1">
               <h3 className="text-base font-extrabold text-slate-950">Terms of Service</h3>
               <p className="text-xs font-semibold text-slate-500">Last updated: July 6, 2026</p>

@@ -52,14 +52,10 @@ export async function POST(request: Request) {
     const existingUser = await queryOne('SELECT id FROM users WHERE LOWER(email) = $1 AND deleted_at IS NULL', [normalizedEmail]) as { id: string } | null;
 
     if (existingUser) {
-      const [localPart, domain] = normalizedEmail.split('@');
-      const masked =
-        localPart.charAt(0) +
-        '*'.repeat(Math.max(localPart.length - 2, 1)) +
-        localPart.charAt(localPart.length - 1) +
-        '@' +
-        domain;
-      return NextResponse.json({ success: true, maskedEmail: masked });
+      return NextResponse.json(
+        { error: 'An account with this email already exists. Please sign in instead.' },
+        { status: 409 }
+      );
     }
 
     // Rate-limit: check if an OTP was sent in the last 60 seconds
