@@ -151,6 +151,11 @@ function checkUnsafeApiOrigin(request: NextRequest): NextResponse | null {
 
   try {
     const actualOrigin = new URL(origin).origin;
+    const forwardedRequestOrigin = getRequestOrigin(request);
+    if (forwardedRequestOrigin && actualOrigin === new URL(forwardedRequestOrigin).origin) {
+      return null;
+    }
+
     const trustedOrigins = getTrustedOrigins(request);
     if (!trustedOrigins.has(actualOrigin)) {
       return NextResponse.json({ error: 'Invalid request origin' }, { status: 403 });
