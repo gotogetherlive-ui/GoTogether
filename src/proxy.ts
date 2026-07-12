@@ -49,8 +49,22 @@ function getTrustedOrigins(request: NextRequest): Set<string> {
   const requestOrigin = getRequestOrigin(request);
   const expectedOrigin = getExpectedOrigin();
 
-  if (process.env.NODE_ENV === 'production' && expectedOrigin) {
-    origins.add(expectedOrigin);
+  if (process.env.NODE_ENV === 'production') {
+    for (const configured of [process.env.NEXT_PUBLIC_APP_URL, process.env.NEXT_PUBLIC_BASE_URL]) {
+      if (!configured) continue;
+      try {
+        const url = new URL(configured);
+        origins.add(url.origin);
+        if (url.protocol === 'https:' && url.hostname === 'gotogethertrip.com') {
+          origins.add('https://www.gotogethertrip.com');
+        }
+        if (url.protocol === 'https:' && url.hostname === 'www.gotogethertrip.com') {
+          origins.add('https://gotogethertrip.com');
+        }
+      } catch {
+        // Invalid deployment config is handled by the production environment check.
+      }
+    }
     return origins;
   }
 
