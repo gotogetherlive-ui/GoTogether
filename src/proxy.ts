@@ -100,6 +100,7 @@ function buildContentSecurityPolicy(nonce: string): string {
     'https://maps.gstatic.com',
     'https://checkout.razorpay.com',
     'https://sdk.cashfree.com',
+    'https://www.googletagmanager.com',
   ].join(' ');
 
   return [
@@ -111,7 +112,7 @@ function buildContentSecurityPolicy(nonce: string): string {
     `script-src ${scriptSrc}`,
     "script-src-attr 'none'",
     `img-src 'self' data: blob: https://res.cloudinary.com https://*.cloudinary.com https://maps.gstatic.com https://lh3.googleusercontent.com https://images.unsplash.com ${PAYMENT_SOURCES}`,
-    `connect-src 'self' ${PAYMENT_SOURCES} https://maps.googleapis.com https://maps.gstatic.com https://api.bigdatacloud.net`,
+    `connect-src 'self' ${PAYMENT_SOURCES} https://maps.googleapis.com https://maps.gstatic.com https://api.bigdatacloud.net https://www.google-analytics.com https://*.google-analytics.com https://www.googletagmanager.com`,
     `frame-src 'self' ${PAYMENT_SOURCES}`,
     `child-src 'self' ${PAYMENT_SOURCES}`,
     "worker-src 'self' blob:",

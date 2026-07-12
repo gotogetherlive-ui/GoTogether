@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
+import Script from "next/script";
 import "./globals.css";
 import { getAppSettings } from "@/lib/settings";
 import SessionProvider from "@/components/SessionProvider";
@@ -54,6 +55,24 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col bg-slate-50 text-slate-900">
+        <Script
+          id="google-tag-library"
+          nonce={nonce}
+          src="https://www.googletagmanager.com/gtag/js?id=G-23RKGDFD6H"
+          strategy="afterInteractive"
+        />
+        <Script
+          id="google-tag-config"
+          nonce={nonce}
+          strategy="afterInteractive"
+        >
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-23RKGDFD6H');
+          `}
+        </Script>
         <script
           nonce={nonce}
           suppressHydrationWarning
