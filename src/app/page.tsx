@@ -11,6 +11,7 @@ import FadeInScroll from "@/components/FadeInScroll";
 import TiltWrapper from "@/components/TiltWrapper";
 import AnimatedButton from "@/components/AnimatedButton";
 import Animated3DText from "@/components/Animated3DText";
+import HomeSeoContent from "@/components/HomeSeoContent";
 import { query } from '@/lib/db';
 import { ensureTripSlug } from '@/lib/slugs';
 import { ensureOrganizerSlug } from '@/lib/organizer-slugs';
@@ -166,6 +167,8 @@ export default async function Home() {
             </div>
           </div>
         </section>
+
+        <HomeSeoContent />
 
         {/* Shared Footer */}
         <Footer />

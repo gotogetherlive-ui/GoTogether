@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const SITE_NAME = "GoTogether";
-export const SITE_ALTERNATE_NAMES = ["Go Together", "GoTogether Trip", "GoTogetherTrip"] as const;
+export const SITE_ALTERNATE_NAMES = ["GoTogetherTrip", "Go Together", "GoTogether Trip", "gotogethertrip.com"] as const;
 export const DEFAULT_TITLE = "GoTogether | Verified Group Trips & Travel Experiences in India";
 export const DEFAULT_DESCRIPTION =
   "Discover and book verified group trips, weekend trips, backpacking trips, trekking trips, bike trips, and curated travel experiences in India with trusted organizers.";
@@ -120,6 +120,14 @@ export function buildMetadata({
     creator: SITE_NAME,
     publisher: SITE_NAME,
     category: "travel",
+    icons: {
+      icon: [
+        { url: "/icon.svg", type: "image/svg+xml", sizes: "any" },
+        { url: "/favicon.ico", type: "image/x-icon" },
+      ],
+      shortcut: "/icon.svg",
+      apple: "/icon.svg",
+    },
     verification: {
       google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || undefined,
       other: process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION
@@ -179,7 +187,14 @@ export function organizationJsonLd() {
     name: SITE_NAME,
     alternateName: [...SITE_ALTERNATE_NAMES],
     url: absoluteUrl("/"),
-    logo: absoluteUrl("/favicon.ico"),
+    logo: {
+      "@type": "ImageObject",
+      url: absoluteUrl("/icon.svg"),
+      contentUrl: absoluteUrl("/icon.svg"),
+      width: 512,
+      height: 512,
+      caption: "GoTogether travel marketplace logo",
+    },
     description:
       "GoTogether is an India-focused travel marketplace that helps users discover and book verified group trips, backpacking trips, weekend trips, trekking trips, bike trips, women-only trips, solo travel groups, and curated travel experiences from trusted organizers.",
     address: {
