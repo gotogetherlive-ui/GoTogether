@@ -29,6 +29,8 @@ Required for every production deployment:
 - `TRUST_PROXY=true` only when the app is behind a trusted proxy that overwrites forwarding headers.
 - `PG_POOL_MAX` and `WEB_CONCURRENCY` sized for the database connection limit.
 
+Capacity rule: `WEB_CONCURRENCY × PG_POOL_MAX × application instances` must remain below the database's usable connection allowance. Reserve at least 20% of database connections for migrations, administration, and background jobs. Monitor `/api/health`; a sustained non-zero `pool.waiting` value means requests are queued for a database connection and the pool, query load, or database tier needs attention.
+
 Recommended for rolling or multi-instance deployments:
 
 - `NEXT_DEPLOYMENT_ID` or `DEPLOYMENT_VERSION`: stable release id, usually a git SHA.
@@ -75,6 +77,15 @@ Webhook confirmation is the source of truth. Frontend checkout acknowledgement o
 6. Start with `NODE_ENV=production npm start` for platform-managed scaling, or `NODE_ENV=production npm run start:cluster` on a single multi-core VM.
 7. Schedule booking expiry, story expiry, refund retry, and reconciliation cron routes with the bearer secret.
 8. Back up PostgreSQL, test restores, and alert on failed refunds, webhook 5xx responses, database saturation, and repeated authentication failures.
+
+### Weekly Stories competition schedule
+
+Call `GET /api/cron/expire-stories` with `Authorization: Bearer <CRON_SECRET>` at both weekly boundaries:
+
+- Friday 18:30 UTC (Saturday 00:00 IST) freezes scoring and snapshots the winner for Saturday.
+- Saturday 18:30 UTC (Sunday 00:00 IST) removes the previous event's posts and opens the new event.
+
+The operation is idempotent and safe to retry. Stories and ranking requests also run the same guarded maintenance as a fallback, so stale posts are never served if a scheduler invocation is delayed. Alert on any non-2xx scheduler response.
 
 ## Payment Readiness Classification
 

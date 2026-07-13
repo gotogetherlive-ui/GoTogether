@@ -124,7 +124,6 @@ export async function createSession(userId: string): Promise<string> {
 
 export async function getSession(): Promise<SessionUser | null> {
   try {
-    await ensureSchema();
     if (process.env.NODE_ENV === 'test' && (global as any).mockSessionUser) {
       return (global as any).mockSessionUser;
     }
@@ -146,6 +145,7 @@ export async function getSession(): Promise<SessionUser | null> {
     }
 
     // ─── Cache miss — hit DB ───
+    await ensureSchema();
     const session = await queryOne<{ user_id: string; expires_at: string }>(
       'SELECT user_id, expires_at FROM sessions WHERE token = $1',
       [tokenHash]

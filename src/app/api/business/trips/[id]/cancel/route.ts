@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { queryOne, run, transaction } from '@/lib/db';
+import { transaction } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
 import { PaymentOrchestrator } from '@/lib/payments/orchestrator';
 import { notifyUser, notifyAdmins } from '@/lib/notificationEvents';
-import { BOOKING_STATUS, REFUND_STATUS } from '@/lib/payments/domain';
 
 export async function POST(
   request: Request,

@@ -82,7 +82,6 @@ function getProviderCheckout(
   provider: PaymentProvider,
   providerAccount: ProviderAccount | null | undefined,
   raw: unknown,
-  amount: number,
 ): CheckoutInstructions | null {
   const payload = asRecord(raw);
 
@@ -547,7 +546,7 @@ export async function createBookingPaymentOrder(user: SessionUser, rawBody: unkn
         isSimulated: isProviderSimulated(local.provider, local.providerAccount),
         provider: local.provider,
         checkoutKey: getProviderCheckoutKey(local.provider, local.providerAccount),
-        checkout: getProviderCheckout(local.provider, local.providerAccount, local.providerPayload, local.amount),
+        checkout: getProviderCheckout(local.provider, local.providerAccount, local.providerPayload),
       },
     };
   }
@@ -601,7 +600,7 @@ export async function createBookingPaymentOrder(user: SessionUser, rawBody: unkn
         isSimulated: isProviderSimulated(local.provider, local.providerAccount),
         provider: local.provider,
         checkoutKey: getProviderCheckoutKey(local.provider, local.providerAccount),
-        checkout: getProviderCheckout(local.provider, local.providerAccount, gatewayOrder.raw, local.amount),
+        checkout: getProviderCheckout(local.provider, local.providerAccount, gatewayOrder.raw),
       },
     };
   } catch (error) {

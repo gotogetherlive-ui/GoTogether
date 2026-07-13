@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { 
   Heart, 
   MessageCircle, 
@@ -24,9 +24,16 @@ import {
   Share2,
   Copy,
   Check,
+  Trophy,
+  Medal,
+  Star,
+  TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { uploadToCloudinary } from "@/lib/cloudinaryClient";
+
+import { formatCreditPoints, getLevelProgress, getTravelerLevel } from '@/lib/travelerRank';
 
 interface SessionUser {
   id: string;
@@ -71,6 +78,9 @@ interface Story {
   created_at: string;
   author_name: string;
   author_avatar: string | null;
+  author_role: string;
+  author_credit_points: number | string;
+  author_rank: number | string | null;
   trip_title: string | null;
   trip_destination: string | null;
   is_liked: boolean;
@@ -82,6 +92,8 @@ interface ActiveUser {
   avatar_url: string | null;
   role: string;
   is_online: boolean;
+  credit_points: number | string;
+  traveler_rank: number | string | null;
 }
 
 interface UserProfile {
@@ -96,6 +108,43 @@ interface UserProfile {
   fooding_habit: string | null;
   avatar_url: string | null;
   created_at: string;
+  credit_points: number | string;
+  total_likes: number | string;
+  traveler_rank: number | string | null;
+  story_count: number | string;
+}
+
+interface RankingEntry {
+  id: string;
+  full_name: string;
+  avatar_url: string | null;
+  role: string;
+  credit_points: number;
+  story_count: number;
+  total_likes: number;
+  rank: number;
+  level: string;
+}
+
+interface FeaturedWinner {
+  user_id: string;
+  full_name: string;
+  avatar_url: string | null;
+  total_likes: number;
+  score: number;
+  story_count: number;
+}
+
+interface CompetitionState {
+  eventId: string;
+  phase: 'active' | 'featured';
+  startsAt: string;
+  scoringEndsAt: string;
+  featureEndsAt: string;
+  postLimit: number;
+  pointPerLike: number;
+  currentUserPosts: number;
+  featuredWinner: FeaturedWinner | null;
 }
 
 interface StoriesClientProps {
@@ -138,13 +187,15 @@ function SafeAvatar({
   return (
     <div 
       onClick={onClick}
-      className={`${sizeClass} rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center font-bold text-slate-700 shadow-inner overflow-hidden border border-slate-100 select-none ${onClick ? "cursor-pointer hover:scale-105 transition-all duration-200" : ""}`}
+      className={`${sizeClass} relative rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center font-bold text-slate-700 shadow-inner overflow-hidden border border-slate-100 select-none ${onClick ? "cursor-pointer hover:scale-105 transition-all duration-200" : ""}`}
     >
       {avatarUrl && !imgFailed ? (
-        <img
+        <Image
           src={avatarUrl}
           alt={name}
-          className="w-full h-full object-cover animate-in fade-in duration-200"
+          fill
+          sizes="96px"
+          className="object-cover animate-in fade-in duration-200"
           onError={() => setImgFailed(true)}
         />
       ) : (
@@ -189,6 +240,9 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
   const [shareStory, setShareStory] = useState<Story | null>(null);
   const [copiedStoryId, setCopiedStoryId] = useState<string | null>(null);
   const [realtimePulse, setRealtimePulse] = useState(false);
+  const [rankingLeaders, setRankingLeaders] = useState<RankingEntry[]>([]);
+  const [currentRanking, setCurrentRanking] = useState<RankingEntry | null>(null);
+  const [competition, setCompetition] = useState<CompetitionState | null>(null);
 
   const isProfileComplete = !!(
     currentUser.full_name?.trim() &&
@@ -198,11 +252,38 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
     currentUser.profession &&
     currentUser.fooding_habit
   ) || isAdmin;
+  const eventPostingClosed = Boolean(
+    competition && (
+      competition.phase !== 'active' || competition.currentUserPosts >= competition.postLimit
+    )
+  );
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
 
-  const fetchStories = async (reset = false) => {
+  const fetchRankings = useCallback(async () => {
+    try {
+      const res = await fetch('/api/traveler-rankings', { cache: 'no-store' });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (Array.isArray(data.leaders)) setRankingLeaders(data.leaders);
+      setCurrentRanking(data.current || null);
+      if (data.event) {
+        setCompetition((current) => current ? {
+          ...current,
+          phase: data.event.phase,
+          startsAt: data.event.startsAt,
+          scoringEndsAt: data.event.scoringEndsAt,
+          featureEndsAt: data.event.featureEndsAt,
+          featuredWinner: data.event.featuredWinner,
+        } : current);
+      }
+    } catch (error) {
+      console.error('Failed to fetch traveler rankings', error);
+    }
+  }, []);
+
+  const fetchStories = useCallback(async (reset = false) => {
     if (reset) {
       setLoading(true);
     } else {
@@ -221,6 +302,7 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
       const data = await res.json();
 
       setStoriesBlocked(!!data.storiesBlocked);
+      if (data.competition) setCompetition(data.competition);
 
       if (data.storiesBlocked) {
         setStories([]);
@@ -243,15 +325,19 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
       setLoading(false);
       setLoadingMore(false);
     }
-  };
+  }, [cursor]);
   const fetchStoriesRef = useRef(fetchStories);
   useEffect(() => {
     fetchStoriesRef.current = fetchStories;
   }, [fetchStories]);
 
   useEffect(() => {
-    void fetchStories(true);
-  }, []);
+    const initialLoad = window.setTimeout(() => {
+      void fetchStoriesRef.current(true);
+      void fetchRankings();
+    }, 0);
+    return () => window.clearTimeout(initialLoad);
+  }, [fetchRankings]);
   useEffect(() => {
     if (typeof window === "undefined" || !window.EventSource) return;
 
@@ -468,10 +554,17 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
         setSelectedTripId("");
         setImages([]);
         setComposerExpanded(false);
+        if (data.competition) {
+          setCompetition((current) => current ? {
+            ...current,
+            currentUserPosts: Number(data.competition.currentUserPosts),
+          } : current);
+        }
+        void fetchRankings();
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      alert(err.message || "Failed to publish your story. Please try again.");
+      alert(err instanceof Error ? err.message : "Failed to publish your story. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -486,6 +579,7 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
       });
       if (!res.ok) throw new Error("Failed to delete story");
       setStories((prev) => prev.filter((story) => story.id !== storyId));
+      void fetchRankings();
     } catch (err) {
       console.error(err);
       alert("Failed to delete story.");
@@ -498,7 +592,18 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
       return;
     }
     if (storiesBlocked && !isAdmin) {
-      alert("Interactions are temporarily disabled.");
+      alert('Interactions are temporarily disabled.');
+      return;
+    }
+
+    if (competition?.phase === 'featured') {
+      alert('Scoring is closed on Saturday while the event winner is featured.');
+      return;
+    }
+
+    const targetStory = stories.find((story) => story.id === storyId);
+    if (targetStory?.user_id === currentUser.id) {
+      alert('You cannot score your own competition post.');
       return;
     }
 
@@ -528,19 +633,18 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
       const data = await res.json();
       setStories((prev) =>
         prev.map((story) => {
-          if (story.id === storyId) {
-            return {
-              ...story,
-              is_liked: data.liked,
-              likes_count: data.likesCount,
-            };
-          }
-          return story;
+          const updated = story.user_id === targetStory?.user_id
+            ? { ...story, author_credit_points: data.authorScore }
+            : story;
+          return story.id === storyId
+            ? { ...updated, is_liked: data.liked, likes_count: data.likesCount }
+            : updated;
         })
       );
-    } catch (err: any) {
+      void fetchRankings();
+    } catch (err: unknown) {
       console.error(err);
-      alert(err.message || "Failed to toggle like.");
+      alert(err instanceof Error ? err.message : "Failed to toggle like.");
       fetchStories(true);
     }
   };
@@ -600,9 +704,9 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
           prev.map((s) => (s.id === storyId ? { ...s, comments_count: s.comments_count + 1 } : s))
         );
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      alert(err.message || "Failed to post comment.");
+      alert(err instanceof Error ? err.message : "Failed to post comment.");
     } finally {
       setSubmittingComment((prev) => ({ ...prev, [storyId]: false }));
     }
@@ -667,7 +771,7 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
   };
 
   return (
-    <div className="max-w-2xl mx-auto w-full px-4 md:px-0 pb-16">
+    <div className='max-w-7xl mx-auto w-full px-4 md:px-6 pb-16'>
       
       {/* Premium Hero Header */}
       <div className="bg-gradient-to-br from-indigo-900 via-purple-800 to-pink-700 text-white rounded-3xl p-6 md:p-10 mb-8 relative overflow-hidden shadow-xl shadow-purple-900/20 border border-white/10">
@@ -681,10 +785,56 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
             Travel Stories
           </h1>
           <p className="text-white/80 text-sm md:text-base max-w-md">
-            Share your beautiful trip moments, photos, and adventure logs with the community. Link past trips and discover travel buddies!
+            Share authentic travel moments, discover people with similar interests, and build your reputation in the traveler community.
           </p>
+          <div className='mt-5 inline-flex items-center gap-2 rounded-2xl bg-white/10 px-3 py-2 text-xs font-bold ring-1 ring-white/15 backdrop-blur-sm'>
+            <Star className='h-4 w-4 fill-amber-300 text-amber-300' />
+            Every like received earns {formatCreditPoints(competition?.pointPerLike ?? 0.25)} event points
+          </div>
         </div>
       </div>
+
+      {competition ? (
+        <section className={`mb-6 overflow-hidden rounded-3xl border shadow-sm ${competition.phase === 'featured' ? 'border-amber-200 bg-amber-50' : 'border-indigo-100 bg-white'}`}>
+          {competition.phase === 'featured' ? (
+            <div className='p-5 md:p-6'>
+              <div className='flex flex-col gap-5 sm:flex-row sm:items-center'>
+                <div className='flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-300 to-orange-500 text-white shadow-lg shadow-amber-200'>
+                  <Trophy className='h-7 w-7' />
+                </div>
+                {competition.featuredWinner ? (
+                  <button type='button' onClick={() => fetchUserProfile(competition.featuredWinner!.user_id)} className='flex min-w-0 flex-1 items-center gap-3 text-left'>
+                    <SafeAvatar avatarUrl={competition.featuredWinner.avatar_url} name={competition.featuredWinner.full_name} sizeClass='h-12 w-12' textClass='text-base' />
+                    <span className='min-w-0'>
+                      <span className='block text-[10px] font-extrabold uppercase tracking-[0.18em] text-amber-700'>Saturday featured traveler</span>
+                      <span className='block truncate text-xl font-black text-slate-900'>{competition.featuredWinner.full_name}</span>
+                      <span className='block text-xs font-bold text-slate-500'>{competition.featuredWinner.total_likes} likes · {formatCreditPoints(competition.featuredWinner.score)} points</span>
+                    </span>
+                  </button>
+                ) : (
+                  <div>
+                    <p className='text-lg font-extrabold text-slate-900'>No winner this week</p>
+                    <p className='text-xs font-semibold text-slate-500'>The event ended without any eligible likes.</p>
+                  </div>
+                )}
+              </div>
+              <p className='mt-4 rounded-2xl bg-white/70 px-4 py-3 text-xs font-semibold text-slate-600 ring-1 ring-amber-100'>Scoring is closed today. Previous posts are deleted Sunday before the next event begins.</p>
+            </div>
+          ) : (
+            <div className='flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between'>
+              <div>
+                <p className='text-[10px] font-extrabold uppercase tracking-[0.18em] text-indigo-600'>Weekly traveler event · Sunday to Friday</p>
+                <h2 className='mt-1 text-lg font-extrabold text-slate-900'>Win with likes across both of your posts</h2>
+                <p className='mt-1 text-xs font-semibold text-slate-500'>1 like = {formatCreditPoints(competition.pointPerLike)} points · scoring closes Friday at 11:59 PM IST</p>
+              </div>
+              <div className='shrink-0 rounded-2xl bg-indigo-50 px-4 py-3 text-center ring-1 ring-indigo-100'>
+                <p className='text-xl font-black text-indigo-700'>{competition.currentUserPosts}/{competition.postLimit}</p>
+                <p className='text-[9px] font-extrabold uppercase tracking-wide text-indigo-500'>Posts used</p>
+              </div>
+            </div>
+          )}
+        </section>
+      ) : null}
 
       {realtimePulse && (
         <div className="mb-5 flex items-center justify-center gap-2 rounded-2xl border border-sky-100 bg-sky-50 px-4 py-2 text-xs font-bold text-sky-700 shadow-sm animate-in fade-in duration-200">
@@ -692,6 +842,9 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
           Fresh stories are syncing...
         </div>
       )}
+
+      <div className='grid items-start gap-8 lg:grid-cols-[minmax(0,680px)_320px] lg:justify-center'>
+        <main className='min-w-0'>
 
       {/* Global Stories Freeze Banner (Admin system) */}
       {storiesBlocked && (
@@ -741,6 +894,9 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
                       <span className="text-xs font-bold text-slate-700 max-w-[72px] truncate group-hover:text-indigo-600 transition-colors">
                         {u.full_name?.split(" ")[0]}
                       </span>
+                      <span className='text-[9px] font-extrabold text-violet-500'>
+                        {u.traveler_rank ? `#${u.traveler_rank}` : 'New'} · {formatCreditPoints(u.credit_points)} pts
+                      </span>
                     </button>
                   );
                 })}
@@ -784,13 +940,18 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
                   
                   <div className="flex-1">
                     <textarea
+                      disabled={eventPostingClosed}
                       value={content}
                       onChange={(e) => {
                         setContent(e.target.value);
                         if (!composerExpanded) setComposerExpanded(true);
                       }}
                       onFocus={() => setComposerExpanded(true)}
-                      placeholder="Where did you explore? Share your adventure details..."
+                      placeholder={eventPostingClosed
+                        ? competition?.phase === 'featured'
+                          ? 'Posting reopens Sunday with the new event.'
+                          : 'You have used both posts for this event.'
+                        : 'Where did you explore? Share your adventure details...'}
                       className="w-full min-h-[44px] max-h-48 py-2 border-0 outline-none text-slate-800 placeholder-slate-400 font-medium resize-none text-sm focus:ring-0"
                       style={{ height: composerExpanded ? "120px" : "44px", transition: "height 0.2s ease" }}
                     />
@@ -803,7 +964,7 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
                       <div className="flex gap-2 flex-wrap mb-4">
                         {images.map((url, idx) => (
                           <div key={idx} className="relative w-20 h-20 rounded-xl overflow-hidden group shadow-sm border border-slate-200 bg-white">
-                            <img src={url} alt="Upload preview" className="w-full h-full object-cover" />
+                            <Image src={url} alt="Upload preview" fill sizes="80px" className="object-cover" />
                             <button
                               type="button"
                               onClick={() => removeImage(idx)}
@@ -898,7 +1059,7 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
                         </button>
                         <button
                           type="submit"
-                          disabled={submitting || uploading || !content.trim()}
+                          disabled={eventPostingClosed || submitting || uploading || !content.trim()}
                           className="flex items-center gap-1.5 px-4 py-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg text-xs font-bold shadow-md shadow-indigo-600/10 disabled:opacity-50 disabled:pointer-events-none transition-all duration-200"
                         >
                           {submitting ? (
@@ -992,11 +1153,14 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
                         >
                           {story.author_name}
                         </span>
-                        {getRoleBadge(currentUser.id === story.user_id ? currentUser.role : "regular")}
+                        {getRoleBadge(story.author_role)}
                       </div>
-                      <span className="text-[10px] font-semibold text-slate-400 block mt-0.5">
-                        {timeAgo(story.created_at)}
-                      </span>
+                      <div className='mt-0.5 flex items-center gap-1.5 text-[10px] font-semibold text-slate-400'>
+                        <span>{timeAgo(story.created_at)}</span>
+                        <span>·</span>
+                        <span className='font-bold text-violet-600'>{formatCreditPoints(story.author_credit_points)} event points</span>
+                        {story.author_rank ? <><span>·</span><span>#{story.author_rank}</span></> : null}
+                      </div>
                     </div>
                   </div>
 
@@ -1033,10 +1197,12 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
 
                 {hasImages && (
                   <div className="relative w-full aspect-[4/3] bg-slate-950 flex items-center justify-center group border-y border-slate-100">
-                    <img
+                    <Image
                       src={story.images[activeCarouselIdx]}
                       alt="Adventure"
-                      className="w-full h-full object-cover select-none"
+                      fill
+                      sizes="(max-width: 768px) 100vw, 680px"
+                      className="object-cover select-none"
                     />
 
                     {story.images.length > 1 && (
@@ -1094,7 +1260,9 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
                 <div className="p-3 border-t border-slate-50 flex items-center gap-6">
                   <button
                     onClick={() => handleToggleLike(story.id)}
-                    className="flex items-center gap-1.5 text-slate-500 hover:text-rose-500 font-bold text-xs transition-colors group/like"
+                    disabled={competition?.phase !== 'active' || story.user_id === currentUser.id}
+                    title={story.user_id === currentUser.id ? 'You cannot like your own post' : competition?.phase !== 'active' ? 'Scoring is closed on Saturday' : 'Like this story'}
+                    className="flex items-center gap-1.5 text-slate-500 hover:text-rose-500 font-bold text-xs transition-colors group/like disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <div className={`p-1.5 rounded-lg group-hover/like:bg-rose-50 transition-colors ${story.is_liked ? "text-rose-500" : ""}`}>
                       <Heart 
@@ -1103,7 +1271,7 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
                         }`} 
                       />
                     </div>
-                    <span>{story.likes_count} Likes</span>
+                    <span>{story.likes_count} Likes · {formatCreditPoints(story.likes_count * (competition?.pointPerLike ?? 0.25))} pts</span>
                   </button>
 
                   <button
@@ -1236,12 +1404,103 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
         </div>
       )}
 
+        </main>
+
+        <aside className='space-y-5 lg:sticky lg:top-24'>
+          <section className='overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm'>
+            <div className='bg-gradient-to-br from-slate-950 via-indigo-950 to-violet-900 p-5 text-white'>
+              <div className='flex items-center justify-between'>
+                <div>
+                  <p className='text-[10px] font-extrabold uppercase tracking-[0.2em] text-indigo-200'>Your traveler status</p>
+                  <h2 className='mt-1 text-xl font-extrabold'>
+                    {currentRanking ? getTravelerLevel(Number(currentRanking.credit_points)).name : 'Explorer'}
+                  </h2>
+                </div>
+                <div className='flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/15'>
+                  <Trophy className='h-5 w-5 text-amber-300' />
+                </div>
+              </div>
+
+              <div className='mt-5 grid grid-cols-3 gap-2'>
+                <div className='rounded-2xl bg-white/10 p-2.5 text-center'>
+                  <p className='text-lg font-black'>{currentRanking ? `#${currentRanking.rank}` : '—'}</p>
+                  <p className='text-[9px] font-bold uppercase tracking-wide text-white/60'>Rank</p>
+                </div>
+                <div className='rounded-2xl bg-white/10 p-2.5 text-center'>
+                  <p className='text-lg font-black'>{currentRanking ? currentRanking.total_likes : 0}</p>
+                  <p className='text-[9px] font-bold uppercase tracking-wide text-white/60'>Likes</p>
+                </div>
+                <div className='rounded-2xl bg-white/10 p-2.5 text-center'>
+                  <p className='text-lg font-black'>{currentRanking ? formatCreditPoints(currentRanking.credit_points) : '0'}</p>
+                  <p className='text-[9px] font-bold uppercase tracking-wide text-white/60'>Points</p>
+                </div>
+              </div>
+
+              <div className='mt-4'>
+                <div className='mb-1.5 flex justify-between text-[10px] font-bold text-white/70'>
+                  <span>Level progress</span>
+                  <span>{Math.round(getLevelProgress(Number(currentRanking ? currentRanking.credit_points : 0)))}%</span>
+                </div>
+                <div className='h-2 overflow-hidden rounded-full bg-white/10'>
+                  <div
+                    className='h-full rounded-full bg-gradient-to-r from-amber-300 to-orange-400 transition-all duration-500'
+                    style={{ width: `${getLevelProgress(Number(currentRanking ? currentRanking.credit_points : 0))}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className='p-4'>
+              <div className='flex items-start gap-3 rounded-2xl bg-amber-50 p-3 text-amber-950 ring-1 ring-amber-100'>
+                <Star className='mt-0.5 h-4 w-4 shrink-0 fill-amber-400 text-amber-500' />
+                <p className='text-xs font-semibold leading-relaxed'>Every like received on either of your two event posts earns <strong>0.25 points</strong>.</p>
+              </div>
+            </div>
+          </section>
+
+          <section className='rounded-3xl border border-slate-200 bg-white p-4 shadow-sm'>
+            <div className='mb-4 flex items-center justify-between'>
+              <div>
+                <p className='text-[10px] font-extrabold uppercase tracking-[0.18em] text-violet-500'>Community</p>
+                <h2 className='text-lg font-extrabold text-slate-900'>Top travelers</h2>
+              </div>
+              <TrendingUp className='h-5 w-5 text-emerald-500' />
+            </div>
+
+            <div className='space-y-1.5'>
+              {rankingLeaders.length > 0 ? rankingLeaders.map((traveler) => (
+                <button
+                  key={traveler.id}
+                  type='button'
+                  onClick={() => fetchUserProfile(traveler.id)}
+                  className={`flex w-full items-center gap-3 rounded-2xl p-2.5 text-left transition-colors hover:bg-slate-50 ${traveler.id === currentUser.id ? 'bg-indigo-50 ring-1 ring-indigo-100' : ''}`}
+                >
+                  <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-xl text-xs font-black ${traveler.rank === 1 ? 'bg-amber-100 text-amber-700' : traveler.rank === 2 ? 'bg-slate-200 text-slate-700' : traveler.rank === 3 ? 'bg-orange-100 text-orange-700' : 'bg-slate-50 text-slate-500'}`}>
+                    {traveler.rank <= 3 ? <Medal className='h-4 w-4' /> : traveler.rank}
+                  </span>
+                  <SafeAvatar avatarUrl={traveler.avatar_url} name={traveler.full_name} sizeClass='h-9 w-9' textClass='text-xs' />
+                  <span className='min-w-0 flex-1'>
+                    <span className='block truncate text-xs font-extrabold text-slate-800'>{traveler.full_name}</span>
+                    <span className='block text-[10px] font-semibold text-slate-400'>{traveler.total_likes} likes · {traveler.story_count}/2 posts</span>
+                  </span>
+                  <span className='text-right text-xs font-black text-violet-600'>{formatCreditPoints(traveler.credit_points)}<span className='block text-[9px] font-bold text-slate-400'>points</span></span>
+                </button>
+              )) : (
+                <p className='rounded-2xl bg-slate-50 px-3 py-6 text-center text-xs font-semibold text-slate-400'>Rankings will appear after event posts receive likes.</p>
+              )}
+            </div>
+          </section>
+
+          <p className='px-2 text-center text-[10px] font-semibold leading-relaxed text-slate-400'>Sunday–Friday likes count. Saturday features the winner, then all event posts reset on Sunday. Ties use post count, first post time, then user ID.</p>
+        </aside>
+      </div>
+
       {shareStory && (
         <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4 animate-in fade-in duration-200">
           <div className="w-full md:max-w-md bg-white rounded-t-[2rem] md:rounded-[2rem] shadow-2xl border border-white/80 overflow-hidden animate-in slide-in-from-bottom-6 md:zoom-in-95 duration-200">
             <div className="relative h-28 bg-gradient-to-tr from-fuchsia-500 via-rose-500 to-amber-400">
               {shareStory.images?.[0] && (
-                <img src={shareStory.images[0]} alt="Story preview" className="absolute inset-0 w-full h-full object-cover mix-blend-overlay opacity-70" />
+                <Image src={shareStory.images[0]} alt="Story preview" fill sizes="448px" className="object-cover mix-blend-overlay opacity-70" />
               )}
               <button
                 onClick={() => setShareStory(null)}
@@ -1345,6 +1604,21 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
 
               {/* Divider */}
               <div className="h-px bg-slate-100 w-full my-5" />
+
+              <div className='mb-4 grid w-full grid-cols-3 gap-2 rounded-2xl bg-gradient-to-br from-indigo-50 to-violet-50 p-3 ring-1 ring-indigo-100'>
+                <div className='text-center'>
+                  <p className='text-base font-black text-slate-900'>{selectedProfile.traveler_rank ? `#${selectedProfile.traveler_rank}` : '—'}</p>
+                  <p className='text-[9px] font-bold uppercase tracking-wide text-slate-400'>Rank</p>
+                </div>
+                <div className='border-x border-indigo-100 text-center'>
+                  <p className='text-base font-black text-violet-700'>{selectedProfile.total_likes}</p>
+                  <p className='text-[9px] font-bold uppercase tracking-wide text-slate-400'>Likes</p>
+                </div>
+                <div className='text-center'>
+                  <p className='text-base font-black text-slate-900'>{formatCreditPoints(selectedProfile.credit_points)}</p>
+                  <p className='text-[9px] font-bold uppercase tracking-wide text-slate-400'>Points</p>
+                </div>
+              </div>
 
               {/* Detailed Specs Grid */}
               <div className="w-full grid grid-cols-2 gap-3 text-left">

@@ -1,7 +1,7 @@
-import { queryOne, transaction } from "@/lib/db";
+import { transaction } from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
 import { PaymentOrchestrator } from "./orchestrator";
-import { CancellationPolicyEngine, PolicyDefinition } from "./cancellation-policy-engine";
+import { CancellationPolicyEngine } from "./cancellation-policy-engine";
 
 export class BookingCancellationService {
   /**
@@ -85,23 +85,9 @@ export class BookingCancellationService {
           throw { status: 400, message: `Cannot cancel booking in ${booking.booking_status} state` };
         }
 
-        // Fetch cancellation policy config
-        let policy: PolicyDefinition | null = await client.query(
-          `SELECT id, policy_name, free_cancel_before_hours, rules_json, is_refundable, is_active FROM public.booking_cancellation_policies WHERE trip_id = $1 AND is_active = TRUE LIMIT 1`,
-          [booking.trip_id]
-        ).then(res => res.rows[0] || null);
-
-        if (!policy) {
-          policy = await client.query(
-            `SELECT id, policy_name, free_cancel_before_hours, rules_json, is_refundable, is_active FROM public.booking_cancellation_policies WHERE organizer_id = $1 AND trip_id IS NULL AND is_active = TRUE LIMIT 1`,
-            [booking.organizer_id]
-          ).then(res => res.rows[0] || null);
-        }
-
         // Evaluate refund/fees via policy engine. Unpaid/pending bookings never incur a cancellation fee.
         const policyResult = CancellationPolicyEngine.calculateRefund(
-          { amount: booking.amount || 0, trip_date: booking.trip_date || booking.trip_start_date },
-          policy
+          { amount: booking.amount || 0, trip_date: booking.trip_date || booking.trip_start_date }
         );
         const hasSuccessfulPayment = booking.booking_status === "confirmed" && !!booking.razorpay_payment_id;
         if (!hasSuccessfulPayment) {
@@ -145,9 +131,9 @@ export class BookingCancellationService {
             policyResult.cancellationFee,
             needsRefund ? "pending" : "no_refund",
             JSON.stringify({
-              policy_name: policy?.policy_name || "Default Policy",
-              free_cancel_before_hours: policy?.free_cancel_before_hours ?? 48,
-              is_refundable: policy?.is_refundable ?? true,
+              policy_name: "GoTogether Standard Cancellation Policy",
+              free_cancel_before_hours: 72,
+              is_refundable: true,
               rules_evaluated: policyResult.rules,
               refund_percentage: policyResult.refundPercentage,
               message: policyResult.message
@@ -218,13 +204,8 @@ export class BookingCancellationService {
 
       // 2. Perform external Refund processing outside transaction block
       const currentStatus = result.booking_status;
-      const policy = await queryOne<PolicyDefinition>(
-        `SELECT id, policy_name, free_cancel_before_hours, rules_json, is_refundable, is_active FROM public.booking_cancellation_policies WHERE trip_id = $1 AND is_active = TRUE LIMIT 1`,
-        [result.trip_id]
-      );
       const policyResult = CancellationPolicyEngine.calculateRefund(
-        { amount: result.amount || 0, trip_date: result.trip_date || result.trip_start_date },
-        policy
+        { amount: result.amount || 0, trip_date: result.trip_date || result.trip_start_date }
       );
       const hasSuccessfulPayment = result.booking_status === "confirmed" && !!result.razorpay_payment_id;
       if (!hasSuccessfulPayment) {

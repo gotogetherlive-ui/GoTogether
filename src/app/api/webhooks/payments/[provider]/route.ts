@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { PAYMENT_PROVIDER, type PaymentProvider } from '@/lib/payments/domain';
+import { PAYMENT_PROVIDER } from '@/lib/payments/domain';
 import { isPaymentProviderImplemented, normalizePaymentProvider } from '@/lib/payments/provider-config';
 import { PaymentService } from '@/lib/payments/payment-service';
 import { PaymentOrchestrator } from '@/lib/payments/orchestrator';

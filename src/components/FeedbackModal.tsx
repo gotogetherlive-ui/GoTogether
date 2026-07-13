@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { X, MessageSquare, Send, Loader2, CheckCircle, AlertTriangle, Bug, MapPin, Compass, Sparkles } from "lucide-react";
+import { apiJson } from "@/lib/apiClient";
 
 const CATEGORIES = [
   {
@@ -55,45 +56,7 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
   const [visible, setVisible] = useState(false);
-
-  // Animate entrance
-  useEffect(() => {
-    if (isOpen) {
-      requestAnimationFrame(() => setVisible(true));
-    } else {
-      setVisible(false);
-    }
-  }, [isOpen]);
-
-  const isValid = category && subject.trim() && description.trim();
-
-  const handleSubmit = async () => {
-    if (!isValid) return;
-    setSubmitting(true);
-    setError("");
-
-    try {
-      const res = await fetch("/api/feedback", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ category, subject: subject.trim(), description: description.trim() }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to submit feedback");
-      }
-
-      setSubmitted(true);
-      setTimeout(() => {
-        handleClose();
-      }, 2500);
-    } catch (err: any) {
-      setError(err.message || "Something went wrong");
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   const handleClose = () => {
     setVisible(false);
@@ -105,6 +68,51 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
       setError("");
       onClose();
     }, 200);
+  };
+
+  // Animate entrance
+  useEffect(() => {
+    if (isOpen) {
+      requestAnimationFrame(() => {
+        setVisible(true);
+        closeButtonRef.current?.focus();
+      });
+    } else {
+      setVisible(false);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") handleClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  });
+
+  const isValid = category && subject.trim() && description.trim();
+
+  const handleSubmit = async () => {
+    if (!isValid) return;
+    setSubmitting(true);
+    setError("");
+
+    try {
+      await apiJson("/api/feedback", {
+        method: "POST",
+        body: JSON.stringify({ category, subject: subject.trim(), description: description.trim() }),
+      }, { timeoutMs: 12000 });
+
+      setSubmitted(true);
+      setTimeout(() => {
+        handleClose();
+      }, 2500);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -124,6 +132,9 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
       {/* Modal */}
       <div className="fixed inset-0 z-[101] flex items-center justify-center p-4">
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="feedback-dialog-title"
           className={`bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto transition-all duration-300 ${
             visible ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-95 translate-y-4"
           }`}
@@ -144,11 +155,14 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
                   <MessageSquare className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-slate-900">Send Feedback</h2>
+                  <h2 id="feedback-dialog-title" className="text-lg font-bold text-slate-900">Send Feedback</h2>
                   <p className="text-xs text-slate-500">Help us improve GoTogether</p>
                 </div>
               </div>
               <button
+                ref={closeButtonRef}
+                type="button"
+                aria-label="Close feedback dialog"
                 onClick={handleClose}
                 className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all hover:rotate-90 duration-300"
               >
@@ -269,12 +283,14 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
           {!submitted && (
             <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
               <button
+                type="button"
                 onClick={handleClose}
                 className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition-all duration-200 hover:border-slate-300"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={handleSubmit}
                 disabled={!isValid || submitting}
                 className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-white text-sm font-bold transition-all duration-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none ${

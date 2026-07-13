@@ -19,15 +19,28 @@ function hasRequestBody(init?: RequestInit): boolean {
 }
 
 async function parseResponse(res: Response): Promise<unknown> {
+  if (res.status === 204) return null;
   const contentType = res.headers.get("content-type") || "";
-  if (contentType.includes("application/json")) return res.json();
+  if (contentType.includes('application/json')) {
+    try {
+      return await res.json();
+    } catch {
+      throw new ApiError('The server returned an invalid response. Please try again.', 502);
+    }
+  }
   const text = await res.text();
   return text || null;
 }
 
 export async function apiJson<T>(input: RequestInfo | URL, init: RequestInit = {}, options: ApiOptions = {}): Promise<T> {
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), options.timeoutMs ?? 15000);
+  let timedOut = false;
+  const abortFromCaller = () => controller.abort(init.signal?.reason);
+  init.signal?.addEventListener('abort', abortFromCaller, { once: true });
+  const timeout = globalThis.setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, options.timeoutMs ?? 15000);
 
   try {
     const headers = new Headers(init.headers);
@@ -39,7 +52,7 @@ export async function apiJson<T>(input: RequestInfo | URL, init: RequestInit = {
       credentials: "same-origin",
       ...init,
       headers,
-      signal: init.signal || controller.signal,
+      signal: controller.signal,
     });
     const payload = await parseResponse(res);
 
@@ -52,11 +65,15 @@ export async function apiJson<T>(input: RequestInfo | URL, init: RequestInit = {
 
     return payload as T;
   } catch (err) {
-    if (err instanceof DOMException && err.name === "AbortError") {
-      throw new ApiError("Request timed out. Please check your connection and try again.", 408);
+    if (err instanceof DOMException && err.name === 'AbortError' && timedOut) {
+      throw new ApiError('Request timed out. Please check your connection and try again.', 408);
+    }
+    if (err instanceof TypeError) {
+      throw new ApiError('We could not reach GoTogether. Check your connection and try again.', 0);
     }
     throw err;
   } finally {
-    window.clearTimeout(timeout);
+    globalThis.clearTimeout(timeout);
+    init.signal?.removeEventListener('abort', abortFromCaller);
   }
 }

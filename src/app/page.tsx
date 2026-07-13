@@ -18,20 +18,52 @@ import { ensureOrganizerSlug } from '@/lib/organizer-slugs';
 
 export const dynamic = "force-dynamic";
 
+const TOP_TRIPS_CACHE_MS = 30_000;
+let topTripsCache: { trips: TripSummary[]; expiresAt: number } | null = null;
+let topTripsRequest: Promise<TripSummary[]> | null = null;
+
+async function loadTopTrips(): Promise<TripSummary[]> {
+  const topTripRows = await query<TripSummary>(`
+    SELECT t.id, t.slug, t.title, t.description, t.destination, t.image_url, t.images, t.status, t.is_featured, t.trip_type, t.duration_days, t.duration_nights, t.start_date, t.pickup_point, t.drop_point, t.b2c_price, t.gotogether_price, t.tags,
+           u.id as organizer_id, u.full_name as organizer_name, u.role as organizer_role, u.avatar_url as organizer_avatar, u.organizer_slug
+    FROM trips t
+    JOIN users u ON t.organizer_id = u.id
+    WHERE t.status = 'live' AND (t.is_featured = 1 OR t.trip_type = 'business')
+    ORDER BY t.is_featured DESC, t.created_at DESC
+    LIMIT 2
+  `, []);
+
+  return Promise.all(topTripRows.map(async (trip) => ({
+    ...trip,
+    slug: await ensureTripSlug(trip),
+    organizer_slug: await ensureOrganizerSlug({
+      id: trip.organizer_id || "",
+      full_name: trip.organizer_name,
+      organizer_slug: trip.organizer_slug,
+    }),
+  })));
+}
+
+async function getTopTrips(): Promise<TripSummary[]> {
+  const now = Date.now();
+  if (topTripsCache && now < topTripsCache.expiresAt) return topTripsCache.trips;
+  if (topTripsRequest) return topTripsRequest;
+
+  topTripsRequest = loadTopTrips();
+  try {
+    const trips = await topTripsRequest;
+    topTripsCache = { trips, expiresAt: Date.now() + TOP_TRIPS_CACHE_MS };
+    return trips;
+  } finally {
+    topTripsRequest = null;
+  }
+}
+
 export default async function Home() {
   let topTrips: TripSummary[] = [];
 
   try {
-    const topTripRows = await query<TripSummary>(`
-      SELECT t.id, t.slug, t.title, t.description, t.destination, t.image_url, t.images, t.status, t.is_featured, t.trip_type, t.duration_days, t.duration_nights, t.start_date, t.pickup_point, t.drop_point, t.b2c_price, t.gotogether_price, t.tags,
-             u.id as organizer_id, u.full_name as organizer_name, u.role as organizer_role, u.avatar_url as organizer_avatar, u.organizer_slug
-      FROM trips t
-      JOIN users u ON t.organizer_id = u.id
-      WHERE t.status = 'live' AND (t.is_featured = 1 OR t.trip_type = 'business')
-      ORDER BY t.is_featured DESC, t.created_at DESC
-      LIMIT 2
-    `, []);
-    topTrips = await Promise.all(topTripRows.map(async (trip) => ({ ...trip, slug: await ensureTripSlug(trip), organizer_slug: await ensureOrganizerSlug({ id: trip.organizer_id || "", full_name: trip.organizer_name, organizer_slug: trip.organizer_slug }) })));
+    topTrips = await getTopTrips();
   } catch (error) {
     console.error("Failed to load home top trips", error);
   }
@@ -113,7 +145,7 @@ export default async function Home() {
                     Ready to explore?
                   </h3>
                   <p className="text-white/80 mb-8 max-w-xs transform group-hover:translate-y-[-5px] transition-transform duration-500 delay-75">
-                    Browse hundreds of verified trips or create your own adventure.
+                    Compare live verified trips, transparent prices, organizers, and itineraries in one place.
                   </p>
                   <span className="bg-white text-orange-600 font-bold px-8 py-3 rounded-full shadow-xl group-hover:shadow-white/40 group-active:shadow-inner transition-shadow">
                     Browse All Trips
@@ -150,8 +182,8 @@ export default async function Home() {
                   <div className="w-16 h-16 rounded-2xl bg-rose-100 flex items-center justify-center mb-6 text-rose-500 transform group-hover:-translate-y-2 transition-transform duration-300">
                     <Users className="w-8 h-8" />
                   </div>
-                  <h3 className="text-xl font-bold text-slate-900 mb-3">Stranger Meet Flow</h3>
-                  <p className="text-slate-600">Request to join trips and connect with the organizer before committing. No pressure, pure vibes.</p>
+                  <h3 className='text-xl font-bold text-slate-900 mb-3'>Connect Before You Join</h3>
+                  <p className='text-slate-600'>Ask questions, review the organizer, and connect with the group before making a booking decision.</p>
                 </div>
               </FadeInScroll>
 
@@ -160,8 +192,8 @@ export default async function Home() {
                   <div className="w-16 h-16 rounded-2xl bg-blue-100 flex items-center justify-center mb-6 text-blue-500 transform group-hover:-translate-y-2 transition-transform duration-300">
                     <Compass className="w-8 h-8" />
                   </div>
-                  <h3 className="text-xl font-bold text-slate-900 mb-3">Priority Sorting</h3>
-                  <p className="text-slate-600">Find the highest quality trips effortlessly with our smart priority scoring algorithm.</p>
+                  <h3 className='text-xl font-bold text-slate-900 mb-3'>Clear Trip Comparison</h3>
+                  <p className='text-slate-600'>Compare dates, prices, itineraries, inclusions, policies, and organizer details with less guesswork.</p>
                 </div>
               </FadeInScroll>
             </div>

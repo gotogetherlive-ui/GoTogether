@@ -166,6 +166,46 @@ body {
   overflow-x: hidden;
 }
 
+::selection {
+  background: rgb(255 237 213);
+  color: rgb(124 45 18);
+}
+
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 3px solid rgb(249 115 22 / 0.72);
+  outline-offset: 3px;
+}
+
+:where(button, [role='button']):disabled {
+  cursor: not-allowed;
+}
+
+.skip-link {
+  position: fixed;
+  left: 1rem;
+  top: 1rem;
+  z-index: 9999;
+  transform: translateY(-160%);
+  border-radius: 0.75rem;
+  background: #0f172a;
+  color: white;
+  padding: 0.75rem 1rem;
+  font-weight: 700;
+  box-shadow: 0 12px 30px rgb(15 23 42 / 0.25);
+  transition: transform 150ms ease;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+@media (pointer: coarse) {
+  button,
+  [role='button'] {
+    min-height: 44px;
+  }
+}
+
 /* GPU hardware acceleration to ensure lag-free scrolling with parallax/tilt elements */
 img, .glass, [class*="Tilt"], [class*="tilt"] {
   backface-visibility: hidden;
@@ -197,4 +237,26 @@ img, .glass, [class*="Tilt"], [class*="tilt"] {
 .custom-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: rgb(226, 232, 240) transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  img,
+  .glass,
+  [class*=Tilt],
+  [class*=tilt] {
+    transform: none !important;
+  }
 }

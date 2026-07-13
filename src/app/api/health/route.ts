@@ -8,13 +8,19 @@ export async function GET() {
 
   try {
     await ensureSchema();
-    await getPoolInstance().query("SELECT 1");
+    const pool = getPoolInstance();
+    await pool.query("SELECT 1");
 
     return NextResponse.json(
       {
         status: "ok",
         database: "reachable",
         responseTimeMs: Date.now() - startedAt,
+        pool: {
+          total: pool.totalCount,
+          idle: pool.idleCount,
+          waiting: pool.waitingCount,
+        },
       },
       { headers: { "Cache-Control": "no-store" } }
     );

@@ -39,8 +39,14 @@ function getPool(): Pool {
     connectionString: getDatabaseUrl(),
     ssl: getDatabaseSsl(),
     max: Math.max(1, parseInt(process.env.PG_POOL_MAX || '5', 10)),
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 5000,
+    min: Math.max(0, parseInt(process.env.PG_POOL_MIN || '0', 10)),
+    idleTimeoutMillis: Math.max(1000, parseInt(process.env.PG_IDLE_TIMEOUT_MS || '30000', 10)),
+    connectionTimeoutMillis: Math.max(1000, parseInt(process.env.PG_CONNECTION_TIMEOUT_MS || '5000', 10)),
+    statement_timeout: Math.max(1000, parseInt(process.env.PG_STATEMENT_TIMEOUT_MS || '15000', 10)),
+    query_timeout: Math.max(1000, parseInt(process.env.PG_QUERY_TIMEOUT_MS || '20000', 10)),
+    maxUses: Math.max(0, parseInt(process.env.PG_MAX_USES || '7500', 10)),
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10000,
   });
   pool.on('error', (err) => {
     console.error('[PG POOL] Unexpected error on idle client', err);
@@ -160,6 +166,7 @@ export async function initializeSchema(): Promise<void> {
         phone_verified INTEGER DEFAULT 0,
         razorpay_account_id TEXT,
         deleted_at TIMESTAMPTZ,
+        credit_points NUMERIC(12, 2) NOT NULL DEFAULT 0,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
     `);
@@ -187,6 +194,7 @@ export async function initializeSchema(): Promise<void> {
         is_featured INTEGER NOT NULL DEFAULT 0,
         tags TEXT DEFAULT '[]',
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         duration_nights INTEGER DEFAULT 0,
         image_url TEXT,
         trip_type TEXT DEFAULT 'premium',
@@ -208,6 +216,24 @@ export async function initializeSchema(): Promise<void> {
       );
     `);
     await client.query(`ALTER TABLE public.trips ADD COLUMN IF NOT EXISTS slug TEXT`);
+    await client.query(`ALTER TABLE public.trips ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`);
+    await client.query(`
+      CREATE OR REPLACE FUNCTION public.set_trips_updated_at()
+      RETURNS TRIGGER
+      LANGUAGE plpgsql
+      AS $$
+      BEGIN
+        NEW.updated_at = NOW();
+        RETURN NEW;
+      END;
+      $$;
+
+      DROP TRIGGER IF EXISTS trg_trips_updated_at ON public.trips;
+      CREATE TRIGGER trg_trips_updated_at
+      BEFORE UPDATE ON public.trips
+      FOR EACH ROW
+      EXECUTE FUNCTION public.set_trips_updated_at();
+    `);
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS public.trip_slug_history (
@@ -308,6 +334,7 @@ export async function initializeSchema(): Promise<void> {
     `);
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS razorpay_account_verified_at TIMESTAMPTZ`);
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS terms_accepted_at TIMESTAMPTZ`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS credit_points NUMERIC(12, 2) NOT NULL DEFAULT 0`);
     await client.query(`UPDATE users SET terms_accepted_at = created_at WHERE terms_accepted_at IS NULL AND created_at < NOW() - INTERVAL '5 minutes'`);
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS payment_enabled INTEGER NOT NULL DEFAULT 0`);
 
@@ -900,6 +927,44 @@ CREATE INDEX IF NOT EXISTS idx_provider_accounts_provider ON payments.provider_a
         content TEXT NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+
+      ALTER TABLE story_likes
+        ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS traveler_credit_ledger (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        amount NUMERIC(12, 2) NOT NULL,
+        reason TEXT NOT NULL,
+        source_type TEXT NOT NULL,
+        source_id TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE(user_id, source_type, source_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS story_event_winners (
+        event_id TEXT PRIMARY KEY,
+        event_start TIMESTAMPTZ NOT NULL,
+        scoring_end TIMESTAMPTZ NOT NULL,
+        winner_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        total_likes INTEGER NOT NULL DEFAULT 0,
+        score NUMERIC(12, 2) NOT NULL DEFAULT 0,
+        story_count INTEGER NOT NULL DEFAULT 0,
+        featured_from TIMESTAMPTZ NOT NULL,
+        featured_until TIMESTAMPTZ NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS story_event_maintenance (
+        event_id TEXT PRIMARY KEY,
+        event_start TIMESTAMPTZ NOT NULL,
+        cleanup_completed_at TIMESTAMPTZ NOT NULL,
+        winner_finalized_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
     `);
 
     // Normalize legacy duplicate rows before adding production uniqueness guards.
@@ -1008,6 +1073,10 @@ CREATE INDEX IF NOT EXISTS idx_provider_accounts_provider ON payments.provider_a
       CREATE INDEX IF NOT EXISTS idx_story_comments_story ON story_comments(story_id);
       CREATE INDEX IF NOT EXISTS idx_story_comments_user ON story_comments(user_id);
       CREATE INDEX IF NOT EXISTS idx_story_comments_created ON story_comments(created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_traveler_credit_ledger_user_created ON traveler_credit_ledger(user_id, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_users_credit_points ON users(credit_points DESC, created_at ASC) WHERE deleted_at IS NULL AND role <> 'super_admin';
+      CREATE INDEX IF NOT EXISTS idx_story_event_winners_feature_window ON story_event_winners(featured_from, featured_until);
+      CREATE INDEX IF NOT EXISTS idx_story_likes_story_created ON story_likes(story_id, created_at);
 
       CREATE UNIQUE INDEX IF NOT EXISTS idx_trip_bookings_user_trip_active
         ON public.trip_bookings(user_id, trip_id, trip_date)

@@ -8,8 +8,14 @@ import Animated3DText from "@/components/Animated3DText";
 import AnimatedCounter from "@/components/AnimatedCounter";
 import MaintenanceGuard from "@/components/MaintenanceGuard";
 import { queryOne } from "@/lib/db";
+import { buildMetadata } from '@/lib/seo';
 
 export const dynamic = "force-dynamic";
+export const metadata = buildMetadata({
+  title: 'About GoTogether | Safer Group Travel in India',
+  description: 'Learn how GoTogether connects travelers with verified organizers, transparent group trips, and compatible travel companions.',
+  path: '/about',
+});
 
 type CountRow = { count: string | number };
 

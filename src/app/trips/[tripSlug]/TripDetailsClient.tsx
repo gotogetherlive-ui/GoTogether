@@ -148,22 +148,6 @@ export default function TripDetailsClient({ trip }: { trip: any }) {
     });
   };
 
-  const submitPaymentForm = (action: string, fields: Record<string, string>) => {
-    const formEl = document.createElement("form");
-    formEl.method = "POST";
-    formEl.action = action;
-    formEl.style.display = "none";
-    Object.entries(fields).forEach(([name, value]) => {
-      const input = document.createElement("input");
-      input.type = "hidden";
-      input.name = name;
-      input.value = value;
-      formEl.appendChild(input);
-    });
-    document.body.appendChild(formEl);
-    formEl.submit();
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (totalPersons === 0) {

@@ -49,10 +49,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   try {
     const trips = await query<{ id: string; title: string; destination?: string | null; slug?: string | null; updated_at?: string | null; created_at?: string | null; image_url?: string | null }>(
-      `SELECT id, title, destination, slug, created_at, updated_at, image_url
-       FROM trips
-       WHERE status = 'live' AND trip_type = 'premium' AND deleted_at IS NULL
-       ORDER BY created_at DESC
+      `SELECT t.id, t.title, t.destination, t.slug, t.created_at,
+              COALESCE((to_jsonb(t)->>'updated_at')::timestamptz, t.created_at) AS updated_at,
+              t.image_url
+       FROM trips t
+       WHERE t.status = 'live' AND t.trip_type = 'premium' AND t.deleted_at IS NULL
+       ORDER BY t.created_at DESC
        LIMIT 5000`,
       [],
     );

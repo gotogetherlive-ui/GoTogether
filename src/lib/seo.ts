@@ -29,7 +29,8 @@ export const PRIVATE_ROUTE_PREFIXES = [
 ];
 
 export function getPublicAppUrl(): string {
-  const raw = (process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || "").trim();
+  const configured = (process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || "").trim();
+  const raw = ["null", "undefined"].includes(configured.toLowerCase()) ? "" : configured;
 
   if (!raw) {
     if (process.env.NODE_ENV === "production") {
@@ -40,7 +41,10 @@ export function getPublicAppUrl(): string {
 
   let url: URL;
   try {
-    url = new URL(raw);
+    const candidate = process.env.NODE_ENV !== "production" && !/^https?:\/\//i.test(raw)
+      ? `http://${raw}`
+      : raw;
+    url = new URL(candidate);
   } catch {
     if (process.env.NODE_ENV === "production") {
       throw new Error("NEXT_PUBLIC_APP_URL must be a valid absolute URL.");
@@ -48,11 +52,15 @@ export function getPublicAppUrl(): string {
     return "https://gotogethertrip.com";
   }
 
-  const hostname = url.hostname.toLowerCase();
-  const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1" || hostname.endsWith(".local");
-  if (process.env.NODE_ENV === "production" && (url.protocol !== "https:" || isLocalhost)) {
-    throw new Error("NEXT_PUBLIC_APP_URL must be a public https:// origin in production.");
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("NEXT_PUBLIC_APP_URL must use the https:// protocol in production.");
+    }
+    return "http://localhost:3000";
   }
+  // Local production builds also set NODE_ENV=production. Deployment-only
+  // HTTPS enforcement lives in scripts/check-production-env.mjs, while
+  // metadata accepts localhost origins for local builds and previews.
 
   return url.origin;
 }
@@ -120,14 +128,6 @@ export function buildMetadata({
     creator: SITE_NAME,
     publisher: SITE_NAME,
     category: "travel",
-    icons: {
-      icon: [
-        { url: "/icon.svg", type: "image/svg+xml", sizes: "any" },
-        { url: "/favicon.ico", type: "image/x-icon" },
-      ],
-      shortcut: "/icon.svg",
-      apple: "/icon.svg",
-    },
     verification: {
       google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || undefined,
       other: process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION

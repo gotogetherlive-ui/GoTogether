@@ -138,3 +138,42 @@ test("internal OAuth session transition redirects to authenticated Navbar and sy
   await finishWatcherDiagnostics(testInfo);
   await finishOauthDiagnostics(testInfo);
 });
+
+test("global navigation works with touch-sized mobile controls and Escape", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/" );
+
+  const menuButton = page.getByRole("button", { name: "Toggle menu" });
+  await menuButton.click();
+  await expect(menuButton).toHaveAttribute("aria-expanded", "true" );
+  await expect(page.getByRole("link", { name: "Trips", exact: true })).toBeVisible();
+
+  await page.keyboard.press("Escape" );
+  await expect(menuButton).toHaveAttribute("aria-expanded", "false" );
+  await expect(page.locator("#mobile-navigation" )).toHaveCount(0);
+});
+
+test("feedback dialog is labelled, focused, and dismissible with Escape", async ({ page }) => {
+  await loginFixture(page, "alpha" );
+  await page.goto("/" );
+  await page.getByRole("button", { name: "Feedback", exact: true }).click();
+
+  const dialog = page.getByRole("dialog", { name: "Send Feedback" });
+  await expect(dialog).toBeVisible();
+  await expect(page.getByRole("button", { name: "Close feedback dialog" })).toBeFocused();
+  await page.keyboard.press("Escape" );
+  await expect(dialog).toBeHidden();
+});
+
+test("unknown routes provide clear recovery actions", async ({ page }) => {
+  await page.goto("/this-route-does-not-exist" );
+  await expect(page.getByRole("heading", { name: "This journey isn't on the map" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Explore trips" })).toHaveAttribute("href", "/trips" );
+});
+
+test("offline state warns before users make unsaved changes", async ({ context, page }) => {
+  await page.goto("/" );
+  await context.setOffline(true);
+  await expect(page.getByRole("status" ).filter({ hasText: "You're offline." })).toBeVisible();
+  await context.setOffline(false);
+});

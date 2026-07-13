@@ -26,6 +26,9 @@ export async function PATCH(
     }
 
     const isAdmin = await isAdminUser(user);
+    if (trip.organizer_id !== user.id && !isAdmin) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const newStatus = trip.registration_closed === 1 ? 0 : 1;
     await run('UPDATE trips SET registration_closed = $1 WHERE id = $2', [newStatus, tripId]);

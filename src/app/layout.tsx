@@ -6,6 +6,7 @@ import { getAppSettings } from "@/lib/settings";
 import SessionProvider from "@/components/SessionProvider";
 import MaintenanceGuard from "@/components/MaintenanceGuard";
 import TermsAcceptanceGate from "@/components/TermsAcceptanceGate";
+import NetworkStatus from "@/components/NetworkStatus";
 
 import { getSession } from '@/lib/auth';
 import { isAdminUser } from '@/lib/admin';
@@ -55,6 +56,7 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col bg-slate-50 text-slate-900">
+        <a className="skip-link" href="#main-content">Skip to main content</a>
         <Script
           id="google-tag-library"
           nonce={nonce}
@@ -81,9 +83,12 @@ export default async function RootLayout({
         />
         <SessionProvider serverUser={serverUser}>
           <MaintenanceGuard maintenanceMode={maintenanceMode}>
-            {children}
+            <div id="main-content" tabIndex={-1} className="min-h-full flex-1 outline-none">
+              {children}
+            </div>
           </MaintenanceGuard>
           <TermsAcceptanceGate />
+          <NetworkStatus />
         </SessionProvider>
       </body>
     </html>

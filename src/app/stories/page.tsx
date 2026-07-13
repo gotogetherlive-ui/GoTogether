@@ -7,8 +7,10 @@ import { redirect } from "next/navigation";
 import Page3DWrapper from "@/components/Page3DWrapper";
 import MaintenanceGuard from "@/components/MaintenanceGuard";
 import { query } from '@/lib/db';
+import { privateMetadata } from '@/lib/seo';
 
 export const dynamic = "force-dynamic";
+export const metadata = privateMetadata('Travel Stories & Traveler Rankings | GoTogether');
 
 export default async function StoriesPage() {
   const user = await getSession();
@@ -40,4 +42,3 @@ export default async function StoriesPage() {
     </MaintenanceGuard>
   );
 }
-

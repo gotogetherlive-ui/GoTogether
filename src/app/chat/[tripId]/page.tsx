@@ -38,10 +38,6 @@ export default function ChatPage({ params }: { params: Promise<{ tripId: string 
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [chat, setChat] = useState<ChatInfo | null>(null);
   const [showChatInfo, setShowChatInfo] = useState(false);
-  const [editingName, setEditingName] = useState(false);
-  const [chatName, setChatName] = useState("");
-  const [savingName, setSavingName] = useState(false);
-  const [nameError, setNameError] = useState<string | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesRequestGenerationRef = useRef(0);
@@ -83,7 +79,6 @@ export default function ChatPage({ params }: { params: Promise<{ tripId: string 
         setMessages(data.messages);
         if (data.chat) {
           setChat(data.chat);
-          setChatName((current) => current || data.chat.name);
         }
       } else if (data.error) {
         setError(data.error);

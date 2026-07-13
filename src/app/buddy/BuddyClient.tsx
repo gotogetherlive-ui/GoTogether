@@ -50,6 +50,7 @@ export default function BuddyClient({
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<{ text: string, type: "success" | "error" } | null>(null);
+  const messageRef = useRef<HTMLDivElement>(null);
   const [currentUserId, setCurrentUserId] = useState<string>("");
 
   // Search & Filter State
@@ -261,16 +262,16 @@ export default function BuddyClient({
       if (data.success) {
         setMessage({ text: "Trip plan created successfully!", type: "success" });
         setForm({ destination: "", starting_location: "", trip_date: "", duration_days: "", duration_nights: "", image_url: "" });
-        // Refresh feed and switch tab
+        // Refresh the feed and keep the saved-budget confirmation visible.
         fetchTrips();
-        setTimeout(() => {
-          setActiveTab("search");
-          setMessage(null);
-        }, 2000);
+        setActiveTab("search");
+        requestAnimationFrame(() => {
+          messageRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+        });
       } else {
         setMessage({ text: data.error || "Failed to create plan", type: "error" });
       }
-    } catch (err) {
+    } catch {
       setMessage({ text: "An error occurred", type: "error" });
     } finally {
       setSubmitting(false);
@@ -295,7 +296,10 @@ export default function BuddyClient({
   };
 
   const openCreatePlan = () => {
-    if (requireBuddyAccess()) setActiveTab("create");
+    if (requireBuddyAccess()) {
+      setMessage(null);
+      setActiveTab("create");
+    }
   };
 
   const handleShowInterest = async (tripId: string) => {
@@ -310,7 +314,7 @@ export default function BuddyClient({
       } else {
         alert(`Error: ${data.error}`);
       }
-    } catch (err) {
+    } catch {
       alert("An error occurred while showing interest.");
     }
   };
@@ -481,10 +485,53 @@ export default function BuddyClient({
 
       {/* Success/Error Messages */}
       {message && (
-        <div className={`p-4 rounded-xl mb-8 flex items-center justify-center gap-2 font-medium ${message.type === "success" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-rose-50 text-rose-700 border border-rose-200"
-          }`}>
-          {message.type === "success" && <CheckCircle className="w-5 h-5" />}
-          {message.text}
+        <div
+          ref={messageRef}
+          role={message.type === "error" ? "alert" : "status"}
+          aria-live="polite"
+          className={`mb-8 rounded-3xl border p-5 shadow-sm ${message.type === "success" ? "border-emerald-200 bg-emerald-50" : "border-rose-200 bg-rose-50"}`}
+        >
+          <div className="flex items-start gap-3">
+            {message.type === "success" && (
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+                <CheckCircle className="h-5 w-5" />
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className={`font-extrabold ${message.type === "success" ? "text-emerald-900" : "text-rose-800"}`}>
+                {message.text}
+              </p>
+              {message.type === "success" && (
+                <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm leading-6 text-slate-700">
+                    {userBudget?.budget_min && userBudget?.budget_max ? (
+                      <>
+                        Your current desired budget is <strong className="whitespace-nowrap text-slate-950">₹{Number(userBudget.budget_min).toLocaleString("en-IN")} – ₹{Number(userBudget.budget_max).toLocaleString("en-IN")}</strong> per trip. You can change it anytime.
+                      </>
+                    ) : (
+                      <>You have not set a desired trip budget yet. Add one to improve your buddy matches.</>
+                    )}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setShowBudgetEditor(true)}
+                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-emerald-800 shadow-sm ring-1 ring-emerald-200 transition hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                  >
+                    <Wallet className="h-4 w-4" />
+                    {userBudget ? "Edit budget" : "Set budget"}
+                  </button>
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setMessage(null)}
+              aria-label="Dismiss message"
+              className={`rounded-lg p-1.5 transition ${message.type === "success" ? "text-emerald-700 hover:bg-emerald-100" : "text-rose-700 hover:bg-rose-100"}`}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       )}
 

@@ -17,6 +17,21 @@ export interface AppSettings {
 // Caches settings for 60 seconds.
 let cachedSettings: AppSettings | null = null;
 let cacheExpiry = 0;
+let settingsRequest: Promise<AppSettings> | null = null;
+let settingsGeneration = 0;
+
+const DEFAULT_SETTINGS: AppSettings = {
+  site_name: 'GoTogether',
+  site_tagline: 'Travel Better, Together',
+  admin_email: 'admin@gotogethertrip.com',
+  auto_approve_trips: false,
+  require_verification: true,
+  email_notifications: true,
+  feedback_alerts: true,
+  new_user_alerts: false,
+  maintenance_mode: false,
+  stories_blocked: false,
+};
 
 /**
  * Read the app settings from the database.
@@ -28,22 +43,28 @@ export async function getAppSettings(): Promise<AppSettings> {
     return cachedSettings;
   }
 
+  if (settingsRequest) return settingsRequest;
+
+  const generation = settingsGeneration;
+  const request = loadAppSettings(generation);
+  settingsRequest = request;
+  try {
+    return await request;
+  } finally {
+    if (settingsRequest === request) settingsRequest = null;
+  }
+}
+
+async function loadAppSettings(generation: number): Promise<AppSettings> {
   try {
     const row = await queryOne('SELECT id, site_name, site_tagline, admin_email, auto_approve_trips, require_verification, email_notifications, report_alerts, new_user_alerts, maintenance_mode, stories_blocked, updated_at FROM settings WHERE id = 1') as Record<string, any> | null;
 
     if (!row) {
-      return {
-        site_name: 'GoTogether',
-        site_tagline: 'Travel Better, Together',
-        admin_email: 'admin@gotogethertrip.com',
-        auto_approve_trips: false,
-        require_verification: true,
-        email_notifications: true,
-        feedback_alerts: true,
-        new_user_alerts: false,
-        maintenance_mode: false,
-        stories_blocked: false,
-      };
+      if (generation === settingsGeneration) {
+        cachedSettings = DEFAULT_SETTINGS;
+        cacheExpiry = Date.now() + 60 * 1000;
+      }
+      return DEFAULT_SETTINGS;
     }
 
     const settings: AppSettings = {
@@ -59,28 +80,21 @@ export async function getAppSettings(): Promise<AppSettings> {
       stories_blocked: !!row.stories_blocked,
     };
 
-    cachedSettings = settings;
-    cacheExpiry = now + 60 * 1000; // 60 seconds cache
+    if (generation === settingsGeneration) {
+      cachedSettings = settings;
+      cacheExpiry = Date.now() + 60 * 1000; // 60 seconds cache
+    }
     return settings;
   } catch (err) {
     console.error('[SETTINGS] Failed to read app settings:', err);
-    return cachedSettings || {
-      site_name: 'GoTogether',
-      site_tagline: 'Travel Better, Together',
-      admin_email: 'admin@gotogethertrip.com',
-      auto_approve_trips: false,
-      require_verification: true,
-      email_notifications: true,
-      feedback_alerts: true,
-      new_user_alerts: false,
-      maintenance_mode: false,
-      stories_blocked: false,
-    };
+    return cachedSettings || DEFAULT_SETTINGS;
   }
 }
 
 export function invalidateSettingsCache() {
+  settingsGeneration += 1;
   cachedSettings = null;
   cacheExpiry = 0;
+  settingsRequest = null;
 }
 

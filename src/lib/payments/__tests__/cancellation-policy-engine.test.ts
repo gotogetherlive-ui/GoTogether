@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { CancellationPolicyEngine, PolicyDefinition } from '../cancellation-policy-engine';
+import { CancellationPolicyEngine } from '../cancellation-policy-engine';
 
 const amount = 10000;
 
@@ -8,19 +8,10 @@ function tripDate(hoursFromNow: number) {
   return new Date(Date.now() + hoursFromNow * 60 * 60 * 1000).toISOString();
 }
 
-const staleNonRefundablePolicy: PolicyDefinition = {
-  policy_name: 'Old organizer non-refundable policy',
-  free_cancel_before_hours: 0,
-  rules_json: [{ hours_before: 0, refund_pct: 0 }],
-  is_refundable: false,
-  is_active: true,
-};
-
 describe('CancellationPolicyEngine platform refund windows', () => {
   test('refunds 100% when cancelled 72 or more hours before trip start', () => {
     const result = CancellationPolicyEngine.calculateRefund(
-      { amount, trip_date: tripDate(73) },
-      staleNonRefundablePolicy
+      { amount, trip_date: tripDate(73) }
     );
 
     assert.equal(result.allowed, true);
@@ -31,8 +22,7 @@ describe('CancellationPolicyEngine platform refund windows', () => {
 
   test('refunds 50% when cancelled from 24 hours up to 72 hours before trip start', () => {
     const result = CancellationPolicyEngine.calculateRefund(
-      { amount, trip_date: tripDate(48) },
-      null
+      { amount, trip_date: tripDate(48) }
     );
 
     assert.equal(result.allowed, true);
@@ -43,8 +33,7 @@ describe('CancellationPolicyEngine platform refund windows', () => {
 
   test('allows cancellation with no refund under 24 hours before trip start', () => {
     const result = CancellationPolicyEngine.calculateRefund(
-      { amount, trip_date: tripDate(12) },
-      null
+      { amount, trip_date: tripDate(12) }
     );
 
     assert.equal(result.allowed, true);
@@ -55,8 +44,7 @@ describe('CancellationPolicyEngine platform refund windows', () => {
 
   test('blocks cancellation after the trip has started', () => {
     const result = CancellationPolicyEngine.calculateRefund(
-      { amount, trip_date: tripDate(-1) },
-      null
+      { amount, trip_date: tripDate(-1) }
     );
 
     assert.equal(result.allowed, false);

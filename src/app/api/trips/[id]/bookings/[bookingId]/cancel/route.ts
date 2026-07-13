@@ -4,7 +4,7 @@ import { queryOne } from '@/lib/db';
 import { sendBookingCancelledToOrganizer } from '@/lib/email';
 import { notifyUser, notifyAdmins } from '@/lib/notificationEvents';
 import { BookingCancellationService } from '@/lib/payments/cancellation-service';
-import { CancellationPolicyEngine, PolicyDefinition } from '@/lib/payments/cancellation-policy-engine';
+import { CancellationPolicyEngine } from '@/lib/payments/cancellation-policy-engine';
 
 export async function GET(
   request: Request,
@@ -30,22 +30,8 @@ export async function GET(
     if (!booking) return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
     if (booking.user_id !== user.id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-    // Fetch cancellation policy config
-    let policy: PolicyDefinition | null = await queryOne(
-      `SELECT id, organizer_id, trip_id, policy_name, free_cancel_before_hours, rules_json, is_refundable, is_active, created_at, updated_at FROM public.booking_cancellation_policies WHERE trip_id = $1 AND is_active = TRUE LIMIT 1`,
-      [booking.trip_id]
-    );
-
-    if (!policy) {
-      policy = await queryOne(
-        `SELECT id, organizer_id, trip_id, policy_name, free_cancel_before_hours, rules_json, is_refundable, is_active, created_at, updated_at FROM public.booking_cancellation_policies WHERE organizer_id = $1 AND trip_id IS NULL AND is_active = TRUE LIMIT 1`,
-        [booking.organizer_id]
-      );
-    }
-
     const policyResult = CancellationPolicyEngine.calculateRefund(
-      { amount: booking.amount || 0, trip_date: booking.trip_date || booking.trip_start_date },
-      policy
+      { amount: booking.amount || 0, trip_date: booking.trip_date || booking.trip_start_date }
     );
 
     const hasSuccessfulPayment = booking.booking_status === "confirmed" && !!booking.provider_payment_id;
