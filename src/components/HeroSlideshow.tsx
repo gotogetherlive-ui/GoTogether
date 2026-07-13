@@ -85,18 +85,24 @@ export default function HeroSlideshow() {
       <div className="absolute inset-0 z-[2] bg-gradient-to-b from-black/30 via-transparent to-black/40 pointer-events-none" />
 
       {/* Destination indicator dots + label */}
-      <div className="absolute bottom-4 md:bottom-10 left-1/2 -translate-x-1/2 z-[25] flex items-center gap-3">
+      <div className="absolute bottom-4 md:bottom-10 left-1/2 -translate-x-1/2 z-[25] flex items-center gap-0 md:gap-1">
         {heroImages.map((img, i) => (
           <button
             key={img.src}
+            type="button"
             onClick={() => setCurrentIndex(i)}
-            className={`group relative transition-all duration-300 ${
-              i === currentIndex
-                ? "w-8 h-2 rounded-full bg-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.6)]"
-                : "w-2 h-2 rounded-full bg-white/50 hover:bg-white/80"
-            }`}
+            className="group relative flex h-11 w-11 items-center justify-center rounded-full"
             aria-label={`Go to ${img.label}`}
+            aria-current={i === currentIndex ? "true" : undefined}
           >
+            <span
+              aria-hidden="true"
+              className={`block h-2 rounded-full transition-all duration-300 ${
+                i === currentIndex
+                  ? "w-8 bg-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.6)]"
+                  : "w-2 bg-white/60 group-hover:bg-white/90"
+              }`}
+            />
             {/* Tooltip on hover */}
             <span className="absolute bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] font-semibold text-white bg-black/60 backdrop-blur-sm px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
               {img.label}

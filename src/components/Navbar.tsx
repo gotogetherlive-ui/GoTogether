@@ -226,7 +226,7 @@ export default function Navbar() {
           {/* Feedback and Notifications — logged-in users only */}
           {userLoaded && user && (
             <div className="flex items-center gap-2">
-              <NotificationBell />
+              <NotificationBell className={textColor} />
               <button
                 type="button"
                 onClick={() => setFeedbackOpen(true)}
@@ -297,7 +297,7 @@ export default function Navbar() {
 
         {/* Mobile Menu Button + Notification */}
         <div className="md:hidden flex items-center gap-2">
-          {userLoaded && user && <NotificationBell />}
+          {userLoaded && user && <NotificationBell className={textColor} />}
           <button
             type="button"
             onClick={() => setMobileOpen(!mobileOpen)}

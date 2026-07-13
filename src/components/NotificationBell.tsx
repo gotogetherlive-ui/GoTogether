@@ -30,7 +30,7 @@ const DEFAULT_COUNTS: Counts = {
   isAdmin: false, isBusiness: false,
 };
 
-export default function NotificationBell() {
+export default function NotificationBell({ className = "text-slate-600" }: { className?: string }) {
   const [counts, setCounts] = useState<Counts>(DEFAULT_COUNTS);
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -166,7 +166,7 @@ export default function NotificationBell() {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-slate-600 hover:text-orange-500 hover:bg-orange-50 rounded-full transition-colors flex items-center justify-center"
+        className={`relative p-2 hover:text-orange-500 hover:bg-orange-50/90 rounded-full transition-colors flex items-center justify-center ${className}`}
         aria-label="Notifications"
       >
         <Bell className="w-5 h-5" />

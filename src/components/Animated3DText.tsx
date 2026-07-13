@@ -19,7 +19,7 @@ export default function Animated3DText({ children, className = "", delay = 0 }: 
 
   return (
     <div
-      className={`inline-block transition-all duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] ${className}`}
+      className={`hero-animated-text inline-block transition-all duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] ${className}`}
       style={{
         transformStyle: "preserve-3d",
         perspective: "1000px",

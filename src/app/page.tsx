@@ -75,16 +75,16 @@ export default async function Home() {
         <Navbar />
 
         {/* Hero Section */}
-        <section className="relative min-h-[100dvh] py-32 md:min-h-[90vh] md:pt-28 md:pb-24 flex items-center justify-center overflow-hidden">
+        <section className="relative min-h-[100svh] px-0 pb-24 pt-28 md:min-h-[90vh] md:pb-24 md:pt-28 flex items-center justify-center overflow-hidden">
           {/* Auto-changing background slideshow */}
           <HeroSlideshow />
 
           <div className="relative z-10 text-center max-w-4xl px-6 flex flex-col items-center">
             <HeroGreeting />
-            <h1 className="text-4xl md:text-7xl font-extrabold text-white leading-tight mb-4 md:mb-6 drop-shadow-lg">
+            <h1 className="text-[2.65rem] sm:text-5xl md:text-7xl font-extrabold text-white leading-[1.08] mb-5 md:mb-6 drop-shadow-lg">
               Don&apos;t just travel. <br />
               <Animated3DText delay={0.3}>
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-rose-400">
+                <span className="text-orange-400 sm:text-transparent sm:bg-clip-text sm:bg-gradient-to-r sm:from-orange-400 sm:to-rose-400">
                   GoTogether.
                 </span>
               </Animated3DText>
