@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import SeoContentPage from "@/components/SeoContentPage";
 import { absoluteUrl, buildMetadata } from "@/lib/seo";
-import { categories, categoryBySlug, cityPageBySlug, commonFaqs, destinations, faqJsonLd } from "@/lib/seo-content";
+import { categories, categoryBySlug, cityPageBySlug, commonFaqs, destinations } from "@/lib/seo-content";
 
 type Props = { params: Promise<{ seoSlug: string }> };
 
@@ -16,6 +16,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: `${category.name} in India | Verified Travel Experiences | GoTogether`,
       description: `Explore verified ${category.name.toLowerCase()} in India on GoTogether. Compare destinations, prices, itineraries, dates, organizers, reviews, and cancellation policies before booking.`,
       path: `/${category.slug}`,
+      index: false,
+      follow: true,
     });
   }
 
@@ -24,6 +26,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: `Weekend Trips from ${cityPage.city} | Verified Group Trips | GoTogether`,
       description: `Compare verified weekend trips from ${cityPage.city} on GoTogether by destination, price, pickup point, dates, itinerary, inclusions, organizer details, and cancellation policy.`,
       path: `/${cityPage.slug}`,
+      index: false,
+      follow: true,
     });
   }
 
@@ -79,7 +83,6 @@ export default async function SeoSlugPage({ params }: Props) {
             name: `${category.name} in India`,
             url: absoluteUrl(`/${category.slug}`),
           },
-          faqJsonLd(faqs),
         ]}
       />
     );
@@ -129,7 +132,6 @@ export default async function SeoSlugPage({ params }: Props) {
             name: `Weekend Trips from ${cityPage.city}`,
             url: absoluteUrl(`/${cityPage.slug}`),
           },
-          faqJsonLd(faqs),
         ]}
       />
     );

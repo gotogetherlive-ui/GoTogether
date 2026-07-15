@@ -1,12 +1,15 @@
+import type { Metadata } from "next";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import MaintenanceGuard from "@/components/MaintenanceGuard";
 import { Lock, ShieldCheck, EyeOff, UserCheck, ChevronRight, FileText } from "lucide-react";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata: Metadata = buildMetadata({
   title: "Privacy Policy - GoTogether",
   description: "Learn how GoTogether collects, uses, and protects your personal data.",
-};
+  path: "/privacy",
+});
 
 export default function PrivacyPage() {
   const sections = [

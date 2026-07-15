@@ -12,6 +12,7 @@
     "check:env": "node scripts/check-production-env.mjs",
     "check-production-env": "node scripts/check-production-env.mjs",
     "db:migrate:check": "node scripts/check-migrations.mjs",
+    "db:migrate:public-slugs": "node scripts/apply-public-slug-migrations.mjs",
     "load:k6": "node scripts/run-k6-profile.mjs",
     "test": "npm run test:unit && npm run test:payments",
     "test:unit": "node --test scripts/__tests__/*.test.mjs",

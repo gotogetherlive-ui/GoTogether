@@ -152,3 +152,17 @@ test("story media rejects unsafe and oversized data URLs", () => {
   assert.equal(oversized.ok, false);
   assert.match(oversized.error, /3 MB/);
 });
+
+test("production env validator rejects the non-www production host and mismatched public origins", () => {
+  const apex = validateProductionEnv(strongEnv({
+    NEXT_PUBLIC_BASE_URL: "https://gotogethertrip.com",
+    NEXT_PUBLIC_APP_URL: "https://gotogethertrip.com",
+  }));
+  assert(apex.errors.some((error) => error.includes("canonical www origin")));
+
+  const mismatched = validateProductionEnv(strongEnv({
+    NEXT_PUBLIC_BASE_URL: "https://www.gotogethertrip.com",
+    NEXT_PUBLIC_APP_URL: "https://staging.gotogethertrip.com",
+  }));
+  assert(mismatched.errors.some((error) => error.includes("same canonical public origin")));
+});

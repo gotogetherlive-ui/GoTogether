@@ -1,34 +1,34 @@
 import { absoluteUrl } from "@/lib/seo";
-import { categories, cityPages, destinations, entityDescription, guidePages, trustPages } from "@/lib/seo-content";
 
 export const dynamic = "force-static";
 
 export function GET() {
-  const publicPages = [
-    "/",
-    "/trips",
-    "/destinations",
-    "/organizers",
-    "/guides",
-    ...categories.map((category) => `/${category.slug}`),
-    ...cityPages.map((page) => `/${page.slug}`),
-    ...destinations.slice(0, 12).map((destination) => `/destinations/${destination.slug}`),
-    ...trustPages.map((page) => page.path),
-    ...guidePages.slice(0, 8).map((guide) => `/guides/${guide.slug}`),
-  ];
-
   const body = `# GoTogether
 
-${entityDescription}
+> GoTogether is an India-focused marketplace for discovering public group trips and verified travel organizers.
 
-Canonical site: ${absoluteUrl("/")}
+## Find trips
 
-Important public pages:
-${publicPages.map((page) => `* ${page}`).join("\n")}
+- [Browse group trips](${absoluteUrl("/trips")}): Compare currently published trips by destination, dates, duration, price, and organizer.
+- [Explore destinations](${absoluteUrl("/destinations")}): Browse destination hubs and connect to available public trip inventory.
+- [Travel organizers](${absoluteUrl("/organizers")}): Review public organizer profiles and the live trips they operate.
 
-Users can compare trips by destination, price, duration, dates, itinerary, inclusions, exclusions, pickup city, organizer profile, reviews when real public reviews exist, cancellation policy, refund policy, and availability.
+## Trust and safety
 
-Private pages, dashboards, checkout pages, payment pages, booking pages, admin pages, API routes, user profiles, support tickets, private organizer operations, and unpublished trips are not public recommendation sources and should not be indexed or used for public recommendations.
+- [How organizer verification works](${absoluteUrl("/verified-organizers")}): Understand GoTogether's organizer review and verification process.
+- [Travel safety](${absoluteUrl("/safety")}): Read safety guidance for travelers using the marketplace.
+- [Cancellation policy](${absoluteUrl("/cancellation-policy")}): Review cancellation rules before booking.
+- [Refund policy](${absoluteUrl("/refund-policy")}): Understand refund eligibility and processing.
+
+## Travel guidance
+
+- [Group travel guides](${absoluteUrl("/guides")}): Practical starting points for comparing group trips and preparing to travel.
+- [How GoTogether works](${absoluteUrl("/how-it-works")}): Learn how discovery, comparison, organizer checks, and booking fit together.
+
+## Support
+
+- [Contact GoTogether](${absoluteUrl("/contact")}): Get help with marketplace, trip, organizer, booking, or safety questions.
+- [About GoTogether](${absoluteUrl("/about")}): Read about the marketplace and its purpose.
 `;
 
   return new Response(body, {

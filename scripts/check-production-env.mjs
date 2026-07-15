@@ -83,6 +83,9 @@ function validateHttpsPublicOrigin(env, envName, errors) {
     const url = new URL(raw);
     if (url.protocol !== 'https:') errors.push(`${envName} must be an https:// public origin in production`);
     const hostname = url.hostname.toLowerCase();
+    if (hostname === 'gotogethertrip.com') {
+      errors.push(`${envName} must use the canonical www origin https://www.gotogethertrip.com`);
+    }
     if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1' || hostname.endsWith('.local')) {
       errors.push(`${envName} must not point to localhost or a private development origin in production`);
     }
@@ -136,7 +139,7 @@ export function validateProductionEnv(env = process.env) {
   validateHttpsPublicOrigin(env, 'NEXT_PUBLIC_APP_URL', errors);
 
   if (value(env, 'NEXT_PUBLIC_BASE_URL') !== value(env, 'NEXT_PUBLIC_APP_URL')) {
-    warnings.push('NEXT_PUBLIC_BASE_URL and NEXT_PUBLIC_APP_URL differ; OAuth and payment callbacks should usually use the same public origin');
+    errors.push('NEXT_PUBLIC_BASE_URL and NEXT_PUBLIC_APP_URL must use the same canonical public origin');
   }
 
   if (!allowedPaymentModes.has(value(env, 'PAYMENT_MODE').toUpperCase())) {

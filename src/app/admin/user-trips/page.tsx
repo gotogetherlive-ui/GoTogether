@@ -1,13 +1,12 @@
 "use client";
 
-import { Check, X, Pin, Trash2, Loader2, RefreshCw } from "lucide-react";
+import { Check, X, Trash2, Loader2, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface TripData {
   id: string;
   title: string;
   status: string;
-  is_featured: number;
   organizer_name: string;
   organizer_role: string;
   organizer_email: string;
@@ -50,19 +49,6 @@ export default function AdminUserTripsPage() {
       fetchTrips();
     } catch {
       alert("Failed to update trip status");
-    }
-  };
-
-  const handleFeature = async (id: string, current: number) => {
-    try {
-      await fetch(`/api/admin/trips/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "feature", is_featured: current ? 0 : 1 }),
-      });
-      fetchTrips();
-    } catch {
-      alert("Failed to update featured status");
     }
   };
 
@@ -141,10 +127,7 @@ export default function AdminUserTripsPage() {
               {trips.map((trip) => (
                 <tr key={trip.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
                   <td className="p-4 font-medium text-slate-900">
-                    <div className="flex items-center gap-2">
-                      {trip.is_featured ? <Pin className="w-4 h-4 text-orange-500 fill-orange-500" /> : null}
-                      {trip.title}
-                    </div>
+                    {trip.title}
                   </td>
                   <td className="p-4 text-sm">
                     <div className="font-semibold text-slate-900">{trip.organizer_name}</div>
@@ -177,9 +160,6 @@ export default function AdminUserTripsPage() {
                         </button>
                       </>
                     )}
-                    <button onClick={() => handleFeature(trip.id, trip.is_featured)} className={`p-2 rounded-lg transition-colors ${trip.is_featured ? 'text-orange-600 hover:bg-orange-50' : 'text-slate-400 hover:bg-slate-50'}`} title="Toggle Pin to Top">
-                      <Pin className="w-4 h-4" />
-                    </button>
                     <button onClick={() => handleDelete(trip.id)} className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Delete Trip">
                       <Trash2 className="w-4 h-4" />
                     </button>

@@ -1,13 +1,16 @@
+import type { Metadata } from "next";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import MaintenanceGuard from "@/components/MaintenanceGuard";
 import { Scale, ShieldCheck, AlertTriangle, UserCheck, ChevronRight, FileText } from "lucide-react";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata: Metadata = buildMetadata({
   title: "Terms of Service - GoTogether",
   description:
     "Read the GoTogether Terms of Service. Understand your rights, responsibilities, and the rules governing your use of our travel platform.",
-};
+  path: "/terms",
+});
 
 export default function TermsPage() {
   const sections = [

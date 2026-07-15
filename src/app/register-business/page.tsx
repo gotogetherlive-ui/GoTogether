@@ -123,7 +123,7 @@ export default function RegisterBusinessPage() {
   };
 
   const handleCopyWebhook = () => {
-    const url = `https://gotogethertrip.com/api/webhooks/payments/${form.payment_provider.toLowerCase()}`;
+    const url = `https://www.gotogethertrip.com/api/webhooks/payments/${form.payment_provider.toLowerCase()}`;
     navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -518,7 +518,7 @@ export default function RegisterBusinessPage() {
                   <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Webhook Destination URL:</div>
                   <div className="flex gap-2 items-center bg-white p-3 rounded-xl border border-slate-200">
                     <span className="text-xs font-bold text-slate-600 break-all select-all flex-1">
-                      https://gotogethertrip.com/api/webhooks/payments/{form.payment_provider.toLowerCase()}
+                      https://www.gotogethertrip.com/api/webhooks/payments/{form.payment_provider.toLowerCase()}
                     </span>
                     <button onClick={handleCopyWebhook} className="p-2 bg-slate-50 hover:bg-slate-100 rounded-lg text-slate-500 flex items-center gap-1 transition-colors border border-slate-200 shrink-0">
                       {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}

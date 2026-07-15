@@ -7,7 +7,7 @@ import JsonLd from "@/components/JsonLd";
 import TripCard, { type TripSummary } from "@/components/TripCard";
 import { query, queryOne } from "@/lib/db";
 import { absoluteUrl, breadcrumbJsonLd, buildMetadata } from "@/lib/seo";
-import { commonFaqs, faqJsonLd } from "@/lib/seo-content";
+import { faqJsonLd } from "@/lib/seo-content";
 import { ensureOrganizerSlug } from "@/lib/organizer-slugs";
 import { ensureTripSlug } from "@/lib/slugs";
 
@@ -133,7 +133,10 @@ export default async function OrganizerPage({ params }: Props) {
       question: `Does this page show only ${organizer.full_name || "the organizer"} trips?`,
       answer: "Yes. The owned trip list is filtered by organizer ownership and only includes this organizer's live public trips.",
     },
-    ...commonFaqs,
+    {
+      question: `How many public trips does ${organizer.full_name || "this organizer"} currently show?`,
+      answer: `${trips.length} live public trip${trips.length === 1 ? " is" : "s are"} currently listed on this organizer profile.`,
+    },
   ];
 
   const itemListJsonLd = {

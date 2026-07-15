@@ -8,6 +8,7 @@ export const DEFAULT_DESCRIPTION =
 export const DEFAULT_OG_IMAGE = "/hero_india_ladakh.png";
 export const INSTAGRAM_URL = "https://www.instagram.com/gotogether.in";
 export const WHATSAPP_COMMUNITY_URL = "https://chat.whatsapp.com/HWmEmqlCvNIBoHvNyfPETP";
+export const CANONICAL_PRODUCTION_ORIGIN = "https://www.gotogethertrip.com";
 
 export const PRIVATE_ROUTE_PREFIXES = [
   "/admin",
@@ -36,7 +37,7 @@ export function getPublicAppUrl(): string {
     if (process.env.NODE_ENV === "production") {
       throw new Error("NEXT_PUBLIC_APP_URL is required for production SEO metadata.");
     }
-    return "https://gotogethertrip.com";
+    return CANONICAL_PRODUCTION_ORIGIN;
   }
 
   let url: URL;
@@ -49,7 +50,7 @@ export function getPublicAppUrl(): string {
     if (process.env.NODE_ENV === "production") {
       throw new Error("NEXT_PUBLIC_APP_URL must be a valid absolute URL.");
     }
-    return "https://gotogethertrip.com";
+    return CANONICAL_PRODUCTION_ORIGIN;
   }
 
   if (url.protocol !== "http:" && url.protocol !== "https:") {
@@ -95,6 +96,7 @@ type SeoOptions = {
   path?: string;
   image?: string | null;
   index?: boolean;
+  follow?: boolean;
   type?: "website" | "article";
 };
 
@@ -104,6 +106,7 @@ export function buildMetadata({
   path = "/",
   image = DEFAULT_OG_IMAGE,
   index = true,
+  follow = index,
   type = "website",
 }: SeoOptions = {}): Metadata {
   const canonical = absoluteUrl(cleanPath(path));
@@ -135,7 +138,7 @@ export function buildMetadata({
         : undefined,
     },
     alternates: { canonical, languages: { "en-IN": canonical } },
-    robots: index ? { index: true, follow: true } : { index: false, follow: false },
+    robots: { index, follow },
     openGraph: {
       type,
       siteName: SITE_NAME,

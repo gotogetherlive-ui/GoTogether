@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import SeoContentPage from "@/components/SeoContentPage";
 import { absoluteUrl, buildMetadata } from "@/lib/seo";
-import { commonFaqs, faqJsonLd, guidePages } from "@/lib/seo-content";
+import { commonFaqs, guidePages } from "@/lib/seo-content";
+import { getPublicTripLinks } from "@/lib/public-trip-links";
 
 type Props = { params: Promise<{ guideSlug: string }> };
 
@@ -19,6 +20,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description: `${guide.title} from GoTogether helps travelers compare public trip details, organizer profiles, safety notes, policies, and booking checks before joining a group trip.`,
     path: `/guides/${guide.slug}`,
     type: "article",
+    index: false,
+    follow: true,
   });
 }
 
@@ -26,6 +29,7 @@ export default async function GuidePage({ params }: Props) {
   const { guideSlug } = await params;
   const guide = guidePages.find((item) => item.slug === guideSlug);
   if (!guide) notFound();
+  const publicTrips = await getPublicTripLinks(guide.destination).catch(() => []);
 
   const faqs = [
     {
@@ -52,6 +56,7 @@ export default async function GuidePage({ params }: Props) {
       ]}
       faqs={faqs}
       links={[
+        ...publicTrips,
         { href: "/trips", label: "Browse Trips" },
         { href: "/destinations", label: "Destinations" },
         { href: "/group-trips", label: "Group Trips" },
@@ -75,7 +80,6 @@ export default async function GuidePage({ params }: Props) {
           mainEntityOfPage: { "@type": "WebPage", "@id": absoluteUrl(`/guides/${guide.slug}`) },
           url: absoluteUrl(`/guides/${guide.slug}`),
         },
-        faqJsonLd(faqs),
       ]}
     />
   );

@@ -1,13 +1,16 @@
+import type { Metadata } from "next";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import SafetyContent from "./SafetyContent";
 import Page3DWrapper from "@/components/Page3DWrapper";
 import MaintenanceGuard from "@/components/MaintenanceGuard";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata: Metadata = buildMetadata({
   title: "Safety Guidelines — GoTogether",
   description: "GoTogether safety guidelines for travelers. Learn how to stay safe, verify organizers, and report issues.",
-};
+  path: "/safety",
+});
 
 export default function SafetyPage() {
   return (

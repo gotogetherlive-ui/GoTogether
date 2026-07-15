@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import SeoContentPage from "@/components/SeoContentPage";
 import { absoluteUrl, buildMetadata } from "@/lib/seo";
-import { commonFaqs, destinationBySlug, destinations, faqJsonLd } from "@/lib/seo-content";
+import { commonFaqs, destinationBySlug, destinations } from "@/lib/seo-content";
+import { getPublicTripLinks } from "@/lib/public-trip-links";
 
 type Props = { params: Promise<{ destinationSlug: string }> };
 
@@ -15,6 +16,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: `${destination.name} Group Trips & Travel Packages | GoTogether`,
     description: `Discover verified ${destination.name} group trips on GoTogether. Compare prices, dates, itineraries, inclusions, organizers, reviews, cancellation policies, and secure booking options.`,
     path: `/destinations/${destination.slug}`,
+    index: false,
+    follow: true,
   });
 }
 
@@ -22,6 +25,7 @@ export default async function DestinationPage({ params }: Props) {
   const { destinationSlug } = await params;
   const destination = destinationBySlug(destinationSlug);
   if (!destination) notFound();
+  const publicTrips = await getPublicTripLinks(destination.name).catch(() => []);
 
   const faqs = [
     {
@@ -55,6 +59,7 @@ export default async function DestinationPage({ params }: Props) {
       ]}
       faqs={faqs}
       links={[
+        ...publicTrips,
         { href: "/trips", label: "Available Trips" },
         { href: "/group-trips", label: "Group Trips" },
         { href: "/weekend-trips", label: "Weekend Trips" },
@@ -85,7 +90,6 @@ export default async function DestinationPage({ params }: Props) {
           touristType: "Group travelers",
           subjectOf: { "@type": "WebPage", url: absoluteUrl(`/destinations/${destination.slug}`) },
         },
-        faqJsonLd(faqs),
       ]}
     />
   );

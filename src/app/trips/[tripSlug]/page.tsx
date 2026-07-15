@@ -7,7 +7,7 @@ import Footer from "@/components/Footer";
 import TripDetailsClient from "./TripDetailsClient";
 import JsonLd from "@/components/JsonLd";
 import { absoluteUrl, breadcrumbJsonLd, buildMetadata } from "@/lib/seo";
-import { commonFaqs, faqJsonLd } from "@/lib/seo-content";
+import { faqJsonLd } from "@/lib/seo-content";
 import { ensureTripSlug } from "@/lib/slugs";
 import { ensureOrganizerSlug } from "@/lib/organizer-slugs";
 
@@ -219,7 +219,12 @@ export default async function TripDetailsPage({ params, searchParams }: Props) {
       question: "Who owns this trip?",
       answer: `This public trip is owned by ${trip.organizer_name || "the listed organizer"}. GoTogether does not show another organizer's payment account, private inventory, dashboard data, or private status on this page.`,
     },
-    ...commonFaqs,
+    {
+      question: `Is ${trip.title} still available?`,
+      answer: trip.registration_closed
+        ? "Registration is currently closed for this departure."
+        : "Registration is currently shown as open. Confirm the live dates, remaining capacity, and payment terms before booking.",
+    },
   ];
 
   const productJsonLd = {
