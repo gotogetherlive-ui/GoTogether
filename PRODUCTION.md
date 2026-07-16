@@ -75,7 +75,12 @@ Webhook confirmation is the source of truth. Frontend checkout acknowledgement o
 4. Configure provider webhook/callback URLs using the exact public origin in `NEXT_PUBLIC_BASE_URL`.
 5. Run `npm ci`, then `npm run release:check` with production environment variables present.
 6. Start with `NODE_ENV=production npm start` for platform-managed scaling, or `NODE_ENV=production npm run start:cluster` on a single multi-core VM.
-7. Schedule booking expiry, story expiry, refund retry, and reconciliation cron routes with the bearer secret.
+7. Schedule booking expiry, deleted-trip cleanup, story expiry, refund retry, and reconciliation cron routes with the bearer secret.
+
+Deleted trips must be permanently removed after their 24-hour retention period. Call
+`GET /api/cron/cleanup-trips` at least hourly with
+`Authorization: Bearer <CRON_SECRET>`. The cleanup is concurrency-safe and removes
+eligible trips together with their dependent chat, request, booking, and payment data.
 8. Back up PostgreSQL, test restores, and alert on failed refunds, webhook 5xx responses, database saturation, and repeated authentication failures.
 
 ### Weekly Stories competition schedule

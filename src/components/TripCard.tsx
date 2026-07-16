@@ -110,18 +110,14 @@ export default function TripCard({ trip, linkToTrips = false }: TripCardProps) {
       <div className="relative h-64 overflow-hidden bg-slate-200">
         {imageList.length > 0 ? (
           <>
-            {imageList.map((src, idx) => (
-              <Image
-                key={idx}
-                src={src}
-                alt={`${trip.title} group trip image in ${trip.destination}`}
-                fill
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                className={`object-cover transition-opacity duration-700 ${
-                  idx === currentImageIndex ? "opacity-100" : "opacity-0"
-                } group-hover:scale-105 transition-transform duration-700`}
-              />
-            ))}
+            <Image
+              key={imageList[currentImageIndex]}
+              src={imageList[currentImageIndex]}
+              alt={`${trip.title} group trip image in ${trip.destination}`}
+              fill
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              className="object-cover transition-transform duration-700 group-hover:scale-105"
+            />
             {/* Image dots indicator */}
             {imageList.length > 1 && (
               <div className="absolute bottom-14 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">

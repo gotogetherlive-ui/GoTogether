@@ -23,6 +23,8 @@ export async function GET() {
       JOIN trip_participants tp ON t.id = tp.trip_id AND tp.user_id = $1
       LEFT JOIN user_chat_reads ucr ON ucr.user_id = $2 AND ucr.trip_id = m.trip_id
       WHERE m.sender_id != $3
+      AND t.status <> 'deleted'
+      AND t.deleted_at IS NULL
       AND (ucr.last_read_at IS NULL OR m.created_at > ucr.last_read_at)
     `, [userId, userId, userId]) as any;
 
@@ -32,7 +34,8 @@ export async function GET() {
       SELECT COUNT(tr.id) as count
       FROM trip_requests tr
       JOIN trips t ON tr.trip_id = t.id
-      WHERE t.organizer_id = $1 AND tr.status = 'pending' AND tr.notification_seen = 0
+      WHERE t.organizer_id = $1 AND t.status <> 'deleted' AND t.deleted_at IS NULL
+        AND tr.status = 'pending' AND tr.notification_seen = 0
     `, [userId]) as any;
 
     // 3. New Acceptances: trip_requests created by the user
@@ -40,7 +43,9 @@ export async function GET() {
     const newAcceptancesData = await queryOne(`
       SELECT COUNT(tr.id) as count
       FROM trip_requests tr
-      WHERE tr.requester_id = $1 AND tr.status = 'accepted' AND tr.notification_seen = 0
+      JOIN trips t ON t.id = tr.trip_id
+      WHERE tr.requester_id = $1 AND t.status <> 'deleted' AND t.deleted_at IS NULL
+        AND tr.status = 'accepted' AND tr.notification_seen = 0
     `, [userId]) as any;
 
     let adminPendingApps = 0;
@@ -63,7 +68,11 @@ export async function GET() {
         adminPendingFeedbacks = pendingFeedbacksRow?.count || 0;
       }
 
-      const newBookingsRow = await queryOne(`SELECT COUNT(tb.id) as count FROM trip_bookings tb WHERE tb.notification_seen = 0`) as any;
+      const newBookingsRow = await queryOne(`
+        SELECT COUNT(tb.id) as count FROM trip_bookings tb
+        JOIN trips t ON t.id = tb.trip_id
+        WHERE t.status <> 'deleted' AND t.deleted_at IS NULL AND tb.notification_seen = 0
+      `) as any;
       adminNewBookings = newBookingsRow?.count || 0;
 
       try {
@@ -80,7 +89,8 @@ export async function GET() {
       SELECT COUNT(tb.id) as count 
       FROM trip_bookings tb 
       JOIN trips t ON tb.trip_id = t.id 
-      WHERE t.organizer_id = $1 AND tb.notification_seen = 0
+      WHERE t.organizer_id = $1 AND t.status <> 'deleted' AND t.deleted_at IS NULL
+        AND tb.notification_seen = 0
     `, [userId]) as any;
     newBookings = newBookingsRow?.count || 0;
 

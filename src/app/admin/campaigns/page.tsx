@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import { Bell, Gift, Loader2, Mail, Send, UserRound, Users } from "lucide-react";
 
 type CampaignType = "retention" | "notification" | "offer";
@@ -14,10 +15,47 @@ interface AdminUserOption {
 }
 
 const campaignOptions = [
-  { value: "retention" as const, label: "Retention", description: "Bring inactive users back", icon: UserRound },
-  { value: "notification" as const, label: "Notification", description: "Share an important update", icon: Bell },
-  { value: "offer" as const, label: "Offer", description: "Promote a deal or benefit", icon: Gift },
+  { value: "retention" as const, label: "Retention", description: "Warm, personal re-engagement", icon: UserRound, active: "border-orange-400 bg-orange-50 ring-orange-100", iconColor: "text-orange-600" },
+  { value: "notification" as const, label: "Notification", description: "Clean, focused service update", icon: Bell, active: "border-blue-400 bg-blue-50 ring-blue-100", iconColor: "text-blue-600" },
+  { value: "offer" as const, label: "Offer", description: "Bold, high-impact promotion", icon: Gift, active: "border-violet-400 bg-violet-50 ring-violet-100", iconColor: "text-violet-600" },
 ];
+
+const campaignCopy = {
+  retention: { subject: "Your next adventure is waiting", message: "Remind travelers what they can discover and give them a warm reason to return.", cta: "Explore trips" },
+  notification: { subject: "An important GoTogether update", message: "State what changed, why it matters, and whether the traveler needs to take action.", cta: "Review update" },
+  offer: { subject: "A special travel offer for you", message: "Describe the benefit clearly, including important eligibility or booking conditions.", cta: "View offer" },
+};
+
+function PreviewBrand({ dark = false }: { dark?: boolean }) {
+  return <span className="flex items-center gap-2.5"><Image src="/icon.svg" alt="" width={30} height={30} className="rounded-lg" /><strong className={dark ? "text-white" : "text-slate-950"}>GoTogether</strong></span>;
+}
+
+function CampaignPreview({ type, subject, message, ctaLabel, recipientName }: {
+  type: CampaignType; subject: string; message: string; ctaLabel: string; recipientName: string;
+}) {
+  const copy = campaignCopy[type];
+  const previewSubject = subject || copy.subject;
+  const previewMessage = message || copy.message;
+  const previewButton = ctaLabel || copy.cta;
+  const name = recipientName || "Traveler";
+
+  if (type === "retention") return <div className="overflow-hidden rounded-[24px] border border-orange-200 bg-white shadow-xl shadow-orange-950/10">
+    <div className="flex items-center justify-between px-5 py-4"><PreviewBrand /><span className="text-[9px] font-extrabold uppercase tracking-[0.18em] text-orange-700">Your next chapter</span></div>
+    <div className="bg-gradient-to-br from-orange-100 via-orange-50 to-amber-100 px-5 py-8"><span className="rounded-full bg-white px-3 py-1.5 text-[9px] font-extrabold uppercase tracking-widest text-orange-700">Welcome back</span><h3 className="mt-4 text-2xl font-black leading-tight tracking-tight text-orange-950">{previewSubject}</h3><p className="mt-2 text-xs text-orange-800">Hi {name}, the road is better with good company.</p></div>
+    <div className="p-5"><p className="whitespace-pre-wrap text-xs leading-6 text-slate-600">{previewMessage}</p><span className="mt-5 inline-block rounded-xl bg-orange-600 px-4 py-2.5 text-xs font-bold text-white">{previewButton}</span><div className="mt-5 rounded-xl bg-orange-50 p-3 text-[10px] leading-4 text-orange-900"><strong className="block">Pick up where you left off</strong>Turn a saved idea into a real plan.</div></div>
+  </div>;
+
+  if (type === "notification") return <div className="overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-xl shadow-slate-900/10">
+    <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4"><PreviewBrand /><span className="text-[10px] text-slate-500">Account update</span></div>
+    <div className="p-5"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 font-black text-blue-600">i</div><p className="mt-5 text-[9px] font-extrabold uppercase tracking-[0.18em] text-blue-600">Important notification</p><h3 className="mt-2 text-xl font-black leading-tight tracking-tight text-slate-950">{previewSubject}</h3><p className="mt-5 text-xs text-slate-600">Hello {name},</p><p className="mt-3 whitespace-pre-wrap border-l-[3px] border-blue-600 pl-4 text-xs leading-6 text-slate-600">{previewMessage}</p><span className="mt-5 inline-block rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white">{previewButton}</span><p className="mt-5 border-t border-slate-100 pt-4 text-[10px] leading-4 text-slate-400">Official service message from GoTogether.</p></div>
+  </div>;
+
+  return <div className="overflow-hidden rounded-[24px] bg-white shadow-2xl shadow-violet-950/20">
+    <div className="flex items-center justify-between bg-[#24124d] px-5 py-4"><PreviewBrand dark /><span className="text-[9px] font-extrabold uppercase tracking-[0.18em] text-violet-200">Member offer</span></div>
+    <div className="bg-gradient-to-br from-violet-800 via-violet-600 to-pink-600 px-5 py-8 text-center text-white"><span className="rounded-full border border-white/30 px-3 py-1.5 text-[9px] font-extrabold uppercase tracking-widest">Exclusive for travelers</span><h3 className="mt-4 text-2xl font-black leading-tight tracking-tight">{previewSubject}</h3><p className="mt-2 text-xs text-violet-100">A little more adventure for a little less.</p></div>
+    <div className="px-5 pb-5"><div className="-mt-4 rounded-2xl border border-violet-100 bg-white p-5 shadow-lg"><p className="text-[9px] font-extrabold uppercase tracking-widest text-violet-700">Just for you, {name}</p><p className="mt-3 whitespace-pre-wrap text-xs leading-6 text-slate-600">{previewMessage}</p><span className="mt-5 inline-block rounded-xl bg-pink-600 px-4 py-2.5 text-xs font-bold text-white">{previewButton}</span></div></div>
+  </div>;
+}
 
 export default function AdminCampaignsPage() {
   const [users, setUsers] = useState<AdminUserOption[]>([]);
@@ -98,7 +136,7 @@ export default function AdminCampaignsPage() {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="grid gap-8 xl:grid-cols-[1fr_320px]">
+      <form onSubmit={handleSubmit} className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_400px]">
         <div className="space-y-6 rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
           <div>
             <label className="mb-3 block text-sm font-bold text-slate-800">Campaign type</label>
@@ -106,8 +144,8 @@ export default function AdminCampaignsPage() {
               {campaignOptions.map((option) => {
                 const Icon = option.icon;
                 const active = campaignType === option.value;
-                return <button key={option.value} type="button" onClick={() => setCampaignType(option.value)} className={`rounded-2xl border p-4 text-left transition ${active ? "border-orange-400 bg-orange-50 ring-2 ring-orange-100" : "border-slate-200 hover:border-orange-200"}`}>
-                  <Icon className={`mb-3 h-5 w-5 ${active ? "text-orange-600" : "text-slate-400"}`} />
+                return <button key={option.value} type="button" onClick={() => setCampaignType(option.value)} className={`rounded-2xl border p-4 text-left transition ${active ? `${option.active} ring-2` : "border-slate-200 hover:border-slate-300"}`}>
+                  <Icon className={`mb-3 h-5 w-5 ${active ? option.iconColor : "text-slate-400"}`} />
                   <span className="block font-bold text-slate-900">{option.label}</span>
                   <span className="mt-1 block text-xs text-slate-500">{option.description}</span>
                 </button>;
@@ -140,13 +178,13 @@ export default function AdminCampaignsPage() {
 
           <div>
             <label htmlFor="subject" className="mb-2 block text-sm font-bold text-slate-800">Email subject</label>
-            <input id="subject" value={subject} onChange={(event) => setSubject(event.target.value)} minLength={3} maxLength={150} required placeholder="A concise, useful subject" className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-orange-400" />
+            <input id="subject" value={subject} onChange={(event) => setSubject(event.target.value)} minLength={3} maxLength={150} required placeholder={campaignCopy[campaignType].subject} className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-orange-400" />
             <p className="mt-1 text-right text-xs text-slate-400">{subject.length}/150</p>
           </div>
 
           <div>
             <label htmlFor="message" className="mb-2 block text-sm font-bold text-slate-800">Message</label>
-            <textarea id="message" value={message} onChange={(event) => setMessage(event.target.value)} minLength={10} maxLength={5000} required rows={9} placeholder="Write the campaign message…" className="w-full resize-y rounded-xl border border-slate-200 px-4 py-3 leading-relaxed outline-none focus:border-orange-400" />
+            <textarea id="message" value={message} onChange={(event) => setMessage(event.target.value)} minLength={10} maxLength={5000} required rows={9} placeholder={campaignCopy[campaignType].message} className="w-full resize-y rounded-xl border border-slate-200 px-4 py-3 leading-relaxed outline-none focus:border-orange-400" />
             <p className="mt-1 text-right text-xs text-slate-400">{message.length}/5000</p>
           </div>
 
@@ -163,14 +201,13 @@ export default function AdminCampaignsPage() {
           </button>
         </div>
 
-        <aside className="h-fit rounded-3xl border border-slate-200 bg-slate-900 p-6 text-white shadow-sm xl:sticky xl:top-8">
-          <p className="text-xs font-bold uppercase tracking-widest text-orange-400">Delivery summary</p>
-          <dl className="mt-5 space-y-4 text-sm">
-            <div><dt className="text-slate-400">Type</dt><dd className="mt-1 font-bold capitalize">{campaignType}</dd></div>
-            <div><dt className="text-slate-400">Audience</dt><dd className="mt-1 font-bold">{recipientLabel}</dd></div>
-            <div><dt className="text-slate-400">Delivery</dt><dd className="mt-1 text-slate-200">Individual branded emails in private batches</dd></div>
-          </dl>
-          <div className="mt-6 rounded-2xl bg-white/5 p-4 text-xs leading-relaxed text-slate-400">Review the subject, message, audience, and campaign link carefully. Sending cannot be undone after delivery begins.</div>
+        <aside className="h-fit rounded-3xl border border-slate-200 bg-slate-100 p-5 shadow-sm xl:sticky xl:top-8">
+          <div className="mb-4 flex items-center justify-between">
+            <div><p className="text-xs font-extrabold uppercase tracking-widest text-slate-500">Live email preview</p><p className="mt-1 text-xs text-slate-400">Layout changes with campaign type</p></div>
+            <span className="rounded-full bg-white px-3 py-1 text-[10px] font-bold capitalize text-slate-600 shadow-sm">{campaignType}</span>
+          </div>
+          <CampaignPreview type={campaignType} subject={subject} message={message} ctaLabel={ctaLabel} recipientName={selectedUser?.name || ""} />
+          <div className="mt-4 rounded-2xl bg-slate-900 p-4 text-xs text-slate-300"><strong className="block text-white">{recipientLabel}</strong><span className="mt-1 block leading-relaxed">Sent as individual, responsive branded emails. Review all content before delivery.</span></div>
         </aside>
       </form>
     </div>

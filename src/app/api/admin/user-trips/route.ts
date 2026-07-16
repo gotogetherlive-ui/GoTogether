@@ -15,6 +15,8 @@ export async function GET() {
       FROM trips t
       JOIN users u ON t.organizer_id = u.id
       WHERE t.trip_type = 'buddy'
+        AND t.status <> 'deleted'
+        AND t.deleted_at IS NULL
       ORDER BY t.created_at DESC
     `, []) as { id: string; title: string; status: string; organizer_name: string; organizer_role: string; organizer_email: string }[];
 

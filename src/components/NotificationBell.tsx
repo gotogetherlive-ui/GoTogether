@@ -69,7 +69,6 @@ export default function NotificationBell({ className = "text-slate-600" }: { cla
 
     const connect = () => {
       if (destroyed) return;
-      fetchCounts();
       es = new EventSource("/api/notifications/sse");
       es.onmessage = (e) => {
         retryDelay = 3000;
@@ -98,21 +97,15 @@ export default function NotificationBell({ className = "text-slate-600" }: { cla
           if (retryTimeout) { clearTimeout(retryTimeout); retryTimeout = null; }
         } else {
           retryDelay = 3000;
-          fetchCounts();
           connect();
         }
       };
-      const handleFocus = () => fetchCounts();
-      window.addEventListener("focus", handleFocus);
-      const interval = setInterval(fetchCounts, 45000);
       document.addEventListener("visibilitychange", handleVisibility);
       return () => {
         destroyed = true;
         es?.close();
         if (retryTimeout) clearTimeout(retryTimeout);
         document.removeEventListener("visibilitychange", handleVisibility);
-        window.removeEventListener("focus", handleFocus);
-        clearInterval(interval);
       };
     } else {
       fetchCounts();

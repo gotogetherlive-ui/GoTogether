@@ -5,9 +5,14 @@ import { useRouter } from "next/navigation";
 import {
   Briefcase, Building2, Camera, Loader2,
   CheckCircle, XCircle, Receipt, CreditCard,
-  Check, UserCircle, ChevronRight, ShieldAlert, Copy, ChevronLeft
+  Check, UserCircle, ChevronRight, ShieldAlert, Copy, ChevronLeft, FileSignature
 } from "lucide-react";
 import { uploadToCloudinary } from "@/lib/cloudinaryClient";
+import {
+  ORGANIZER_AGREEMENT_SECTIONS,
+  ORGANIZER_AGREEMENT_TITLE,
+  ORGANIZER_AGREEMENT_VERSION,
+} from "@/lib/organizerAgreement";
 
 export default function RegisterBusinessPage() {
   const router = useRouter();
@@ -15,6 +20,7 @@ export default function RegisterBusinessPage() {
   const [submitting, setSubmitting] = useState(false);
   const [applicationStatus, setApplicationStatus] = useState<"none" | "pending" | "approved" | "rejected" | null>(null);
   const [profileComplete, setProfileComplete] = useState<boolean | null>(null);
+  const [profileFullName, setProfileFullName] = useState("");
   const [missingFields, setMissingFields] = useState<string[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -47,6 +53,8 @@ export default function RegisterBusinessPage() {
     api_secret: "",
     webhook_secret: "",
     payment_terms_accepted: false,
+    agreement_accepted: false,
+    signer_name: "",
   });
 
   useEffect(() => {
@@ -56,6 +64,7 @@ export default function RegisterBusinessPage() {
     ]).then(([profileData, appData]) => {
       const p = profileData.profile;
       if (p) {
+        setProfileFullName(p.full_name?.trim() || "");
         const missing: string[] = [];
         if (!p.full_name?.trim()) missing.push("Full Name");
         if (!p.phone_number?.trim()) missing.push("Phone Number");
@@ -187,6 +196,9 @@ export default function RegisterBusinessPage() {
           provider_registered_email: form.razorpay_account_email,
           provider_registered_phone: form.razorpay_account_phone,
           paymentTermsAccepted: form.payment_terms_accepted,
+          agreementAccepted: form.agreement_accepted,
+          agreementVersion: ORGANIZER_AGREEMENT_VERSION,
+          signerName: form.signer_name,
           api_key: form.api_key,
           api_secret: form.api_secret,
           webhook_secret: requiresWebhookSecret ? form.webhook_secret : undefined
@@ -196,6 +208,7 @@ export default function RegisterBusinessPage() {
       const data = await res.json();
       if (res.ok) {
         setApplicationStatus("pending");
+        window.location.reload();
       } else {
         alert(data.error || "Failed to register organization.");
       }
@@ -203,8 +216,7 @@ export default function RegisterBusinessPage() {
       console.error(err);
       alert("An error occurred during submission.");
     } finally {
-      setSubmitting(true); // Keep submitting state until redirect / refresh happens
-      window.location.reload();
+      setSubmitting(false);
     }
   };
 
@@ -220,8 +232,8 @@ export default function RegisterBusinessPage() {
       accountLabel: "Razorpay Account ID",
       accountPlaceholder: "e.g. acc_ABC123",
       requiresWebhookSecret: true,
-      webhookInstruction: "Set a Webhook Secret key in Razorpay and keep it ready for Step 5.",
-      webhookSaveInstruction: "Save webhook. Copy the webhook secret for Step 5.",
+      webhookInstruction: "Set a Webhook Secret key in Razorpay and keep it ready for the field below.",
+      webhookSaveInstruction: "Save the webhook, then enter its secret in the verification section below.",
       verificationText: "Complete verification details and input the exact webhook secret key configured on your dashboard.",
       webhookSecretLabel: "Webhook Secret Key",
       webhookSecretPlaceholder: "Secret configured in Razorpay webhook",
@@ -236,9 +248,9 @@ export default function RegisterBusinessPage() {
       accountLabel: "Cashfree Client ID / App ID",
       accountPlaceholder: "No separate merchant ID needed; use your Client ID / App ID",
       requiresWebhookSecret: false,
-      webhookInstruction: "Cashfree uses your Client Secret from Step 3 to verify webhook signatures. No separate webhook secret is created.",
-      webhookSaveInstruction: "Save webhook and continue to Step 5 with your account verification details.",
-      verificationText: "Complete account verification details. Cashfree webhook signatures are verified with the Client Secret entered in Step 3.",
+      webhookInstruction: "Cashfree uses the Client Secret entered above to verify webhook signatures. No separate webhook secret is created.",
+      webhookSaveInstruction: "Save the webhook and complete the account verification details below.",
+      verificationText: "Complete account verification details. Cashfree webhook signatures are verified with the Client Secret entered above.",
       webhookSecretLabel: "Webhook Secret Key",
       webhookSecretPlaceholder: "Not required for Cashfree",
       eventsText: "payment success and refund status events",
@@ -248,12 +260,12 @@ export default function RegisterBusinessPage() {
   const requiresWebhookSecret = providerCopy.requiresWebhookSecret;
 
   const nextStep = () => {
-    if (step === 5) {
-      // Trigger verification automatically when moving to Step 6
-      setStep(6);
+    if (step === 4) {
+      // Verify payment credentials only after the agreement has been signed.
+      setStep(5);
       runCredentialVerification();
     } else {
-      setStep(prev => Math.min(prev + 1, 6));
+      setStep(prev => Math.min(prev + 1, 5));
     }
   };
 
@@ -269,14 +281,18 @@ export default function RegisterBusinessPage() {
                        form.pan_photo_url.trim().length > 0;
 
   const isStep2Valid = true; // Select provider is always valid
-  const isStep3Valid = form.api_key.trim().length > 4 && form.api_secret.trim().length > 4;
-  const isStep4Valid = true; // Display webhook info
-  const isStep5Valid = (!requiresWebhookSecret || form.webhook_secret.trim().length > 4) &&
+  const isStep3Valid = form.api_key.trim().length > 4 &&
+                       form.api_secret.trim().length > 4 &&
+                       (!requiresWebhookSecret || form.webhook_secret.trim().length > 4) &&
                        isProviderAccountValid &&
                        form.razorpay_account_holder_name.trim().length > 2 &&
                        form.razorpay_account_email.trim().length > 4 &&
                        form.razorpay_account_phone.trim().length > 5 &&
                        form.payment_terms_accepted;
+  const normalizedSignerName = form.signer_name.trim().replace(/\s+/g, " ");
+  const isSignerNameValid = normalizedSignerName.length > 0 &&
+                            normalizedSignerName.localeCompare(profileFullName.trim().replace(/\s+/g, " "), undefined, { sensitivity: "accent" }) === 0;
+  const isStep4Valid = form.agreement_accepted && isSignerNameValid;
 
   if (loading) {
     return (
@@ -354,7 +370,7 @@ export default function RegisterBusinessPage() {
 
         {/* Progress Bar */}
         <div className="mb-8 bg-white border border-slate-100 p-4 rounded-2xl shadow-sm flex justify-between items-center text-xs">
-          {[1, 2, 3, 4, 5, 6].map((s) => (
+          {[1, 2, 3, 4, 5].map((s) => (
             <div key={s} className="flex items-center gap-1.5">
               <div className={`w-6 h-6 rounded-full flex items-center justify-center font-bold transition-colors ${
                 step === s ? "bg-orange-500 text-white" :
@@ -365,11 +381,10 @@ export default function RegisterBusinessPage() {
               <span className={`font-semibold hidden sm:inline ${step === s ? "text-slate-800" : "text-slate-400"}`}>
                 {s === 1 ? "Business" :
                  s === 2 ? "Provider" :
-                 s === 3 ? "API" :
-                 s === 4 ? "Webhook" :
-                 s === 5 ? "Secret" : "Verify"}
+                 s === 3 ? "Payment Setup" :
+                 s === 4 ? "Agreement" : "Verify"}
               </span>
-              {s < 6 && <ChevronRight className="w-3.5 h-3.5 text-slate-300 hidden sm:inline" />}
+              {s < 5 && <ChevronRight className="w-3.5 h-3.5 text-slate-300 hidden sm:inline" />}
             </div>
           ))}
         </div>
@@ -407,7 +422,7 @@ export default function RegisterBusinessPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">Company Name *</label>
-                  <input type="text" placeholder="Wanderlust Inc." value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} className="premium-input" />
+                  <input type="text" placeholder="Enter registered company name" value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} className="premium-input" />
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">Base Location *</label>
@@ -418,11 +433,11 @@ export default function RegisterBusinessPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">Phone Number *</label>
-                  <input type="text" placeholder="Mobile Number" value={form.phone_number} onChange={(e) => setForm({ ...form, phone_number: e.target.value.replace(/\D/g, '') })} className="premium-input" />
+                  <input type="text" placeholder="Enter mobile number" value={form.phone_number} onChange={(e) => setForm({ ...form, phone_number: e.target.value.replace(/\D/g, '') })} className="premium-input" />
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">Alternate Email</label>
-                  <input type="email" placeholder="contact@wanderlust.com" value={form.alternate_email} onChange={(e) => setForm({ ...form, alternate_email: e.target.value })} className="premium-input" />
+                  <input type="email" placeholder="Enter alternate email address" value={form.alternate_email} onChange={(e) => setForm({ ...form, alternate_email: e.target.value })} className="premium-input" />
                 </div>
               </div>
 
@@ -482,16 +497,17 @@ export default function RegisterBusinessPage() {
             </div>
           )}
 
-          {/* STEP 3: Enter API Credentials */}
+          {/* STEP 3: Payment Setup */}
           {step === 3 && (
             <div className="space-y-6">
               <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
                 <ShieldAlert className="w-5 h-5 text-orange-500" />
-                Step 3: Enter API Credentials
+                Step 3: Payment Setup
               </h2>
-              <p className="text-sm text-slate-500">Enter credentials generated inside your payment dashboard. GoTogether encrypts keys using AES-256-GCM.</p>
+              <p className="text-sm text-slate-500">Complete your API credentials, webhook, secret, and account verification in this form. GoTogether encrypts keys using AES-256-GCM.</p>
 
               <div className="space-y-4">
+                <h3 className="font-extrabold text-slate-800">API credentials</h3>
                 <div className="space-y-1">
                   <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">{providerCopy.apiKeyLabel} *</label>
                   <input type="text" placeholder={providerCopy.apiKeyPlaceholder} value={form.api_key} onChange={(e) => setForm({ ...form, api_key: e.target.value })} className="premium-input" />
@@ -501,16 +517,12 @@ export default function RegisterBusinessPage() {
                   <input type="password" placeholder={providerCopy.apiSecretPlaceholder} value={form.api_secret} onChange={(e) => setForm({ ...form, api_secret: e.target.value })} className="premium-input" />
                 </div>
               </div>
-            </div>
-          )}
 
-          {/* STEP 4: Webhook Configuration */}
-          {step === 4 && (
-            <div className="space-y-6">
-              <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+              <section className="space-y-5 border-t border-slate-200 pt-6">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                 <Receipt className="w-5 h-5 text-orange-500" />
-                Step 4: Webhook Configuration
-              </h2>
+                Webhook configuration
+              </h3>
               <p className="text-sm text-slate-500">Configure Webhooks on your provider account dashboard to notify GoTogether of successful transactions.</p>
 
               <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 space-y-4">
@@ -535,16 +547,13 @@ export default function RegisterBusinessPage() {
                   <div>5. {providerCopy.webhookSaveInstruction}</div>
                 </div>
               </div>
-            </div>
-          )}
+              </section>
 
-          {/* STEP 5: Webhook Secret & Verification Details */}
-          {step === 5 && (
-            <div className="space-y-6">
-              <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+              <section className="space-y-5 border-t border-slate-200 pt-6">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                 <CheckCircle className="w-5 h-5 text-orange-500" />
-                Step 5: {requiresWebhookSecret ? "Webhook Secret & Verification" : "Account Verification"}
-              </h2>
+                {requiresWebhookSecret ? "Webhook secret and account verification" : "Account verification"}
+              </h3>
               <p className="text-sm text-slate-500">{providerCopy.verificationText}</p>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -567,7 +576,7 @@ export default function RegisterBusinessPage() {
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">Registered Email *</label>
-                  <input type="email" placeholder="owner@company.com" value={form.razorpay_account_email} onChange={(e) => setForm({ ...form, razorpay_account_email: e.target.value })} className="premium-input" />
+                  <input type="email" placeholder="Enter gateway-registered email" value={form.razorpay_account_email} onChange={(e) => setForm({ ...form, razorpay_account_email: e.target.value })} className="premium-input" />
                 </div>
               </div>
 
@@ -582,15 +591,80 @@ export default function RegisterBusinessPage() {
                   <span>I authorize GoTogether to request payment checkout sessions, verify signatures, and initiate refunds dynamically. GoTogether collects 0% platform commissions in organizer-owned mode.</span>
                 </label>
               </div>
+              </section>
             </div>
           )}
 
-          {/* STEP 6: Credential Verification */}
-          {step === 6 && (
+          {/* STEP 4: Organizer Agreement */}
+          {step === 4 && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                  <FileSignature className="w-5 h-5 text-orange-500" />
+                  Step 4: Review and Sign
+                </h2>
+                <p className="mt-2 text-sm text-slate-500">
+                  Read the complete agreement, then type your profile name to sign electronically.
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 overflow-hidden">
+                <div className="border-b border-slate-200 bg-white px-5 py-4">
+                  <p className="font-extrabold text-slate-900">{ORGANIZER_AGREEMENT_TITLE}</p>
+                  <p className="text-xs text-slate-500 mt-1">Version {ORGANIZER_AGREEMENT_VERSION}</p>
+                </div>
+                <div className="max-h-80 overflow-y-auto px-5 py-4 space-y-5 text-sm leading-6 text-slate-700">
+                  {ORGANIZER_AGREEMENT_SECTIONS.map((section) => (
+                    <section key={section.title} className="space-y-2">
+                      <h3 className="font-extrabold text-slate-900">{section.title}</h3>
+                      {section.paragraphs.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
+                    </section>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-orange-100 bg-orange-50/50 p-5 space-y-4">
+                <div>
+                  <label htmlFor="organizer-signature" className="text-xs font-extrabold text-slate-600 uppercase tracking-wider">
+                    Electronic signature (type your name, e.g., XYZ)
+                  </label>
+                  <input
+                    id="organizer-signature"
+                    type="text"
+                    autoComplete="name"
+                    value={form.signer_name}
+                    onChange={(e) => setForm({ ...form, signer_name: e.target.value })}
+                    placeholder="Type your full profile name"
+                    className="premium-input mt-2"
+                  />
+                  {form.signer_name && !isSignerNameValid && (
+                    <p className="mt-2 text-xs font-semibold text-rose-600">The signature must exactly match your profile name.</p>
+                  )}
+                </div>
+                <label className="flex items-start gap-3 text-sm text-slate-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.agreement_accepted}
+                    onChange={(e) => setForm({ ...form, agreement_accepted: e.target.checked })}
+                    className="mt-1"
+                  />
+                  <span>
+                    I have read and agree to the Organizer Agreement, the <a href="/terms" target="_blank" rel="noreferrer" className="font-bold text-orange-600 underline">Terms of Service</a>, and the <a href="/privacy" target="_blank" rel="noreferrer" className="font-bold text-orange-600 underline">Privacy Policy</a>. I have authority to sign for this organizer and intend this typed name to be my electronic signature.
+                  </span>
+                </label>
+                <p className="text-xs text-slate-500">
+                  On submission, GoTogether stores the exact agreement text, version, signature, server date and time, and audit information as the signed record.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 5: Credential Verification */}
+          {step === 5 && (
             <div className="space-y-6">
               <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
                 <CheckCircle className="w-5 h-5 text-orange-500" />
-                Step 6: Credential Verification
+                Step 5: Credential Verification
               </h2>
 
               <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 text-center space-y-4">
@@ -629,22 +703,20 @@ export default function RegisterBusinessPage() {
               <div />
             )}
 
-            {step < 6 ? (
+            {step < 5 ? (
               <button
                 onClick={nextStep}
                 disabled={
                   (step === 1 && !isStep1Valid) ||
                   (step === 2 && !isStep2Valid) ||
                   (step === 3 && !isStep3Valid) ||
-                  (step === 4 && !isStep4Valid) ||
-                  (step === 5 && !isStep5Valid)
+                  (step === 4 && !isStep4Valid)
                 }
                 className={`px-6 py-3 rounded-2xl text-white text-sm font-bold flex items-center gap-1.5 transition-all duration-300 ${
                   ((step === 1 && !isStep1Valid) ||
                    (step === 2 && !isStep2Valid) ||
                    (step === 3 && !isStep3Valid) ||
-                   (step === 4 && !isStep4Valid) ||
-                   (step === 5 && !isStep5Valid))
+                   (step === 4 && !isStep4Valid))
                     ? "bg-slate-400 opacity-60 cursor-not-allowed"
                     : "bg-orange-500 hover:bg-orange-600 shadow-md hover:shadow-orange-500/20 cursor-pointer"
                 }`}

@@ -72,6 +72,37 @@ async function upsertOrganizerProviderAccount(client: any, application: {
   }
 }
 
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getSession();
+    if (!session || !(await isAdminUser(session))) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
+    const { id } = await params;
+    const agreement = await queryOne(`
+      SELECT oa.id, oa.application_id, oa.agreement_title, oa.agreement_version,
+             oa.agreement_text, oa.document_hash, oa.signer_name, oa.signer_email,
+             oa.company_name, oa.signed_at, oa.signer_ip, oa.signer_user_agent,
+             b.user_id
+      FROM organizer_agreements oa
+      JOIN business_applications b ON b.id = oa.application_id
+      WHERE oa.application_id = $1
+    `, [id]);
+
+    if (!agreement) {
+      return NextResponse.json({ error: "No signed agreement exists for this application" }, { status: 404 });
+    }
+    return NextResponse.json({ agreement });
+  } catch (error) {
+    console.error("GET /api/admin/business-apps/[id] agreement error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }

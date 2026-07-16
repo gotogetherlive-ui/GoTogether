@@ -400,6 +400,27 @@ export async function initializeSchema(): Promise<void> {
     await client.query(`ALTER TABLE business_applications ADD COLUMN IF NOT EXISTS provider_registered_email TEXT`);
     await client.query(`ALTER TABLE business_applications ADD COLUMN IF NOT EXISTS provider_registered_phone TEXT`);
 
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS organizer_agreements (
+        id TEXT PRIMARY KEY,
+        application_id TEXT NOT NULL UNIQUE REFERENCES business_applications(id) ON DELETE RESTRICT,
+        organizer_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+        agreement_title TEXT NOT NULL,
+        agreement_version TEXT NOT NULL,
+        agreement_text TEXT NOT NULL,
+        document_hash TEXT NOT NULL,
+        signer_name TEXT NOT NULL,
+        signer_email TEXT NOT NULL,
+        company_name TEXT NOT NULL,
+        accepted INTEGER NOT NULL CHECK(accepted = 1),
+        signed_at TIMESTAMPTZ NOT NULL,
+        signer_ip TEXT,
+        signer_user_agent TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_organizer_agreements_user ON organizer_agreements(organizer_user_id, signed_at DESC)`);
+
     // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Reviews & Audit Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     await client.query(`
@@ -1174,45 +1195,38 @@ export async function ensureSchema(): Promise<void> {
 // Cleanup Helpers
 // Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
 
-export async function cleanupDeletedTrips(): Promise<void> {
-  try {
-    const expiredTrips = await query<{ id: string }>(`
-      SELECT id FROM trips t
+export async function cleanupDeletedTrips(): Promise<number> {
+  const deletedCount = await transaction(async (client) => {
+    const expiredTrips = await client.query<{ id: string }>(`
+      SELECT id
+      FROM trips
       WHERE status = 'deleted'
-        AND t.deleted_at IS NOT NULL
-        AND (
-          SELECT COUNT(*)
-          FROM trip_participants tp
-          LEFT JOIN user_chat_reads ucr ON tp.user_id = ucr.user_id AND tp.trip_id = ucr.trip_id
-          WHERE tp.trip_id = t.id
-            AND (ucr.last_read_at IS NULL OR ucr.last_read_at < t.deleted_at)
-        ) = 0
-        AND NOW() >= COALESCE(
-          (SELECT MAX(last_read_at) FROM user_chat_reads WHERE trip_id = t.id),
-          t.deleted_at
-        ) + INTERVAL '1 day'
+        AND deleted_at IS NOT NULL
+        AND deleted_at <= NOW() - INTERVAL '24 hours'
+      ORDER BY deleted_at ASC
+      FOR UPDATE SKIP LOCKED
     `);
 
-    if (expiredTrips.length > 0) {
-      await transaction(async (client) => {
-        for (const trip of expiredTrips) {
-          await client.query(`DELETE FROM payments.orders WHERE booking_id IN (SELECT id FROM trip_bookings WHERE trip_id = $1)`, [trip.id]);
-          await client.query(`DELETE FROM booking_tickets WHERE booking_id IN (SELECT id FROM trip_bookings WHERE trip_id = $1)`, [trip.id]);
-          await client.query('DELETE FROM trip_bookings WHERE trip_id = $1', [trip.id]);
-          await client.query('DELETE FROM messages WHERE trip_id = $1', [trip.id]);
-          await client.query('DELETE FROM trip_participants WHERE trip_id = $1', [trip.id]);
-          await client.query('DELETE FROM trip_requests WHERE trip_id = $1', [trip.id]);
-          await client.query('DELETE FROM reports WHERE reported_trip_id = $1', [trip.id]);
-          await client.query('DELETE FROM user_chat_reads WHERE trip_id = $1', [trip.id]);
-          await client.query('DELETE FROM trip_reviews WHERE trip_id = $1', [trip.id]);
-          await client.query('UPDATE travel_stories SET trip_id = NULL WHERE trip_id = $1', [trip.id]);
-          await client.query('DELETE FROM trips WHERE id = $1', [trip.id]);
-        }
-      });
-      console.log(`[DB CLEANUP] Permanently deleted ${expiredTrips.length} expired deleted trip(s).`);
+    for (const trip of expiredTrips.rows) {
+      await client.query(`DELETE FROM payments.orders WHERE booking_id IN (SELECT id FROM trip_bookings WHERE trip_id = $1)`, [trip.id]);
+      await client.query(`DELETE FROM booking_tickets WHERE booking_id IN (SELECT id FROM trip_bookings WHERE trip_id = $1)`, [trip.id]);
+      await client.query('DELETE FROM trip_bookings WHERE trip_id = $1', [trip.id]);
+      await client.query('DELETE FROM messages WHERE trip_id = $1', [trip.id]);
+      await client.query('DELETE FROM trip_participants WHERE trip_id = $1', [trip.id]);
+      await client.query('DELETE FROM trip_requests WHERE trip_id = $1', [trip.id]);
+      await client.query('DELETE FROM reports WHERE reported_trip_id = $1', [trip.id]);
+      await client.query('DELETE FROM user_chat_reads WHERE trip_id = $1', [trip.id]);
+      await client.query('DELETE FROM trip_reviews WHERE trip_id = $1', [trip.id]);
+      await client.query('UPDATE travel_stories SET trip_id = NULL WHERE trip_id = $1', [trip.id]);
+      await client.query('DELETE FROM trips WHERE id = $1', [trip.id]);
     }
-  } catch (err) {
-    console.error('[DB CLEANUP] Failed to cleanup deleted trips:', err);
+
+    return expiredTrips.rowCount ?? 0;
+  });
+
+  if (deletedCount > 0) {
+    console.log(`[DB CLEANUP] Permanently deleted ${deletedCount} trip(s) after the 24-hour retention period.`);
   }
+  return deletedCount;
 }
 

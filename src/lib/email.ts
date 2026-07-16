@@ -1,4 +1,10 @@
 import { Resend } from 'resend';
+import {
+  renderAdminCampaignEmail,
+  type AdminCampaignType,
+} from './adminCampaignEmail';
+
+export type { AdminCampaignType } from './adminCampaignEmail';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -519,8 +525,6 @@ export async function sendBookingCancelledToOrganizer({
   }
 }
 
-export type AdminCampaignType = 'retention' | 'notification' | 'offer';
-
 export async function sendAdminCampaignBatch({
   campaignId,
   campaignType,
@@ -529,6 +533,7 @@ export async function sendAdminCampaignBatch({
   message,
   ctaLabel,
   ctaUrl,
+  logoUrl,
 }: {
   campaignId: string;
   campaignType: AdminCampaignType;
@@ -537,26 +542,27 @@ export async function sendAdminCampaignBatch({
   message: string;
   ctaLabel?: string;
   ctaUrl?: string;
+  logoUrl?: string;
 }): Promise<number> {
   let sent = 0;
-  const safeMessage = e(message).replace(/\r?\n/g, '<br />');
-  const accent = campaignType === 'offer' ? '#e11d48' : campaignType === 'retention' ? '#ea580c' : '#2563eb';
 
   for (let index = 0; index < recipients.length; index += 100) {
     const chunk = recipients.slice(index, index + 100);
     const payload = chunk.map((recipient) => {
       const greetingName = recipient.full_name?.trim() || 'Traveler';
-      const body = `
-        <p style="color:#334155;font-size:15px;margin:0 0 14px;">Hi <strong>${e(greetingName)}</strong>,</p>
-        <p style="color:#64748b;font-size:14px;line-height:1.7;margin:0 0 22px;">${safeMessage}</p>
-        ${ctaLabel && ctaUrl ? `<div style="text-align:center;margin:26px 0 8px;"><a href="${e(ctaUrl)}" style="display:inline-block;background:${accent};color:#fff;text-decoration:none;font-weight:700;padding:12px 22px;border-radius:12px;">${e(ctaLabel)}</a></div>` : ''}
-        <p style="color:#94a3b8;font-size:11px;line-height:1.5;margin:24px 0 0;">You received this message because you have a GoTogether account.</p>
-      `;
       return {
         from: FROM,
         to: [recipient.email],
         subject,
-        html: baseTemplate(subject, body),
+        html: renderAdminCampaignEmail({
+          campaignType,
+          recipientName: greetingName,
+          subject,
+          message,
+          ctaLabel,
+          ctaUrl,
+          logoUrl,
+        }),
         tags: [{ name: 'campaign_type', value: campaignType }],
       };
     });

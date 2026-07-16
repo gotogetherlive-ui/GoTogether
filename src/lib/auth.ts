@@ -146,8 +146,16 @@ export async function getSession(): Promise<SessionUser | null> {
 
     // ─── Cache miss — hit DB ───
     await ensureSchema();
-    const session = await queryOne<{ user_id: string; expires_at: string }>(
-      'SELECT user_id, expires_at FROM sessions WHERE token = $1',
+    const session = await queryOne<SessionUser & { session_expires_at: string }>(
+      `SELECT u.id, u.email, u.full_name, u.role, u.age, u.gender, u.bio,
+              u.profession, u.fooding_habit, u.address, u.phone_number,
+              u.phone_verified, u.is_verified, u.google_id, u.avatar_url,
+              u.latitude, u.longitude, u.location_updated_at, u.last_login_at,
+              u.terms_accepted_at, u.created_at, u.razorpay_account_id,
+              s.expires_at AS session_expires_at
+       FROM sessions s
+       JOIN users u ON u.id = s.user_id
+       WHERE s.token = $1 AND u.deleted_at IS NULL`,
       [tokenHash]
     );
 
@@ -157,26 +165,13 @@ export async function getSession(): Promise<SessionUser | null> {
     }
 
     // Check expiry
-    if (new Date(session.expires_at) < new Date()) {
+    if (new Date(session.session_expires_at) < new Date()) {
       await run('DELETE FROM sessions WHERE token = $1', [tokenHash]);
       sessionCache.delete(token);
       return null;
     }
 
-    const user = await queryOne<SessionUser>(
-      `SELECT id, email, full_name, role, age, gender, bio, profession,
-              fooding_habit, address, phone_number, phone_verified, is_verified,
-              google_id, avatar_url, latitude, longitude, location_updated_at,
-              last_login_at, terms_accepted_at, created_at, razorpay_account_id
-       FROM users
-       WHERE id = $1 AND deleted_at IS NULL`,
-      [session.user_id]
-    );
-
-    if (!user) {
-      sessionCache.delete(token);
-      return null;
-    }
+    const user: SessionUser = session;
 
     // ─── Store in cache ───
     sessionCache.set(token, {

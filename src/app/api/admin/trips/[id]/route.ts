@@ -22,9 +22,11 @@ export async function PATCH(request: Request, context: any) {
         return NextResponse.json({ error: 'Invalid GoTogether price' }, { status: 400 });
       }
       if (body.gotogether_price) {
-        await run('UPDATE trips SET status = $1, gotogether_price = $2, notification_seen = 0 WHERE id = $3', [body.status, body.gotogether_price, id]);
+        await run(`UPDATE trips SET status = $1, gotogether_price = $2, notification_seen = 0,
+          deleted_at = CASE WHEN $1 = 'deleted' THEN NOW() ELSE NULL END WHERE id = $3`, [body.status, body.gotogether_price, id]);
       } else {
-        await run('UPDATE trips SET status = $1, notification_seen = 0 WHERE id = $2', [body.status, id]);
+        await run(`UPDATE trips SET status = $1, notification_seen = 0,
+          deleted_at = CASE WHEN $1 = 'deleted' THEN NOW() ELSE NULL END WHERE id = $2`, [body.status, id]);
       }
       return NextResponse.json({ success: true });
     }

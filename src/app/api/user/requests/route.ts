@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { query } from '@/lib/db';
-import QRCode from 'qrcode';
 import { absoluteUrl } from '@/lib/seo';
 
 export async function GET() {
@@ -14,7 +13,7 @@ export async function GET() {
     const normalizedProfilePhone = (user.phone_number || '').replace(/\D/g, '');
 
     // Fetch trips the user has requested to join
-    const requests = await query(`
+    const requestsPromise = query(`
       SELECT 
         r.id as request_id, r.status as request_status, r.created_at as requested_at,
         t.id as trip_id, t.slug as trip_slug, t.title, t.destination, t.duration_days,
@@ -26,7 +25,7 @@ export async function GET() {
       ORDER BY r.created_at DESC
     `, [user.id]);
 
-    const bookings = await query(`
+    const bookingsPromise = query(`
       SELECT 
         b.id as booking_id,
         b.status as legacy_status,
@@ -124,18 +123,13 @@ export async function GET() {
       ORDER BY b.created_at DESC
     `, [user.id, normalizedProfilePhone]);
 
-    const bookingsWithVerificationQr = await Promise.all(bookings.map(async (booking: any) => {
-      if (!booking.ticket_number) return booking;
-      const verificationUrl = absoluteUrl(`/verify-ticket/${encodeURIComponent(booking.ticket_number)}`);
-      try {
-        return {
-          ...booking,
-          qr_code_data: await QRCode.toDataURL(verificationUrl, { width: 300, margin: 2 }),
-          ticket_verification_url: verificationUrl,
-        };
-      } catch {
-        return { ...booking, ticket_verification_url: verificationUrl };
-      }
+    const [requests, bookings] = await Promise.all([requestsPromise, bookingsPromise]);
+
+    const bookingsWithVerificationQr = bookings.map((booking: Record<string, unknown>) => ({
+      ...booking,
+      ticket_verification_url: booking.ticket_number
+        ? absoluteUrl(`/verify-ticket/${encodeURIComponent(String(booking.ticket_number))}`)
+        : null,
     }));
 
     return NextResponse.json({ requests, bookings: bookingsWithVerificationQr });

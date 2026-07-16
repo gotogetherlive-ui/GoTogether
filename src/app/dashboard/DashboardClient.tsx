@@ -407,7 +407,7 @@ export default function DashboardClient() {
                     type="tel"
                     value={form.phone_number}
                     onChange={(e) => setForm((f) => ({ ...f, phone_number: e.target.value.replace(/\D/g, '') }))}
-                    placeholder="e.g. 9876543210"
+                    placeholder="Enter phone number"
                     className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none text-slate-900 font-medium transition"
                   />
                 </div>

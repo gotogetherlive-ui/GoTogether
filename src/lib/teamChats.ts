@@ -60,3 +60,23 @@ export async function getTeamChatTrips(userId: string): Promise<TeamChatTrip[]> 
     ORDER BY COALESCE(latest.created_at, t.created_at) DESC
   `, [userId]);
 }
+
+export async function hasTeamChats(userId: string): Promise<boolean> {
+  const rows = await query<{ has_team_chats: boolean }>(`
+    SELECT EXISTS (
+      SELECT 1
+      FROM trips t
+      WHERE t.trip_type = 'buddy'
+        AND t.status = 'live'
+        AND t.deleted_at IS NULL
+        AND (
+          t.organizer_id = $1
+          OR EXISTS (
+            SELECT 1 FROM trip_participants tp
+            WHERE tp.trip_id = t.id AND tp.user_id = $1
+          )
+        )
+    ) AS has_team_chats
+  `, [userId]);
+  return rows[0]?.has_team_chats === true;
+}

@@ -14,9 +14,15 @@ export async function GET() {
       SELECT 
         b.*,
         u.full_name as user_full_name,
-        u.email as user_email
+        u.email as user_email,
+        oa.id as agreement_id,
+        oa.agreement_version,
+        oa.signer_name,
+        oa.signed_at,
+        oa.document_hash
       FROM business_applications b
       JOIN users u ON b.user_id = u.id
+      LEFT JOIN organizer_agreements oa ON oa.application_id = b.id
       ORDER BY 
         CASE WHEN b.status = 'pending' THEN 0 ELSE 1 END,
         b.created_at DESC

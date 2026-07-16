@@ -44,7 +44,7 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'images.unsplash.com' },
     ],
     formats: ['image/avif', 'image/webp'],
-    minimumCacheTTL: 3600,
+    minimumCacheTTL: 86400,
   },
   async redirects() {
     return [

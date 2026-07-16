@@ -70,6 +70,7 @@ export async function POST(request: Request) {
       message,
       ctaLabel: ctaLabel || undefined,
       ctaUrl: absoluteCtaUrl || undefined,
+      logoUrl: `${origin}/icon.svg`,
     });
 
     return NextResponse.json({ success: true, sent, campaignId });

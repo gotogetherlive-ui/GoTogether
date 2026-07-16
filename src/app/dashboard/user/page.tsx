@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Loader2, Calendar, MapPin, CheckCircle, XCircle, Clock, Heart, Users, Phone, ArrowRight, ArrowLeft, X, Download } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { formatISTDate } from "@/lib/dateUtils";
 import { parseNames } from "@/lib/utils";
 
@@ -147,9 +148,15 @@ export default function UserDashboard() {
   }, []);
 
   useEffect(() => {
+    const hasActiveCountdown = bookings.some((book) =>
+      (book.booking_status === 'pending_payment' || book.booking_status === 'payment_processing') &&
+      !!book.expires_at &&
+      new Date(book.expires_at).getTime() > Date.now()
+    );
+    if (!hasActiveCountdown) return;
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [bookings]);
 
   const downloadConfirmationPDF = async (book: Booking) => {
     const { jsPDF } = await import('jspdf');
@@ -795,7 +802,7 @@ export default function UserDashboard() {
                   <div key={book.booking_id} className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden flex flex-col group">
                     {book.image_url && (
                       <div className="h-32 w-full relative">
-                        <img src={book.image_url} alt="" className="w-full h-full object-cover" />
+                        <Image src={book.image_url} alt="" fill sizes="(max-width: 768px) 100vw, 50vw" className="object-cover" />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                         <div className="absolute bottom-3 left-4 right-4 flex justify-between items-end">
                           <h3 className="text-lg font-bold text-white line-clamp-1">{book.title}</h3>

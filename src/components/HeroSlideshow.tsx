@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 const heroImages = [
   {
@@ -40,10 +40,21 @@ const heroImages = [
 
 export default function HeroSlideshow() {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [loadedIndexes, setLoadedIndexes] = useState<Set<number>>(() => new Set([0]));
+  const currentIndexRef = useRef(0);
 
   const advanceSlide = useCallback(() => {
-    setCurrentIndex((prev) => (prev + 1) % heroImages.length);
+    const next = (currentIndexRef.current + 1) % heroImages.length;
+    currentIndexRef.current = next;
+    setLoadedIndexes((loaded) => loaded.has(next) ? loaded : new Set(loaded).add(next));
+    setCurrentIndex(next);
   }, []);
+
+  const selectSlide = (index: number) => {
+    currentIndexRef.current = index;
+    setLoadedIndexes((loaded) => loaded.has(index) ? loaded : new Set(loaded).add(index));
+    setCurrentIndex(index);
+  };
 
   useEffect(() => {
     const interval = setInterval(advanceSlide, 6000);
@@ -53,6 +64,7 @@ export default function HeroSlideshow() {
   return (
     <>
       {heroImages.map((img, index) => {
+        if (!loadedIndexes.has(index)) return null;
         const isActive = index === currentIndex;
 
         return (
@@ -73,7 +85,6 @@ export default function HeroSlideshow() {
                 fill
                 className="object-cover object-center brightness-[0.55]"
                 priority={index === 0}
-                loading={index === 0 ? "eager" : "lazy"}
                 sizes="100vw"
               />
             </div>
@@ -90,7 +101,7 @@ export default function HeroSlideshow() {
           <button
             key={img.src}
             type="button"
-            onClick={() => setCurrentIndex(i)}
+            onClick={() => selectSlide(i)}
             className="group relative flex h-11 w-11 items-center justify-center rounded-full"
             aria-label={`Go to ${img.label}`}
             aria-current={i === currentIndex ? "true" : undefined}
