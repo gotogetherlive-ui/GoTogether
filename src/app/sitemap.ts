@@ -57,13 +57,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     );
 
     const organizers = await query<{ id: string; full_name: string; organizer_slug?: string | null; created_at?: string | null; updated_at?: string | null }>(
-      `SELECT DISTINCT u.id, u.full_name, u.organizer_slug, u.created_at, u.updated_at
+      `SELECT u.id, u.full_name, u.organizer_slug, u.created_at,
+              MAX(t.updated_at) AS updated_at
        FROM users u
        JOIN trips t ON t.organizer_id = u.id
        WHERE t.status = 'live' AND t.trip_type = 'premium' AND t.deleted_at IS NULL
          AND (t.start_date IS NULL OR t.start_date::date + GREATEST(COALESCE(t.duration_days, 0), 0) >= CURRENT_DATE)
          AND u.deleted_at IS NULL
          AND u.role IN ('business', 'super_admin')
+       GROUP BY u.id, u.full_name, u.organizer_slug, u.created_at
        LIMIT 1000`,
       [],
     );
