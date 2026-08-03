@@ -1,16 +1,32 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import SeoContentPage from "@/components/SeoContentPage";
+import DestinationGuidePage from "@/components/DestinationGuidePage";
 import { absoluteUrl, buildMetadata } from "@/lib/seo";
 import { commonFaqs, destinationBySlug, destinations } from "@/lib/seo-content";
-import { getPublicTripLinks } from "@/lib/public-trip-links";
+import { destinationGuideByDestinationSlug } from "@/lib/destination-guides";
+import { getPublicTripLinks, getPublicTripsForGuide } from "@/lib/public-trip-links";
 
 type Props = { params: Promise<{ destinationSlug: string }> };
+
+export function generateStaticParams() {
+  return destinations.map((destination) => ({ destinationSlug: destination.slug }));
+}
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { destinationSlug } = await params;
   const destination = destinationBySlug(destinationSlug);
   if (!destination) return buildMetadata({ title: "Destination Not Found | GoTogether", path: `/destinations/${destinationSlug}`, index: false });
+
+  const guide = destinationGuideByDestinationSlug(destinationSlug);
+  if (guide) {
+    return buildMetadata({
+      title: `${guide.title} | GoTogether`,
+      description: guide.description,
+      path: guide.path,
+      image: guide.heroImage,
+    });
+  }
 
   return buildMetadata({
     title: `${destination.name} Group Trips & Travel Packages | GoTogether`,
@@ -25,6 +41,11 @@ export default async function DestinationPage({ params }: Props) {
   const { destinationSlug } = await params;
   const destination = destinationBySlug(destinationSlug);
   if (!destination) notFound();
+  const guide = destinationGuideByDestinationSlug(destinationSlug);
+  if (guide) {
+    const trips = await getPublicTripsForGuide(guide.tripQueries).catch(() => []);
+    return <DestinationGuidePage guide={guide} trips={trips} />;
+  }
   const publicTrips = await getPublicTripLinks(destination.name).catch(() => []);
 
   const faqs = [

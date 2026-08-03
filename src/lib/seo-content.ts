@@ -10,6 +10,7 @@ export const destinations = [
   "Manali",
   "Ladakh",
   "Kasol",
+  "Kedarnath",
   "Spiti",
   "Rishikesh",
   "Meghalaya",
@@ -132,7 +133,7 @@ export function faqJsonLd(faqs: Faq[]) {
 function bestTimeFor(name: string) {
   if (["Goa", "Gokarna", "Andaman", "Kerala", "Munnar", "Coorg", "Pondicherry"].includes(name)) return "October to March";
   if (["Ladakh", "Spiti"].includes(name)) return "June to September";
-  if (["Manali", "Kasol", "Jibhi", "Bir", "Mussoorie", "Himachal Pradesh", "Uttarakhand"].includes(name)) return "March to June and September to November";
+  if (["Manali", "Kasol", "Kedarnath", "Jibhi", "Bir", "Mussoorie", "Himachal Pradesh", "Uttarakhand"].includes(name)) return "March to June and September to November";
   if (["Jaipur", "Udaipur", "Rajasthan", "Varanasi"].includes(name)) return "October to March";
   return "Check season, weather, and route conditions before booking";
 }

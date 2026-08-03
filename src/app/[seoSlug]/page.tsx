@@ -1,15 +1,36 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import SeoContentPage from "@/components/SeoContentPage";
+import DestinationGuidePage from "@/components/DestinationGuidePage";
 import { absoluteUrl, buildMetadata } from "@/lib/seo";
-import { categories, categoryBySlug, cityPageBySlug, commonFaqs, destinations } from "@/lib/seo-content";
+import { categories, categoryBySlug, cityPageBySlug, cityPages, commonFaqs, destinations } from "@/lib/seo-content";
+import { destinationGuideByRootSlug, destinationGuides } from "@/lib/destination-guides";
+import { getPublicTripsForGuide } from "@/lib/public-trip-links";
 
 type Props = { params: Promise<{ seoSlug: string }> };
+
+export function generateStaticParams() {
+  return [
+    ...categories.map((category) => ({ seoSlug: category.slug })),
+    ...cityPages.map((page) => ({ seoSlug: page.slug })),
+    ...destinationGuides.filter((guide) => !guide.destinationSlug).map((guide) => ({ seoSlug: guide.slug })),
+  ];
+}
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { seoSlug } = await params;
   const category = categoryBySlug(seoSlug);
   const cityPage = cityPageBySlug(seoSlug);
+  const guide = destinationGuideByRootSlug(seoSlug);
+
+  if (guide) {
+    return buildMetadata({
+      title: `${guide.title} | GoTogether`,
+      description: guide.description,
+      path: guide.path,
+      image: guide.heroImage,
+    });
+  }
 
   if (category) {
     return buildMetadata({
@@ -38,6 +59,12 @@ export default async function SeoSlugPage({ params }: Props) {
   const { seoSlug } = await params;
   const category = categoryBySlug(seoSlug);
   const cityPage = cityPageBySlug(seoSlug);
+  const guide = destinationGuideByRootSlug(seoSlug);
+
+  if (guide) {
+    const trips = await getPublicTripsForGuide(guide.tripQueries).catch(() => []);
+    return <DestinationGuidePage guide={guide} trips={trips} />;
+  }
 
   if (category) {
     const faqs = [

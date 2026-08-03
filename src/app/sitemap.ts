@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { query } from "@/lib/db";
 import { absoluteUrl, isPrivatePath } from "@/lib/seo";
 import { trustPages } from "@/lib/seo-content";
+import { destinationGuides } from "@/lib/destination-guides";
 import { ensureTripSlug } from "@/lib/slugs";
 import { ensureOrganizerSlug } from "@/lib/organizer-slugs";
 
@@ -41,6 +42,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     publicEntry("/organizers", 0.8),
     publicEntry("/guides", 0.75),
     ...trustPages.map((page) => publicEntry(page.path, 0.65, "monthly")),
+    ...destinationGuides.map((guide) => ({
+      url: absoluteUrl(guide.path),
+      changeFrequency: "weekly" as const,
+      priority: 0.88,
+      images: guide.gallery.map((image) => absoluteUrl(image.src)),
+    })),
   ].filter((item): item is SitemapEntry => Boolean(item));
 
   try {
