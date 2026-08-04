@@ -21,6 +21,17 @@ function toIsoDate(value: unknown): string | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString().slice(0, 10);
 }
 
+function todayInIndia(): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${value.year}-${value.month}-${value.day}`;
+}
+
 async function requireAdmin() {
   const user = await getSession();
   return user && await isAdminUser(user) ? user : null;
@@ -73,11 +84,12 @@ export async function PATCH(request: Request) {
     const adminNotes = typeof body.adminNotes === "string" ? body.adminNotes.trim().slice(0, 4000) : undefined;
     const destination = typeof body.destination === "string" ? body.destination.trim().slice(0, 160) : undefined;
     const tripDate = typeof body.tripDate === "string" ? body.tripDate.trim() : undefined;
+    const checkIn = body.checkIn === true;
 
     if (!id || (status && !STATUSES.has(status)) || (tripDate && !DATE_PATTERN.test(tripDate))) {
       return NextResponse.json({ error: "Invalid request update" }, { status: 400 });
     }
-    if (!status && adminNotes === undefined && destination === undefined && tripDate === undefined) {
+    if (!status && adminNotes === undefined && destination === undefined && tripDate === undefined && !checkIn) {
       return NextResponse.json({ error: "No changes supplied" }, { status: 400 });
     }
 
@@ -97,6 +109,10 @@ export async function PATCH(request: Request) {
         if (!current.email) throw new Error("CONFIRMATION_EMAIL_REQUIRED");
         if (!nextDestination) throw new Error("CONFIRMATION_DESTINATION_REQUIRED");
         if (!normalizedTripDate) throw new Error("CONFIRMATION_DATE_REQUIRED");
+      }
+      if (checkIn) {
+        if (nextStatus !== "confirmed") throw new Error("CHECK_IN_REQUIRES_CONFIRMED");
+        if (!normalizedTripDate || normalizedTripDate > todayInIndia()) throw new Error("CHECK_IN_TOO_EARLY");
       }
 
       await client.query(`
@@ -129,6 +145,16 @@ export async function PATCH(request: Request) {
         }
       }
 
+      if (checkIn) {
+        const checkedIn = await client.query(`
+          UPDATE custom_trip_tickets
+          SET status = 'used', checked_in_at = COALESCE(checked_in_at, NOW())
+          WHERE custom_trip_request_id = $1 AND status IN ('valid', 'used')
+          RETURNING id
+        `, [id]);
+        if (!checkedIn.rowCount) throw new Error("CHECK_IN_TICKET_UNAVAILABLE");
+      }
+
       const refreshed = await client.query(`${requestSelect} WHERE ctr.id = $1 LIMIT 1`, [id]);
       return { request: refreshed.rows[0], createdTicket };
     });
@@ -154,6 +180,9 @@ export async function PATCH(request: Request) {
       CONFIRMATION_EMAIL_REQUIRED: "Add a customer email before confirming this trip.",
       CONFIRMATION_DESTINATION_REQUIRED: "Enter the final destination before confirming this trip.",
       CONFIRMATION_DATE_REQUIRED: "Select the travel date before confirming this trip.",
+      CHECK_IN_REQUIRES_CONFIRMED: "Only a confirmed trip can be checked in.",
+      CHECK_IN_TOO_EARLY: "Passenger check-in is available only when the travel date starts.",
+      CHECK_IN_TICKET_UNAVAILABLE: "This ticket is unavailable or cancelled and cannot be checked in.",
     };
     const code = error instanceof Error ? error.message : "";
     if (messages[code]) return NextResponse.json({ error: messages[code] }, { status: 400 });

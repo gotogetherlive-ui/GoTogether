@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CalendarDays, CheckCircle2, Clock3, ExternalLink, Loader2, Mail, MapPin, MessageCircle, Phone, QrCode, RefreshCw, Search, Sparkles, UserRound, UsersRound, X } from "lucide-react";
+import { CalendarDays, CheckCircle2, Clock3, ExternalLink, Loader2, Mail, MapPin, MessageCircle, Phone, QrCode, RefreshCw, ScanLine, Search, Sparkles, UserRound, UsersRound, X } from "lucide-react";
 
 type CustomTripRequest = {
   id: string;
@@ -53,6 +53,12 @@ function requestReference(id: string) {
   return id.slice(0, 8).toUpperCase();
 }
 
+function todayInIndia() {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
+  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${value.year}-${value.month}-${value.day}`;
+}
+
 export default function AdminCustomTripsPage() {
   const [requests, setRequests] = useState<CustomTripRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,6 +70,7 @@ export default function AdminCustomTripsPage() {
   const [finalDestination, setFinalDestination] = useState("");
   const [tripDate, setTripDate] = useState("");
   const [updating, setUpdating] = useState(false);
+  const [checkingIn, setCheckingIn] = useState(false);
 
   const loadRequests = useCallback(async () => {
     setLoading(true);
@@ -122,6 +129,28 @@ export default function AdminCustomTripsPage() {
 
   const count = (status: CustomTripRequest["status"]) => requests.filter((item) => item.status === status).length;
 
+  const checkInTicket = async () => {
+    if (!selected || selected.ticket_status !== "valid") return;
+    if (!window.confirm(`Confirm check-in for all ${selected.traveler_names.length} passengers? This records the current time on the live ticket.`)) return;
+    setCheckingIn(true);
+    try {
+      const response = await fetch("/api/admin/custom-trips", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: selected.id, checkIn: true }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Check-in failed");
+      const updated = data.request as CustomTripRequest;
+      setSelected(updated);
+      setRequests((current) => current.map((item) => item.id === updated.id ? updated : item));
+    } catch (checkInError) {
+      alert(checkInError instanceof Error ? checkInError.message : "Could not check in these passengers.");
+    } finally {
+      setCheckingIn(false);
+    }
+  };
+
   return (
     <div>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -162,7 +191,20 @@ export default function AdminCustomTripsPage() {
           </section>
           {selected.ticket_number && selected.qr_code_data && <section className="overflow-hidden rounded-2xl border border-emerald-200 bg-emerald-50">
             <div className="flex items-center justify-between gap-3 border-b border-emerald-200 px-5 py-4"><div><p className="text-xs font-bold uppercase tracking-wider text-emerald-700">Confirmed ticket</p><p className="mt-1 font-mono text-sm font-black text-emerald-950">{selected.ticket_number}</p></div><span className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold capitalize text-white">{selected.ticket_status}</span></div>
-            <div className="grid items-center gap-5 p-5 sm:grid-cols-[150px_1fr]"><Image src={selected.qr_code_data} alt={`QR code for ${selected.ticket_number}`} width={150} height={150} unoptimized className="aspect-square w-full rounded-xl bg-white p-2 shadow-sm" /><div><h3 className="flex items-center gap-2 font-black text-slate-950"><QrCode className="h-5 w-5 text-emerald-600" />Ready to scan</h3><p className="mt-2 text-sm leading-6 text-slate-600">The customer received this QR by email. Scanning opens the live status and passenger list.</p><a href={`/verify-ticket/${encodeURIComponent(selected.ticket_number)}`} target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-700">Open ticket <ExternalLink className="h-3.5 w-3.5" /></a></div></div>
+            <div className="grid items-center gap-5 p-5 sm:grid-cols-[150px_1fr]">
+              <Image src={selected.qr_code_data} alt={`QR code for ${selected.ticket_number}`} width={150} height={150} unoptimized className="aspect-square w-full rounded-xl bg-white p-2 shadow-sm" />
+              <div>
+                <h3 className="flex items-center gap-2 font-black text-slate-950"><QrCode className="h-5 w-5 text-emerald-600" />Ready to scan</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-600">The customer received this QR by email. Scanning opens the live status and passenger list.</p>
+                <div className="mt-4 flex flex-wrap gap-2"><a href={`/verify-ticket/${encodeURIComponent(selected.ticket_number)}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-700">Open ticket <ExternalLink className="h-3.5 w-3.5" /></a></div>
+              </div>
+            </div>
+            <div className="border-t border-emerald-200 bg-white/70 p-5">
+              {selected.ticket_status === "used" ? <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4"><CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" /><div><p className="text-sm font-black text-emerald-950">Passengers checked in</p><p className="mt-1 text-xs text-emerald-700">{selected.checked_in_at ? `Recorded ${formatDate(selected.checked_in_at)}` : "Check-in recorded"}</p></div></div> : selected.ticket_status === "valid" ? <div>
+                <button onClick={checkInTicket} disabled={checkingIn || !selected.trip_date || String(selected.trip_date).slice(0, 10) > todayInIndia()} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-black text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300">{checkingIn ? <Loader2 className="h-4 w-4 animate-spin" /> : <ScanLine className="h-4 w-4" />}Check in all passengers</button>
+                <p className="mt-2 text-center text-xs text-slate-500">{selected.trip_date && String(selected.trip_date).slice(0, 10) <= todayInIndia() ? "Admin confirmation records all listed passengers as checked in." : "Check-in becomes available when the travel date starts."}</p>
+              </div> : <p className="text-sm font-bold text-rose-700">This cancelled ticket cannot be checked in.</p>}
+            </div>
           </section>}
           {selected.account_email && <section className="rounded-2xl border border-blue-100 bg-blue-50 p-5"><h3 className="flex items-center gap-2 font-black text-blue-900"><UserRound className="h-5 w-5" />Linked account</h3><p className="mt-2 text-sm text-blue-800">{selected.account_name} · {selected.account_email}</p></section>}
           <section className="rounded-2xl border border-slate-200 p-5"><label className="text-sm font-black">Internal admin notes<textarea value={adminNotes} onChange={(event) => setAdminNotes(event.target.value)} rows={5} maxLength={4000} className="mt-3 w-full resize-y rounded-xl border border-slate-200 p-3 text-sm font-normal outline-none focus:border-orange-400 focus:ring-4 focus:ring-orange-100" placeholder="Call outcome, budget range, follow-up date..." /></label><div className="mt-4 grid grid-cols-2 gap-3"><select value={selected.status} onChange={(event) => setSelected({ ...selected, status: event.target.value as CustomTripRequest["status"] })} className="rounded-xl border border-slate-200 px-3 text-sm font-bold capitalize outline-none focus:border-orange-400">{statuses.map((status) => <option key={status} value={status}>{status}</option>)}</select><button onClick={() => updateRequest()} disabled={updating} className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-3 text-sm font-black text-white hover:bg-orange-600 disabled:opacity-50">{updating ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}Save update</button></div></section>
