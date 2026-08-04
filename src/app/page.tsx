@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Users, ShieldCheck, ChevronRight, Compass, Sparkles } from "lucide-react";
+import Image from "next/image";
+import { Users, ShieldCheck, ChevronRight, Compass, CircleCheck, Headphones, MapPinned } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import HeroSlideshow from "@/components/HeroSlideshow";
@@ -109,13 +110,35 @@ export default async function Home() {
           <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-slate-50 to-transparent z-20"></div>
         </section>
 
-        <section className="relative z-30 mx-auto -mt-14 max-w-7xl px-6 md:px-12">
+        <section className="relative z-30 mx-auto -mt-14 max-w-7xl px-5 sm:px-6 md:px-12">
           <FadeInScroll delay={0.1}>
-            <Link href="/custom-trip" className="group relative flex flex-col items-start justify-between gap-7 overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950 p-7 text-white shadow-[0_30px_80px_-30px_rgba(15,23,42,.55)] transition hover:-translate-y-1 hover:shadow-orange-500/20 sm:p-9 md:flex-row md:items-center">
-              <div className="absolute -right-12 -top-20 h-64 w-64 rounded-full bg-orange-500/25 blur-3xl transition group-hover:bg-orange-500/35" />
-              <div className="relative flex items-start gap-5"><span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-orange-400 to-rose-500 shadow-lg shadow-orange-500/20"><Sparkles className="h-7 w-7" /></span><div><p className="text-xs font-black uppercase tracking-[.18em] text-orange-300">New · Travel designed around you</p><h2 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">Can&apos;t find the right trip? We&apos;ll create it.</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400 sm:text-base">Bring at least one travel partner. Share a destination—or simply say mountains, city or beach—and our support team will plan the details with you.</p></div></div>
-              <span className="relative inline-flex shrink-0 items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-black text-slate-950 transition group-hover:bg-orange-500 group-hover:text-white">Plan my custom trip <ChevronRight className="h-4 w-4 transition group-hover:translate-x-1" /></span>
-            </Link>
+            <div className="grid overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_24px_70px_-35px_rgba(15,23,42,.45)] lg:grid-cols-[minmax(0,1.25fr)_minmax(360px,.75fr)]">
+              <div className="flex flex-col justify-center p-7 sm:p-10 lg:p-12">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[.14em] text-orange-600"><MapPinned className="h-4 w-4" />Custom holidays</div>
+                <h2 className="mt-4 max-w-2xl text-3xl font-bold leading-tight tracking-[-.025em] text-slate-950 sm:text-4xl">Your holiday, planned your way.</h2>
+                <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base sm:leading-7">Tell us where you want to go, or simply describe the kind of break you need. A dedicated travel specialist will shape the route, stays and experiences around your group.</p>
+
+                <div className="mt-6 grid gap-3 text-sm font-semibold text-slate-700 sm:grid-cols-3">
+                  <span className="flex items-center gap-2"><CircleCheck className="h-4 w-4 text-emerald-600" />Free consultation</span>
+                  <span className="flex items-center gap-2"><CircleCheck className="h-4 w-4 text-emerald-600" />Flexible itinerary</span>
+                  <span className="flex items-center gap-2"><CircleCheck className="h-4 w-4 text-emerald-600" />Personal support</span>
+                </div>
+
+                <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <Link href="/custom-trip" className="group inline-flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-6 py-3.5 text-sm font-bold text-white shadow-sm transition hover:bg-orange-600 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-orange-200">Start planning <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" /></Link>
+                  <span className="flex items-center justify-center gap-2 text-xs font-semibold text-slate-500 sm:justify-start"><Headphones className="h-4 w-4 text-slate-400" />Our team will call to discuss the details</span>
+                </div>
+              </div>
+
+              <div className="relative min-h-64 overflow-hidden lg:min-h-[390px]">
+                <Image src="/hero_india_kerala.png" alt="A scenic Kerala backwater holiday planned by GoTogether" fill sizes="(max-width: 1024px) 100vw, 38vw" className="object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/65 via-slate-950/5 to-transparent" />
+                <div className="absolute inset-x-0 bottom-0 p-6 text-white sm:p-8">
+                  <p className="text-xs font-bold uppercase tracking-[.13em] text-white/75">Designed for your group</p>
+                  <p className="mt-2 max-w-sm text-xl font-bold leading-snug">Destination, pace and budget—all decided with you.</p>
+                </div>
+              </div>
+            </div>
           </FadeInScroll>
         </section>
 
