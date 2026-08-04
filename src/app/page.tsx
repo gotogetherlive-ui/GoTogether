@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Users, ShieldCheck, ChevronRight, Compass } from "lucide-react";
+import { Users, ShieldCheck, ChevronRight, Compass, Sparkles } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import HeroSlideshow from "@/components/HeroSlideshow";
@@ -107,6 +107,16 @@ export default async function Home() {
 
           {/* Decorative wave at the bottom */}
           <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-slate-50 to-transparent z-20"></div>
+        </section>
+
+        <section className="relative z-30 mx-auto -mt-14 max-w-7xl px-6 md:px-12">
+          <FadeInScroll delay={0.1}>
+            <Link href="/custom-trip" className="group relative flex flex-col items-start justify-between gap-7 overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950 p-7 text-white shadow-[0_30px_80px_-30px_rgba(15,23,42,.55)] transition hover:-translate-y-1 hover:shadow-orange-500/20 sm:p-9 md:flex-row md:items-center">
+              <div className="absolute -right-12 -top-20 h-64 w-64 rounded-full bg-orange-500/25 blur-3xl transition group-hover:bg-orange-500/35" />
+              <div className="relative flex items-start gap-5"><span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-orange-400 to-rose-500 shadow-lg shadow-orange-500/20"><Sparkles className="h-7 w-7" /></span><div><p className="text-xs font-black uppercase tracking-[.18em] text-orange-300">New · Travel designed around you</p><h2 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">Can&apos;t find the right trip? We&apos;ll create it.</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400 sm:text-base">Bring at least one travel partner. Share a destination—or simply say mountains, city or beach—and our support team will plan the details with you.</p></div></div>
+              <span className="relative inline-flex shrink-0 items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-black text-slate-950 transition group-hover:bg-orange-500 group-hover:text-white">Plan my custom trip <ChevronRight className="h-4 w-4 transition group-hover:translate-x-1" /></span>
+            </Link>
+          </FadeInScroll>
         </section>
 
         {/* Featured / Top Trips Section */}

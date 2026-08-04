@@ -988,6 +988,47 @@ CREATE INDEX IF NOT EXISTS idx_provider_accounts_provider ON payments.provider_a
       );
     `);
 
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS custom_trip_requests (
+        id TEXT PRIMARY KEY,
+        user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+        booker_name TEXT NOT NULL,
+        email TEXT,
+        traveler_names JSONB NOT NULL,
+        phone TEXT NOT NULL,
+        whatsapp_number TEXT,
+        destination TEXT,
+        alternate_destination TEXT,
+        place_type TEXT,
+        notes TEXT,
+        status TEXT NOT NULL DEFAULT 'new' CHECK(status IN ('new', 'contacted', 'planning', 'confirmed', 'closed')),
+        admin_notes TEXT,
+        trip_date DATE,
+        confirmed_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        CONSTRAINT custom_trip_requests_travelers_array
+          CHECK (jsonb_typeof(traveler_names) = 'array' AND jsonb_array_length(traveler_names) >= 2),
+        CONSTRAINT custom_trip_requests_destination_or_place
+          CHECK (NULLIF(BTRIM(destination), '') IS NOT NULL OR NULLIF(BTRIM(place_type), '') IS NOT NULL)
+      );
+    `);
+    await client.query(`ALTER TABLE custom_trip_requests ADD COLUMN IF NOT EXISTS whatsapp_number TEXT`);
+    await client.query(`ALTER TABLE custom_trip_requests ADD COLUMN IF NOT EXISTS email TEXT`);
+    await client.query(`ALTER TABLE custom_trip_requests ADD COLUMN IF NOT EXISTS trip_date DATE`);
+    await client.query(`ALTER TABLE custom_trip_requests ADD COLUMN IF NOT EXISTS confirmed_at TIMESTAMPTZ`);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS custom_trip_tickets (
+        id TEXT PRIMARY KEY,
+        custom_trip_request_id TEXT NOT NULL UNIQUE REFERENCES custom_trip_requests(id) ON DELETE CASCADE,
+        ticket_number TEXT NOT NULL UNIQUE,
+        qr_code_data TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'valid' CHECK (status IN ('valid', 'used', 'cancelled')),
+        generated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        checked_in_at TIMESTAMPTZ
+      );
+    `);
+
     // Normalize legacy duplicate rows before adding production uniqueness guards.
     await client.query(`
       ALTER TABLE trip_reviews DROP CONSTRAINT IF EXISTS trip_reviews_reviewer_id_trip_id_key;
@@ -1066,6 +1107,10 @@ CREATE INDEX IF NOT EXISTS idx_provider_accounts_provider ON payments.provider_a
       CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status);
       CREATE INDEX IF NOT EXISTS idx_feedbacks_status ON feedbacks(status);
       CREATE INDEX IF NOT EXISTS idx_support_tickets_status ON support_tickets(status);
+      CREATE INDEX IF NOT EXISTS idx_custom_trip_requests_status_created ON custom_trip_requests(status, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_custom_trip_requests_user ON custom_trip_requests(user_id, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_custom_trip_tickets_number ON custom_trip_tickets(ticket_number);
+      CREATE INDEX IF NOT EXISTS idx_custom_trip_tickets_status ON custom_trip_tickets(status);
       CREATE INDEX IF NOT EXISTS idx_trip_bookings_trip_id ON trip_bookings(trip_id);
       CREATE INDEX IF NOT EXISTS idx_trip_bookings_user_id ON trip_bookings(user_id);
       CREATE INDEX IF NOT EXISTS idx_trip_bookings_status ON trip_bookings(status);

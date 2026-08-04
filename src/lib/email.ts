@@ -475,6 +475,76 @@ export async function sendBookingConfirmedToTraveler({
   }
 }
 
+export async function sendCustomTripTicketEmail({
+  to,
+  bookerName,
+  destination,
+  tripDate,
+  travelerNames,
+  ticketNumber,
+  verificationUrl,
+  qrCodeData,
+}: {
+  to: string;
+  bookerName: string;
+  destination: string;
+  tripDate: string;
+  travelerNames: string[];
+  ticketNumber: string;
+  verificationUrl: string;
+  qrCodeData: string;
+}) {
+  const subject = `Your confirmed GoTogether trip ticket - ${ticketNumber}`;
+  const parsedTripDate = /^\d{4}-\d{2}-\d{2}$/.test(tripDate)
+    ? new Date(`${tripDate}T00:00:00Z`)
+    : new Date(tripDate);
+  const formattedDate = Number.isNaN(parsedTripDate.getTime())
+    ? 'Date to be confirmed'
+    : parsedTripDate.toLocaleDateString('en-IN', {
+        timeZone: 'UTC', day: 'numeric', month: 'short', year: 'numeric',
+      });
+  const passengerRows = travelerNames.map((name, index) =>
+    `<tr><td style="padding:6px 0;color:#64748b;">${index + 1}</td><td style="padding:6px 0;font-weight:600;color:#0f172a;">${e(name)}</td></tr>`
+  ).join('');
+  const body = `
+    <p style="color:#334155;font-size:15px;margin:0 0 8px;">Hi <strong>${e(bookerName)}</strong>,</p>
+    <p style="color:#64748b;font-size:14px;line-height:1.6;margin:0 0 18px;">Your customised trip is confirmed. Keep this QR ticket ready for verification on the travel date.</p>
+    <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:14px;padding:20px;text-align:center;margin-bottom:18px;">
+      <p style="color:#c2410c;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:0 0 6px;">Booking ticket</p>
+      <p style="color:#0f172a;font-size:22px;font-weight:800;letter-spacing:1px;margin:0 0 16px;font-family:monospace;">${e(ticketNumber)}</p>
+      <img src="cid:custom-trip-qr" width="220" height="220" alt="Ticket QR code" style="display:block;margin:0 auto;background:#fff;border-radius:12px;" />
+      <p style="margin:14px 0 0;"><a href="${e(verificationUrl)}" style="color:#ea580c;font-size:13px;font-weight:700;">Open live ticket verification</a></p>
+    </div>
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px 20px;margin-bottom:16px;">
+      <table style="width:100%;font-size:13px;color:#334155;border-collapse:collapse;">
+        <tr><td style="padding:5px 0;font-weight:600;width:120px;">Destination:</td><td>${e(destination)}</td></tr>
+        <tr><td style="padding:5px 0;font-weight:600;">Travel date:</td><td>${e(formattedDate)}</td></tr>
+        <tr><td style="padding:5px 0;font-weight:600;">Passengers:</td><td>${travelerNames.length}</td></tr>
+      </table>
+    </div>
+    <div style="border:1px solid #e2e8f0;border-radius:12px;padding:16px 20px;">
+      <p style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin:0 0 8px;">Passenger list</p>
+      <table style="width:100%;font-size:13px;border-collapse:collapse;">${passengerRows}</table>
+    </div>`;
+
+  try {
+    await resend.emails.send({
+      from: FROM,
+      to: [to],
+      subject,
+      html: baseTemplate('Custom trip confirmed', body),
+      attachments: [{
+        filename: `${ticketNumber}.png`,
+        content: Buffer.from(qrCodeData.replace(/^data:image\/png;base64,/, ''), 'base64'),
+        contentType: 'image/png',
+        contentId: 'custom-trip-qr',
+      }],
+    });
+  } catch (err) {
+    console.error('Email send error (custom trip ticket):', err);
+  }
+}
+
 export async function sendBookingCancelledToOrganizer({
   to,
   organizerName,

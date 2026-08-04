@@ -14,7 +14,7 @@ export async function GET() {
     const [counts, recentUsers, recentTrips, recentReports] = await Promise.all([
       queryOne<{
         total_users: number; live_trips: number; pending_trips: number;
-        active_reports: number; pending_feedbacks: number; open_support_tickets: number;
+        active_reports: number; pending_feedbacks: number; open_support_tickets: number; pending_custom_trips: number;
       }>(`
         SELECT
           (SELECT COUNT(*)::int FROM users WHERE deleted_at IS NULL) AS total_users,
@@ -22,7 +22,8 @@ export async function GET() {
           (SELECT COUNT(*)::int FROM trips WHERE status = 'pending') AS pending_trips,
           (SELECT COUNT(*)::int FROM reports WHERE status = 'pending') AS active_reports,
           (SELECT COUNT(*)::int FROM feedbacks WHERE status = 'pending') AS pending_feedbacks,
-          (SELECT COUNT(*)::int FROM support_tickets WHERE status IN ('open', 'in_progress')) AS open_support_tickets
+          (SELECT COUNT(*)::int FROM support_tickets WHERE status IN ('open', 'in_progress')) AS open_support_tickets,
+          (SELECT COUNT(*)::int FROM custom_trip_requests WHERE status IN ('new', 'contacted', 'planning')) AS pending_custom_trips
       `),
       query("SELECT id, full_name, email, role, created_at FROM users WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 5", []) as Promise<{ id: string; full_name: string; email: string; role: string; created_at: string }[]>,
       query(`SELECT t.id, t.title, t.destination, t.status, t.created_at, u.full_name as organizer
@@ -47,6 +48,7 @@ export async function GET() {
         activeReports: counts?.active_reports || 0,
         pendingFeedbacks: counts?.pending_feedbacks || 0,
         openSupportTickets: counts?.open_support_tickets || 0,
+        pendingCustomTrips: counts?.pending_custom_trips || 0,
       },
       recentUsers,
       recentTrips,

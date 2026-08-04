@@ -38,6 +38,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticEntries = [
     publicEntry("/", 1, "daily"),
     publicEntry("/trips", 0.95, "daily"),
+    publicEntry("/custom-trip", 0.9, "weekly"),
     publicEntry("/destinations", 0.9),
     publicEntry("/organizers", 0.8),
     publicEntry("/guides", 0.75),

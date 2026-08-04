@@ -16,6 +16,7 @@ const NotificationBell = dynamic(() => import("@/components/NotificationBell"), 
 const navLinks = [
   { href: "/", label: "Home" },
   { href: '/trips', label: 'Trips' },
+  { href: "/custom-trip", label: "Custom Trip" },
   { href: "/buddy", label: "Find Buddy" },
   { href: "/stories", label: "Stories" },
   { href: "/about", label: "About" },

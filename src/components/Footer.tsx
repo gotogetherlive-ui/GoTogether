@@ -77,6 +77,7 @@ export default function Footer() {
 
   const exploreLinks = [
     { href: "/trips", label: "Browse Trips" },
+    { href: "/custom-trip", label: "Plan a Custom Trip" },
     { href: "/about", label: "About Us" },
     ...(isLoggedIn
       ? [

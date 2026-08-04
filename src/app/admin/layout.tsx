@@ -15,6 +15,7 @@ import {
   Building2,
   Headset,
   Mail,
+  WandSparkles,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -24,6 +25,7 @@ const sidebarLinks = [
   { href: "/admin/users", label: "User Management", icon: Users },
   { href: "/admin/trips", label: "Trip Moderation", icon: MapPin },
   { href: "/admin/user-trips", label: "User Trips", icon: Compass },
+  { href: "/admin/custom-trips", label: "Custom Trip Requests", icon: WandSparkles },
   { href: "/admin/business-apps", label: "Business Apps", icon: Building2 },
   { href: "/admin/support", label: "Support Tickets", icon: Headset },
   { href: "/admin/campaigns", label: "User Campaigns", icon: Mail },

@@ -12,6 +12,7 @@ interface AdminStats {
     activeReports: number;
     pendingFeedbacks: number;
     openSupportTickets: number;
+    pendingCustomTrips: number;
   };
   recentUsers: {
     id: string;
@@ -115,6 +116,17 @@ export default function AdminDashboard() {
 
   const statCards = [
     {
+      label: "Custom Trips",
+      value: stats.pendingCustomTrips,
+      sub: stats.pendingCustomTrips > 0 ? "Needs consultation" : "All handled",
+      icon: Sparkles,
+      gradient: "from-fuchsia-500 to-violet-600",
+      bg: "bg-fuchsia-50",
+      text: "text-fuchsia-500",
+      glow: "shadow-fuchsia-500/20",
+      link: "/admin/custom-trips",
+    },
+    {
       label: "Total Users",
       value: stats.totalUsers,
       sub: "Registered accounts",
@@ -196,7 +208,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-10">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-10">
         {statCards.map((card, idx) => {
           const Icon = card.icon;
           return (
