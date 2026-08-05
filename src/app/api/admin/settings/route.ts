@@ -11,7 +11,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const rawSettings = await queryOne('SELECT id, site_name, site_tagline, admin_email, auto_approve_trips, require_verification, email_notifications, report_alerts, new_user_alerts, maintenance_mode, stories_blocked, updated_at FROM settings WHERE id = 1', []) as Record<string, any> | undefined;
+    const rawSettings = await queryOne('SELECT id, site_name, site_tagline, admin_email, auto_approve_trips, require_verification, email_notifications, report_alerts, new_user_alerts, maintenance_mode, stories_blocked, trips_empty_title, trips_empty_message, updated_at FROM settings WHERE id = 1', []) as Record<string, any> | undefined;
     
     // Map report_alerts to feedback_alerts for frontend compatibility
     const settings = rawSettings ? {
@@ -51,8 +51,19 @@ export async function PUT(request: Request) {
       feedback_alerts,
       new_user_alerts,
       maintenance_mode,
-      stories_blocked
+      stories_blocked,
+      trips_empty_title,
+      trips_empty_message
     } = body;
+
+    const emptyTitle = typeof trips_empty_title === 'string' ? trips_empty_title.trim() : null;
+    const emptyMessage = typeof trips_empty_message === 'string' ? trips_empty_message.trim() : null;
+    if (emptyTitle !== null && (emptyTitle.length < 3 || emptyTitle.length > 100)) {
+      return NextResponse.json({ error: 'Empty-state headline must be between 3 and 100 characters' }, { status: 400 });
+    }
+    if (emptyMessage !== null && (emptyMessage.length < 10 || emptyMessage.length > 400)) {
+      return NextResponse.json({ error: 'Empty-state message must be between 10 and 400 characters' }, { status: 400 });
+    }
 
     // Use report_alerts column in DB (backward compatible)
     await run(`
@@ -67,6 +78,8 @@ export async function PUT(request: Request) {
           new_user_alerts = COALESCE($8, new_user_alerts),
           maintenance_mode = COALESCE($9, maintenance_mode),
           stories_blocked = COALESCE($10, stories_blocked),
+          trips_empty_title = COALESCE($11, trips_empty_title),
+          trips_empty_message = COALESCE($12, trips_empty_message),
           updated_at = NOW()
       WHERE id = 1
     `, [site_name ?? null,
@@ -78,9 +91,11 @@ export async function PUT(request: Request) {
       feedback_alerts === undefined ? null : feedback_alerts ? 1 : 0,
       new_user_alerts === undefined ? null : new_user_alerts ? 1 : 0,
       maintenance_mode === undefined ? null : maintenance_mode ? 1 : 0,
-      stories_blocked === undefined ? null : stories_blocked ? 1 : 0]);
+      stories_blocked === undefined ? null : stories_blocked ? 1 : 0,
+      emptyTitle,
+      emptyMessage]);
 
-    const rawUpdated = await queryOne('SELECT id, site_name, site_tagline, admin_email, auto_approve_trips, require_verification, email_notifications, report_alerts, new_user_alerts, maintenance_mode, stories_blocked, updated_at FROM settings WHERE id = 1', []) as Record<string, any>;
+    const rawUpdated = await queryOne('SELECT id, site_name, site_tagline, admin_email, auto_approve_trips, require_verification, email_notifications, report_alerts, new_user_alerts, maintenance_mode, stories_blocked, trips_empty_title, trips_empty_message, updated_at FROM settings WHERE id = 1', []) as Record<string, any>;
     const updated = {
       ...rawUpdated,
       feedback_alerts: rawUpdated.report_alerts ?? rawUpdated.feedback_alerts ?? 1,

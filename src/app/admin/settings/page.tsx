@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Save, Shield, Bell, Loader2, UserPlus, Trash2, Mail } from "lucide-react";
+import { Save, Shield, Bell, Loader2, UserPlus, Trash2, Mail, Map } from "lucide-react";
 
 interface SettingsData {
   auto_approve_trips: number;
   feedback_alerts: number;
   maintenance_mode: number;
+  trips_empty_title: string;
+  trips_empty_message: string;
 }
 
 interface AdminAccount {
@@ -46,6 +48,8 @@ export default function AdminSettingsPage() {
             auto_approve_trips: data.settings.auto_approve_trips,
             feedback_alerts: data.settings.feedback_alerts,
             maintenance_mode: data.settings.maintenance_mode,
+            trips_empty_title: data.settings.trips_empty_title,
+            trips_empty_message: data.settings.trips_empty_message,
           });
         } else {
           setError(data.error || "Failed to load settings");
@@ -137,7 +141,7 @@ export default function AdminSettingsPage() {
     }
   };
 
-  const updateSetting = (key: keyof SettingsData, value: number) => {
+  const updateSetting = (key: keyof SettingsData, value: SettingsData[keyof SettingsData]) => {
     setSettings((prev) => (prev ? { ...prev, [key]: value } : null));
   };
 
@@ -185,6 +189,44 @@ export default function AdminSettingsPage() {
       )}
 
       <div className="space-y-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center text-orange-500">
+              <Map className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Trips Empty State</h2>
+              <p className="text-xs text-slate-500 mt-0.5">Shown on the Trips page when no live trips are available.</p>
+            </div>
+          </div>
+          <div className="p-6 space-y-5">
+            <label className="block">
+              <span className="block text-sm font-semibold text-slate-900 mb-2">Headline</span>
+              <input
+                type="text"
+                minLength={3}
+                maxLength={100}
+                value={settings.trips_empty_title}
+                onChange={(event) => updateSetting("trips_empty_title", event.target.value)}
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none text-sm"
+              />
+              <span className="mt-1.5 block text-right text-xs text-slate-400">{settings.trips_empty_title.length}/100</span>
+            </label>
+            <label className="block">
+              <span className="block text-sm font-semibold text-slate-900 mb-2">Message</span>
+              <textarea
+                rows={4}
+                minLength={10}
+                maxLength={400}
+                value={settings.trips_empty_message}
+                onChange={(event) => updateSetting("trips_empty_message", event.target.value)}
+                className="w-full resize-y px-4 py-3 rounded-xl border border-slate-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none text-sm leading-6"
+              />
+              <span className="mt-1.5 block text-right text-xs text-slate-400">{settings.trips_empty_message.length}/400</span>
+            </label>
+          </div>
+        </div>
+
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center text-purple-500">

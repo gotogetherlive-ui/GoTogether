@@ -11,6 +11,8 @@ export interface AppSettings {
   new_user_alerts: boolean;
   maintenance_mode: boolean;
   stories_blocked: boolean;
+  trips_empty_title: string;
+  trips_empty_message: string;
 }
 
 // Simple in-memory cache to prevent database reads on every route invocation.
@@ -31,6 +33,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   new_user_alerts: false,
   maintenance_mode: false,
   stories_blocked: false,
+  trips_empty_title: 'New trips will be available soon',
+  trips_empty_message: 'We are updating our trip calendar with new departures and competitive prices. Please check back shortly.',
 };
 
 /**
@@ -57,7 +61,7 @@ export async function getAppSettings(): Promise<AppSettings> {
 
 async function loadAppSettings(generation: number): Promise<AppSettings> {
   try {
-    const row = await queryOne('SELECT id, site_name, site_tagline, admin_email, auto_approve_trips, require_verification, email_notifications, report_alerts, new_user_alerts, maintenance_mode, stories_blocked, updated_at FROM settings WHERE id = 1') as Record<string, any> | null;
+    const row = await queryOne('SELECT id, site_name, site_tagline, admin_email, auto_approve_trips, require_verification, email_notifications, report_alerts, new_user_alerts, maintenance_mode, stories_blocked, trips_empty_title, trips_empty_message, updated_at FROM settings WHERE id = 1') as Record<string, any> | null;
 
     if (!row) {
       if (generation === settingsGeneration) {
@@ -78,6 +82,8 @@ async function loadAppSettings(generation: number): Promise<AppSettings> {
       new_user_alerts: !!row.new_user_alerts,
       maintenance_mode: !!row.maintenance_mode,
       stories_blocked: !!row.stories_blocked,
+      trips_empty_title: row.trips_empty_title || DEFAULT_SETTINGS.trips_empty_title,
+      trips_empty_message: row.trips_empty_message || DEFAULT_SETTINGS.trips_empty_message,
     };
 
     if (generation === settingsGeneration) {

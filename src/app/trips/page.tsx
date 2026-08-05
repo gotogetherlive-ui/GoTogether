@@ -11,6 +11,7 @@ import { ensureTripSlug } from "@/lib/slugs";
 import { ensureOrganizerSlug } from "@/lib/organizer-slugs";
 import Page3DWrapper from "@/components/Page3DWrapper";
 import FadeInScroll from "@/components/FadeInScroll";
+import { getAppSettings } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +45,7 @@ export default async function FindTripPage({ searchParams }: Props) {
   let totalTrips = 0;
   const requestedPage = parsePage((await searchParams).page);
   let currentPage = requestedPage;
+  const settings = await getAppSettings();
 
   try {
     const countRow = await queryOne<{ count: string }>(`
@@ -95,12 +97,12 @@ export default async function FindTripPage({ searchParams }: Props) {
           </FadeInScroll>
 
           <FadeInScroll delay={0.2}>
-            {dataUnavailable && (
-              <div className="mb-8 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-center text-sm text-amber-800">
-                Trips are temporarily unavailable. Please try again shortly.
-              </div>
-            )}
-            <TripsClient initialTrips={trips} />
+            <TripsClient
+              initialTrips={trips}
+              emptyStateTitle={settings.trips_empty_title}
+              emptyStateMessage={settings.trips_empty_message}
+              dataUnavailable={dataUnavailable}
+            />
             {totalPages > 1 && (
               <nav aria-label="Trip results pages" className="mt-12 flex items-center justify-center gap-4">
                 {currentPage > 1 ? (
