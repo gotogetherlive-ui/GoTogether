@@ -14,6 +14,7 @@
     "db:migrate:check": "node scripts/check-migrations.mjs",
     "db:migrate:public-slugs": "node scripts/apply-public-slug-migrations.mjs",
     "db:migrate:trip-empty-state": "node scripts/apply-trip-empty-state-migration.mjs",
+    "db:migrate:buddy-traveller-type": "node scripts/apply-buddy-traveller-type-migration.mjs",
     "load:k6": "node scripts/run-k6-profile.mjs",
     "test": "npm run test:unit && npm run test:payments",
     "test:unit": "node --test scripts/__tests__/*.test.mjs",

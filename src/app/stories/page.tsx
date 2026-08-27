@@ -32,7 +32,7 @@ export default async function StoriesPage() {
 
   return (
     <MaintenanceGuard>
-      <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col">
+      <div className="min-h-screen bg-[linear-gradient(180deg,#f8fafc_0%,#ffffff_35%,#f8fafc_100%)] text-slate-900 font-sans flex flex-col">
         <Navbar />
         <Page3DWrapper className="flex-1 flex flex-col pt-24">
           <StoriesClient currentUser={user} isAdmin={isAdmin} userTrips={userTrips} />

@@ -81,9 +81,11 @@ export async function GET(req: Request) {
       console.error('Failed to log lazy stories activity:', err);
     }
 
-    const settings = await getAppSettings();
-    const isAdmin = await isAdminUser(user);
-    const competitionState = await ensureStoryCompetitionMaintenance();
+    const [settings, isAdmin, competitionState] = await Promise.all([
+      getAppSettings(),
+      isAdminUser(user),
+      ensureStoryCompetitionMaintenance(),
+    ]);
     const competitionWindow = competitionState.window;
 
     // If stories are blocked by admin and user is not admin, return empty feed with blocked flag
@@ -111,6 +113,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const cursor = searchParams.get("cursor") || undefined;
     const filterUserId = searchParams.get("user_id") || undefined;
+    const includeMeta = searchParams.get("include_meta") !== "0";
     const requestedLimit = parseInt(searchParams.get("limit") || "10", 10);
     const limit = Number.isFinite(requestedLimit) ? Math.min(25, Math.max(1, requestedLimit)) : 10;
 
@@ -163,33 +166,10 @@ export async function GET(req: Request) {
     queryStr += ` ORDER BY s.created_at DESC LIMIT $${paramIndex}`;
     params.push(limit + 1);
 
-    const rows = await query<StoryRow>(queryStr, params);
-
-    let nextCursor: string | null = null;
-    const hasMore = rows.length > limit;
-    const stories = hasMore ? rows.slice(0, limit) : rows;
-
-    if (hasMore && stories.length > 0) {
-      nextCursor = stories[stories.length - 1].created_at;
-    }
-
-    // Parse image JSON array for each story
-    const parsedStories = stories.map((story) => {
-      let images = [];
-      try {
-        images = JSON.parse(typeof story.images === 'string' ? story.images : '[]');
-      } catch {
-        images = [];
-      }
-      return {
-        ...story,
-        images,
-        is_liked: !!story.is_liked,
-      };
-    });
+    const rowsPromise = query<StoryRow>(queryStr, params);
 
     // Fetch recently active users to show at the top of the feed (Instagram-style) — includes everyone
-    const activeUsers = await query<ActiveUserRow>(`
+    const activeUsersPromise = includeMeta ? query<ActiveUserRow>(`
       WITH event_scores AS (
         SELECT s.user_id, COUNT(sl.id)::int AS total_likes,
                COUNT(DISTINCT s.id)::int AS story_count,
@@ -217,31 +197,53 @@ export async function GET(req: Request) {
         u.last_login_at DESC,
         u.created_at DESC
       LIMIT 30
-    `, [user.id, competitionWindow.startsAt.toISOString(), competitionWindow.scoringEndsAt.toISOString()]);
+    `, [user.id, competitionWindow.startsAt.toISOString(), competitionWindow.scoringEndsAt.toISOString()]) : Promise.resolve([]);
 
-    const currentUserPostCount = await queryOne<{ count: string | number }>(`
+    const currentUserPostCountPromise = includeMeta ? queryOne<{ count: string | number }>(`
       SELECT COUNT(*) AS count
       FROM travel_stories
       WHERE user_id = $1 AND created_at >= $2 AND created_at < $3
-    `, [user.id, competitionWindow.startsAt.toISOString(), competitionWindow.scoringEndsAt.toISOString()]);
+    `, [user.id, competitionWindow.startsAt.toISOString(), competitionWindow.scoringEndsAt.toISOString()]) : Promise.resolve(null);
+
+    const [rows, activeUsers, currentUserPostCount] = await Promise.all([
+      rowsPromise,
+      activeUsersPromise,
+      currentUserPostCountPromise,
+    ]);
+
+    const hasMore = rows.length > limit;
+    const stories = hasMore ? rows.slice(0, limit) : rows;
+    const nextCursor = hasMore && stories.length > 0 ? stories[stories.length - 1].created_at : null;
+    const parsedStories = stories.map((story) => {
+      let images: string[] = [];
+      try {
+        const parsed: unknown = typeof story.images === 'string' ? JSON.parse(story.images) : story.images;
+        if (Array.isArray(parsed)) images = parsed.filter((image): image is string => typeof image === 'string');
+      } catch {
+        // Invalid legacy image data is treated as an empty gallery.
+      }
+      return { ...story, images, is_liked: Boolean(story.is_liked) };
+    });
 
     return NextResponse.json({
       stories: parsedStories,
       nextCursor,
       hasMore,
-      activeUsers,
       storiesBlocked: false,
-      competition: {
-        eventId: competitionWindow.eventId,
-        phase: competitionWindow.phase,
-        startsAt: competitionWindow.startsAt.toISOString(),
-        scoringEndsAt: competitionWindow.scoringEndsAt.toISOString(),
-        featureEndsAt: competitionWindow.featureEndsAt.toISOString(),
-        postLimit: STORY_EVENT_POST_LIMIT,
-        pointPerLike: STORY_LIKE_POINT_VALUE,
-        currentUserPosts: Number(currentUserPostCount?.count || 0),
-        featuredWinner: competitionState.featuredWinner,
-      },
+      ...(includeMeta ? {
+        activeUsers,
+        competition: {
+          eventId: competitionWindow.eventId,
+          phase: competitionWindow.phase,
+          startsAt: competitionWindow.startsAt.toISOString(),
+          scoringEndsAt: competitionWindow.scoringEndsAt.toISOString(),
+          featureEndsAt: competitionWindow.featureEndsAt.toISOString(),
+          postLimit: STORY_EVENT_POST_LIMIT,
+          pointPerLike: STORY_LIKE_POINT_VALUE,
+          currentUserPosts: Number(currentUserPostCount?.count || 0),
+          featuredWinner: competitionState.featuredWinner,
+        },
+      } : {}),
     });
   } catch (err) {
     console.error("Failed to fetch stories:", err);

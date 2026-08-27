@@ -16,10 +16,10 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await request.json();
-    const { starting_location, destination, start_date, trip_date, duration_days, duration_nights, image_url } = body;
+    const { starting_location, destination, start_date, trip_date, duration_days, duration_nights, image_url, traveller_type } = body;
     const finalStartDate = start_date ?? trip_date;
 
-    const hasUpdate = [starting_location, destination, finalStartDate, duration_days, duration_nights, image_url]
+    const hasUpdate = [starting_location, destination, finalStartDate, duration_days, duration_nights, image_url, traveller_type]
       .some((value) => value !== undefined);
     if (!hasUpdate) {
       return NextResponse.json({ error: 'At least one field must be provided' }, { status: 400 });
@@ -43,9 +43,12 @@ export async function PATCH(
         (typeof image_url !== 'string' || image_url.length > 2000 || !/^https:\/\//i.test(image_url))) {
       return NextResponse.json({ error: 'Use a valid uploaded trip image.' }, { status: 400 });
     }
+    if (traveller_type !== undefined && traveller_type !== 'solo' && traveller_type !== 'couple') {
+      return NextResponse.json({ error: 'Choose whether you are travelling solo or as a couple.' }, { status: 400 });
+    }
 
     // Check if the trip exists and belongs to the user
-    const trip = await queryOne('SELECT organizer_id, title, starting_location, destination, start_date, duration_days, duration_nights, image_url FROM trips WHERE id = $1', [id]) as any;
+    const trip = await queryOne('SELECT organizer_id, title, starting_location, destination, start_date, duration_days, duration_nights, image_url, traveller_type FROM trips WHERE id = $1', [id]) as any;
     if (!trip) {
       return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
     }
@@ -61,14 +64,15 @@ export async function PATCH(
     const updatedDurationDays = duration_days !== undefined ? Number(duration_days) : trip.duration_days;
     const updatedDurationNights = duration_nights !== undefined ? Number(duration_nights) : trip.duration_nights;
     const updatedImageUrl = image_url !== undefined ? (image_url === '' ? null : image_url) : trip.image_url;
+    const updatedTravellerType = traveller_type !== undefined ? traveller_type : (trip.traveller_type || 'solo');
 
     // Update the trip dates, locations, and title
     const title = `Trip to ${updatedDestination}`;
     await run(`
       UPDATE trips 
-      SET starting_location = $1, destination = $2, start_date = $3, title = $4, duration_days = $5, duration_nights = $6, image_url = $7
-      WHERE id = $8
-    `, [updatedStartingLocation, updatedDestination, updatedStartDate, title, updatedDurationDays, updatedDurationNights, updatedImageUrl, id]);
+      SET starting_location = $1, destination = $2, start_date = $3, title = $4, duration_days = $5, duration_nights = $6, image_url = $7, traveller_type = $8
+      WHERE id = $9
+    `, [updatedStartingLocation, updatedDestination, updatedStartDate, title, updatedDurationDays, updatedDurationNights, updatedImageUrl, updatedTravellerType, id]);
 
     // Find all accepted participants
     const participants = await query(`

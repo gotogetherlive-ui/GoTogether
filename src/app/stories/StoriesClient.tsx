@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import dynamic from "next/dynamic";
 import { 
   Heart, 
   MessageCircle, 
@@ -12,18 +13,12 @@ import {
   ChevronLeft, 
   ChevronRight, 
   Loader2, 
-  Calendar, 
   Sparkles, 
   Link2,
   Camera,
   Compass,
   Shield,
-  User,
-  Briefcase,
-  Utensils,
   Share2,
-  Copy,
-  Check,
   Trophy,
   Medal,
   Star,
@@ -31,9 +26,15 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import { uploadToCloudinary } from "@/lib/cloudinaryClient";
 
 import { formatCreditPoints, getLevelProgress, getTravelerLevel } from '@/lib/travelerRank';
+
+const StoryShareSheet = dynamic(() => import("@/components/stories/StoryShareSheet"), {
+  loading: () => <div className="fixed inset-0 z-[100] grid place-items-center bg-black/50"><Loader2 className="h-7 w-7 animate-spin text-white" /></div>,
+});
+const TravelerProfileDialog = dynamic(() => import("@/components/stories/TravelerProfileDialog"), {
+  loading: () => <div className="fixed inset-0 z-[100] grid place-items-center bg-black/50"><Loader2 className="h-7 w-7 animate-spin text-white" /></div>,
+});
 
 interface SessionUser {
   id: string;
@@ -259,6 +260,12 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
   );
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const composerRef = useRef<HTMLDivElement>(null);
+
+  const openComposer = () => {
+    setComposerExpanded(true);
+    requestAnimationFrame(() => composerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }));
+  };
 
 
   const fetchRankings = useCallback(async () => {
@@ -294,6 +301,7 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
       const url = new URL("/api/stories", window.location.origin);
       if (!reset && cursor) {
         url.searchParams.set("cursor", cursor);
+        url.searchParams.set("include_meta", "0");
       }
       url.searchParams.set("limit", "8");
 
@@ -315,7 +323,7 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
         } else {
           setStories((prev) => [...prev, ...(data.stories || [])]);
         }
-        setActiveUsers(data.activeUsers || []);
+        if (Array.isArray(data.activeUsers)) setActiveUsers(data.activeUsers);
         setHasMore(data.hasMore);
         setCursor(data.nextCursor);
       }
@@ -503,13 +511,11 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
     }
     setUploading(true);
     try {
-      const newImageUrls = [...images];
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const url = await uploadToCloudinary(file, "gotogether/stories");
-        newImageUrls.push(url);
-      }
-      setImages(newImageUrls);
+      const { uploadToCloudinary } = await import("@/lib/cloudinaryClient");
+      const uploadedUrls = await Promise.all(
+        Array.from(files).map((file) => uploadToCloudinary(file, "gotogether/stories"))
+      );
+      setImages((currentImages) => [...currentImages, ...uploadedUrls]);
     } catch (err) {
       console.error("Image upload failed:", err);
       alert("Failed to upload some images.");
@@ -771,25 +777,44 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
   };
 
   return (
-    <div className='max-w-7xl mx-auto w-full px-4 md:px-6 pb-16'>
+    <div className='max-w-7xl mx-auto w-full px-4 md:px-6 pb-20'>
       
-      {/* Premium Hero Header */}
-      <div className="bg-gradient-to-br from-indigo-900 via-purple-800 to-pink-700 text-white rounded-3xl p-6 md:p-10 mb-8 relative overflow-hidden shadow-xl shadow-purple-900/20 border border-white/10">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white/10 via-transparent to-transparent pointer-events-none" />
-        <div className="relative z-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-xs font-semibold mb-4 border border-white/10">
-            <Sparkles className="w-3.5 h-3.5 text-yellow-300 animate-pulse" />
-            <span>GoTogether Social Feed</span>
+      {/* Community header */}
+      <div className="relative mb-8 overflow-hidden rounded-[2rem] border border-slate-800 bg-slate-950 p-6 text-white shadow-2xl shadow-slate-900/15 md:p-9">
+        <div className="absolute -right-16 -top-20 h-64 w-64 rounded-full bg-fuchsia-500/20 blur-3xl" />
+        <div className="absolute -bottom-24 left-1/3 h-56 w-56 rounded-full bg-sky-500/20 blur-3xl" />
+        <div className="relative z-10 flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-fuchsia-300/20 bg-fuchsia-400/10 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.2em] text-fuchsia-200">
+              <Sparkles className="w-3.5 h-3.5" /> GoTogether community
+            </div>
+            <h1 className="text-3xl font-black tracking-tight md:text-5xl">Stories from the road.</h1>
+            <p className="mt-3 max-w-xl text-sm font-medium leading-relaxed text-slate-300 md:text-base">
+              Share real travel moments, meet travellers with similar interests, and turn every journey into a useful recommendation.
+            </p>
+            <div className='mt-5 inline-flex items-center gap-2 rounded-full bg-white/7 px-3 py-2 text-xs font-bold text-slate-200 ring-1 ring-white/10'>
+              <Star className='h-4 w-4 fill-amber-300 text-amber-300' /> Every like earns {formatCreditPoints(competition?.pointPerLike ?? 0.25)} event points
+            </div>
           </div>
-          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight mb-2">
-            Travel Stories
-          </h1>
-          <p className="text-white/80 text-sm md:text-base max-w-md">
-            Share authentic travel moments, discover people with similar interests, and build your reputation in the traveler community.
-          </p>
-          <div className='mt-5 inline-flex items-center gap-2 rounded-2xl bg-white/10 px-3 py-2 text-xs font-bold ring-1 ring-white/15 backdrop-blur-sm'>
-            <Star className='h-4 w-4 fill-amber-300 text-amber-300' />
-            Every like received earns {formatCreditPoints(competition?.pointPerLike ?? 0.25)} event points
+
+          <div className="grid grid-cols-2 gap-3 sm:flex sm:items-center">
+            <div className="rounded-2xl bg-white/7 px-4 py-3 ring-1 ring-white/10">
+              <p className="text-xl font-black">{activeUsers.length}</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Active travellers</p>
+            </div>
+            <div className="rounded-2xl bg-white/7 px-4 py-3 ring-1 ring-white/10">
+              <p className="text-xl font-black">{stories.length}</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Stories loaded</p>
+            </div>
+            {isProfileComplete && !eventPostingClosed && (
+              <button
+                type="button"
+                onClick={openComposer}
+                className="col-span-2 inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 text-xs font-extrabold text-slate-950 shadow-lg transition hover:-translate-y-0.5 hover:bg-orange-50 sm:col-span-1"
+              >
+                <Plus className="h-4 w-4 text-orange-500" /> Share a story
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -862,14 +887,26 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
       {/* Stories Disabled State Cover */}
       {!storiesBlocked && (
         <>
-          {/* Active Users Horizontal Bar (Instagram-style) */}
-          {activeUsers.length > 0 && (
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm shadow-slate-100 mb-6 overflow-hidden">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-indigo-500 animate-pulse" />
-                Recently Active Travelers
-              </h3>
+          {/* Travel circle */}
+          {(activeUsers.length > 0 || (isProfileComplete && !eventPostingClosed)) && (
+            <div className="mb-6 overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-500">
+                  <Sparkles className="w-3.5 h-3.5 text-orange-500" /> Your travel circle
+                </h3>
+                <span className="text-[10px] font-bold text-emerald-600">Live community</span>
+              </div>
               <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-none">
+                {isProfileComplete && !eventPostingClosed && (
+                  <button type="button" onClick={openComposer} className="group flex flex-shrink-0 flex-col items-center gap-1.5 focus:outline-none">
+                    <div className="relative flex h-[62px] w-[62px] items-center justify-center rounded-full border-2 border-dashed border-slate-300 bg-slate-50 text-slate-500 transition group-hover:border-orange-400 group-hover:bg-orange-50 group-hover:text-orange-600">
+                      <SafeAvatar avatarUrl={currentUser.avatar_url} name={currentUser.full_name} sizeClass="h-14 w-14" textClass="text-lg" />
+                      <span className="absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-orange-500 text-white"><Plus className="h-3 w-3" /></span>
+                    </div>
+                    <span className="max-w-[72px] truncate text-xs font-bold text-slate-700">Your story</span>
+                    <span className="text-[9px] font-bold text-orange-500">Create</span>
+                  </button>
+                )}
                 {activeUsers.map((u) => {
                   const online = u.is_online;
                   return (
@@ -878,7 +915,7 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
                       onClick={() => fetchUserProfile(u.id)}
                       className="flex flex-col items-center gap-1.5 flex-shrink-0 group focus:outline-none"
                     >
-                      <div className="relative p-0.5 rounded-full bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 group-hover:scale-105 transition-all duration-300 shadow-sm">
+                      <div className="relative p-0.5 rounded-full bg-gradient-to-tr from-orange-500 via-rose-500 to-fuchsia-500 group-hover:scale-105 transition-all duration-300 shadow-sm">
                         <div className="p-0.5 bg-white rounded-full">
                           <SafeAvatar
                             avatarUrl={u.avatar_url}
@@ -891,7 +928,7 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
                           <span className="absolute bottom-1 right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full shadow-sm animate-pulse" />
                         )}
                       </div>
-                      <span className="text-xs font-bold text-slate-700 max-w-[72px] truncate group-hover:text-indigo-600 transition-colors">
+                      <span className="text-xs font-bold text-slate-700 max-w-[72px] truncate group-hover:text-orange-600 transition-colors">
                         {u.full_name?.split(" ")[0]}
                       </span>
                       <span className='text-[9px] font-extrabold text-violet-500'>
@@ -927,9 +964,13 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
             </div>
           ) : (
             /* Story Composer */
-            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-md shadow-slate-100 mb-8 overflow-hidden transition-all duration-300">
+            <div ref={composerRef} className="mb-8 scroll-mt-28 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-lg shadow-slate-200/35 transition-all duration-300 focus-within:border-orange-200 focus-within:shadow-xl">
               <form onSubmit={handleCreateStory}>
-                <div className="p-4 flex gap-3">
+                <div className="border-b border-slate-100 px-5 py-3">
+                  <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-orange-500">Create a travel story</p>
+                  <p className="mt-0.5 text-xs font-semibold text-slate-500">Share a useful moment, tip or memory with the community.</p>
+                </div>
+                <div className="p-5 flex gap-3">
                   <SafeAvatar
                     avatarUrl={currentUser.avatar_url}
                     name={currentUser.full_name}
@@ -952,14 +993,14 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
                           ? 'Posting reopens Sunday with the new event.'
                           : 'You have used both posts for this event.'
                         : 'Where did you explore? Share your adventure details...'}
-                      className="w-full min-h-[44px] max-h-48 py-2 border-0 outline-none text-slate-800 placeholder-slate-400 font-medium resize-none text-sm focus:ring-0"
+                      className="w-full min-h-[44px] max-h-48 py-2 border-0 outline-none text-slate-800 placeholder-slate-400 font-medium resize-none text-sm leading-relaxed focus:ring-0"
                       style={{ height: composerExpanded ? "120px" : "44px", transition: "height 0.2s ease" }}
                     />
                   </div>
                 </div>
 
                 {composerExpanded && (
-                  <div className="border-t border-slate-100 bg-slate-50/50 p-4 transition-all duration-200">
+                  <div className="border-t border-slate-100 bg-slate-50/70 p-4 md:p-5 transition-all duration-200">
                     {images.length > 0 && (
                       <div className="flex gap-2 flex-wrap mb-4">
                         {images.map((url, idx) => (
@@ -1060,7 +1101,7 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
                         <button
                           type="submit"
                           disabled={eventPostingClosed || submitting || uploading || !content.trim()}
-                          className="flex items-center gap-1.5 px-4 py-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg text-xs font-bold shadow-md shadow-indigo-600/10 disabled:opacity-50 disabled:pointer-events-none transition-all duration-200"
+                          className="flex items-center gap-1.5 px-5 py-2.5 bg-slate-950 hover:bg-slate-800 text-white rounded-xl text-xs font-bold shadow-md disabled:opacity-50 disabled:pointer-events-none transition-all duration-200"
                         >
                           {submitting ? (
                             <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1132,10 +1173,10 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
               <article 
                 key={story.id}
                 id={`story-${story.id}`}
-                className="bg-white rounded-2xl border border-slate-200/80 shadow-md shadow-slate-100 overflow-hidden transition-all duration-300 animate-in fade-in scroll-mt-28"
+                className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-lg shadow-slate-200/35 transition-all duration-300 animate-in fade-in scroll-mt-28 hover:shadow-xl hover:shadow-slate-200/50"
               >
                 {/* Header info */}
-                <div className="p-4 flex justify-between items-start">
+                <div className="p-5 flex justify-between items-start">
                   <div className="flex items-center gap-3">
                     <SafeAvatar
                       avatarUrl={story.author_avatar}
@@ -1185,18 +1226,18 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
                 </div>
 
                 {story.location && (
-                  <div className="px-4 pb-2 -mt-1 flex items-center gap-1 text-[11px] font-bold text-indigo-600">
+                  <div className="px-5 pb-2 -mt-1 flex items-center gap-1 text-[11px] font-bold text-orange-600">
                     <MapPin className="w-3.5 h-3.5" />
                     <span>{story.location}</span>
                   </div>
                 )}
 
-                <div className="px-4 py-2 text-slate-700 text-sm font-medium whitespace-pre-line leading-relaxed">
+                <div className="px-5 py-2 text-slate-700 text-sm font-medium whitespace-pre-line leading-relaxed">
                   {story.content}
                 </div>
 
                 {hasImages && (
-                  <div className="relative w-full aspect-[4/3] bg-slate-950 flex items-center justify-center group border-y border-slate-100">
+                  <div className="relative w-full aspect-[4/5] sm:aspect-[4/3] bg-slate-950 flex items-center justify-center group border-y border-slate-100">
                     <Image
                       src={story.images[activeCarouselIdx]}
                       alt="Adventure"
@@ -1257,12 +1298,12 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
                 )}
 
                 {/* Interactions Row */}
-                <div className="p-3 border-t border-slate-50 flex items-center gap-6">
+                <div className="flex items-center gap-2 border-t border-slate-100 px-3 py-2 sm:gap-5 sm:px-4">
                   <button
                     onClick={() => handleToggleLike(story.id)}
                     disabled={competition?.phase !== 'active' || story.user_id === currentUser.id}
                     title={story.user_id === currentUser.id ? 'You cannot like your own post' : competition?.phase !== 'active' ? 'Scoring is closed on Saturday' : 'Like this story'}
-                    className="flex items-center gap-1.5 text-slate-500 hover:text-rose-500 font-bold text-xs transition-colors group/like disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex items-center gap-1 text-slate-600 hover:text-rose-500 font-bold text-xs transition-colors group/like disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <div className={`p-1.5 rounded-lg group-hover/like:bg-rose-50 transition-colors ${story.is_liked ? "text-rose-500" : ""}`}>
                       <Heart 
@@ -1276,7 +1317,7 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
 
                   <button
                     onClick={() => handleToggleCommentsSection(story.id)}
-                    className="flex items-center gap-1.5 text-slate-500 hover:text-indigo-600 font-bold text-xs transition-colors group/comment"
+                    className="flex items-center gap-1 text-slate-600 hover:text-indigo-600 font-bold text-xs transition-colors group/comment"
                   >
                     <div className={`p-1.5 rounded-lg group-hover/comment:bg-indigo-50 transition-colors ${expandedComments[story.id] ? "text-indigo-600" : ""}`}>
                       <MessageCircle className="w-5 h-5 group-hover/comment:scale-110 transition-transform" />
@@ -1286,7 +1327,7 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
 
                   <button
                     onClick={() => handleShareStory(story)}
-                    className="ml-auto flex items-center gap-1.5 text-slate-500 hover:text-sky-600 font-bold text-xs transition-colors group/share"
+                    className="ml-auto flex items-center gap-1 text-slate-600 hover:text-emerald-600 font-bold text-xs transition-colors group/share"
                   >
                     <div className="p-1.5 rounded-lg group-hover/share:bg-sky-50 transition-colors">
                       <Share2 className="w-5 h-5 group-hover/share:scale-110 transition-transform" />
@@ -1496,197 +1537,21 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
       </div>
 
       {shareStory && (
-        <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4 animate-in fade-in duration-200">
-          <div className="w-full md:max-w-md bg-white rounded-t-[2rem] md:rounded-[2rem] shadow-2xl border border-white/80 overflow-hidden animate-in slide-in-from-bottom-6 md:zoom-in-95 duration-200">
-            <div className="relative h-28 bg-gradient-to-tr from-fuchsia-500 via-rose-500 to-amber-400">
-              {shareStory.images?.[0] && (
-                <Image src={shareStory.images[0]} alt="Story preview" fill sizes="448px" className="object-cover mix-blend-overlay opacity-70" />
-              )}
-              <button
-                onClick={() => setShareStory(null)}
-                className="absolute right-4 top-4 p-2 rounded-full bg-black/30 text-white hover:bg-black/50 transition-colors"
-                aria-label="Close share sheet"
-              >
-                <X className="w-4 h-4" />
-              </button>
-              <div className="absolute left-5 bottom-4 text-white">
-                <p className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-white/80">Share Story</p>
-                <h3 className="text-xl font-extrabold leading-tight">Send this moment</h3>
-              </div>
-            </div>
-
-            <div className="p-5 space-y-5">
-              <div className="flex items-start gap-3 rounded-2xl bg-slate-50 border border-slate-100 p-3">
-                <SafeAvatar avatarUrl={shareStory.author_avatar} name={shareStory.author_name} sizeClass="w-10 h-10" textClass="text-sm" />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-extrabold text-slate-800 truncate">{shareStory.author_name}</p>
-                    {shareStory.location && <span className="text-[10px] font-bold text-sky-600 truncate">{shareStory.location}</span>}
-                  </div>
-                  <p className="mt-1 text-xs font-medium text-slate-500 line-clamp-2">{shareStory.content}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-4 gap-3">
-                <button onClick={() => openShareTarget(shareStory, "whatsapp")} className="group flex flex-col items-center gap-2 rounded-2xl border border-emerald-100 bg-emerald-50 p-3 text-emerald-700 hover:bg-emerald-100 transition-colors">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500 text-white text-sm font-extrabold group-hover:scale-105 transition-transform">WA</span>
-                  <span className="text-[10px] font-bold">WhatsApp</span>
-                </button>
-                <button onClick={() => openShareTarget(shareStory, "x")} className="group flex flex-col items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-3 text-slate-800 hover:bg-slate-100 transition-colors">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-950 text-white text-sm font-extrabold group-hover:scale-105 transition-transform">X</span>
-                  <span className="text-[10px] font-bold">X</span>
-                </button>
-                <button onClick={() => openShareTarget(shareStory, "facebook")} className="group flex flex-col items-center gap-2 rounded-2xl border border-blue-100 bg-blue-50 p-3 text-blue-700 hover:bg-blue-100 transition-colors">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-white text-sm font-extrabold group-hover:scale-105 transition-transform">f</span>
-                  <span className="text-[10px] font-bold">Facebook</span>
-                </button>
-                <button onClick={() => copyStoryLink(shareStory)} className="group flex flex-col items-center gap-2 rounded-2xl border border-violet-100 bg-violet-50 p-3 text-violet-700 hover:bg-violet-100 transition-colors">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-600 text-white group-hover:scale-105 transition-transform">
-                    {copiedStoryId === shareStory.id ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                  </span>
-                  <span className="text-[10px] font-bold">{copiedStoryId === shareStory.id ? "Copied" : "Copy"}</span>
-                </button>
-              </div>
-
-              <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2">
-                <Link2 className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-500">{getStoryShareUrl(shareStory.id)}</span>
-                <button onClick={() => copyStoryLink(shareStory)} className="rounded-xl bg-slate-900 px-3 py-1.5 text-[10px] font-extrabold text-white hover:bg-slate-800 transition-colors">
-                  {copiedStoryId === shareStory.id ? "Copied" : "Copy"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <StoryShareSheet
+          story={shareStory}
+          copied={copiedStoryId === shareStory.id}
+          shareUrl={getStoryShareUrl(shareStory.id)}
+          onClose={() => setShareStory(null)}
+          onCopy={() => void copyStoryLink(shareStory)}
+          onOpenTarget={(target) => openShareTarget(shareStory, target)}
+        />
       )}
-      {/* User Profile Modal Overlay */}
       {selectedProfile && (
-        <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl relative border border-slate-100 animate-in scale-in duration-200">
-            {/* Top Close Button */}
-            <button 
-              onClick={() => setSelectedProfile(null)}
-              className="absolute top-4 right-4 z-20 p-2 bg-black/40 hover:bg-black/60 text-white rounded-full transition-all"
-            >
-              <X className="w-4 h-4" />
-            </button>
-
-            {/* Profile Cover Photo Decorator */}
-            <div className="h-24 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 w-full" />
-
-            {/* User Details Section */}
-            <div className="px-6 pb-6 flex flex-col items-center -mt-12 relative z-10">
-              {/* User Avatar Circle */}
-              <div className="w-24 h-24 rounded-full p-1 bg-white shadow-md flex items-center justify-center">
-                <SafeAvatar
-                  avatarUrl={selectedProfile.avatar_url}
-                  name={selectedProfile.full_name}
-                  sizeClass="w-full h-full"
-                  textClass="text-3xl"
-                />
-              </div>
-
-              {/* Basic Info */}
-              <div className="mt-3 flex flex-col items-center">
-                <div className="flex items-center gap-1.5">
-                  <h3 className="text-xl font-bold text-slate-800">{selectedProfile.full_name}</h3>
-                  {getRoleBadge(selectedProfile.role)}
-                </div>
-                <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-wider mt-0.5">
-                  @{selectedProfile.username}
-                </span>
-              </div>
-
-              {/* Bio Block */}
-              <p className="text-slate-500 text-xs font-semibold text-center mt-4 max-w-xs leading-relaxed italic">
-                {selectedProfile.bio ? `"${selectedProfile.bio}"` : "No biography shared yet."}
-              </p>
-
-              {/* Divider */}
-              <div className="h-px bg-slate-100 w-full my-5" />
-
-              <div className='mb-4 grid w-full grid-cols-3 gap-2 rounded-2xl bg-gradient-to-br from-indigo-50 to-violet-50 p-3 ring-1 ring-indigo-100'>
-                <div className='text-center'>
-                  <p className='text-base font-black text-slate-900'>{selectedProfile.traveler_rank ? `#${selectedProfile.traveler_rank}` : '—'}</p>
-                  <p className='text-[9px] font-bold uppercase tracking-wide text-slate-400'>Rank</p>
-                </div>
-                <div className='border-x border-indigo-100 text-center'>
-                  <p className='text-base font-black text-violet-700'>{selectedProfile.total_likes}</p>
-                  <p className='text-[9px] font-bold uppercase tracking-wide text-slate-400'>Likes</p>
-                </div>
-                <div className='text-center'>
-                  <p className='text-base font-black text-slate-900'>{formatCreditPoints(selectedProfile.credit_points)}</p>
-                  <p className='text-[9px] font-bold uppercase tracking-wide text-slate-400'>Points</p>
-                </div>
-              </div>
-
-              {/* Detailed Specs Grid */}
-              <div className="w-full grid grid-cols-2 gap-3 text-left">
-                {/* Age & Gender */}
-                <div className="p-3 bg-slate-50 rounded-2xl flex items-center gap-2.5">
-                  <div className="w-7 h-7 bg-orange-100 rounded-lg flex items-center justify-center text-orange-500 flex-shrink-0">
-                    <User className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wide block">Basic Info</span>
-                    <span className="text-xs font-bold text-slate-700">
-                      {selectedProfile.age ? `${selectedProfile.age}y` : "—"} · {selectedProfile.gender || "—"}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Profession */}
-                <div className="p-3 bg-slate-50 rounded-2xl flex items-center gap-2.5">
-                  <div className="w-7 h-7 bg-blue-100 rounded-lg flex items-center justify-center text-blue-500 flex-shrink-0">
-                    <Briefcase className="w-4 h-4" />
-                  </div>
-                  <div className="min-w-0">
-                    <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wide block">Profession</span>
-                    <span className="text-xs font-bold text-slate-700 truncate block">
-                      {selectedProfile.profession || "—"}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Food Habits */}
-                <div className="p-3 bg-slate-50 rounded-2xl flex items-center gap-2.5">
-                  <div className="w-7 h-7 bg-emerald-100 rounded-lg flex items-center justify-center text-emerald-500 flex-shrink-0">
-                    <Utensils className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wide block">Food habit</span>
-                    <span className="text-xs font-bold text-slate-700">
-                      {selectedProfile.fooding_habit || "—"}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Joined Date */}
-                <div className="p-3 bg-slate-50 rounded-2xl flex items-center gap-2.5">
-                  <div className="w-7 h-7 bg-purple-100 rounded-lg flex items-center justify-center text-purple-500 flex-shrink-0">
-                    <Calendar className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wide block">Member Since</span>
-                    <span className="text-xs font-bold text-slate-700">
-                      {selectedProfile.created_at 
-                        ? new Date(selectedProfile.created_at.includes("T") ? selectedProfile.created_at : selectedProfile.created_at.replace(" ", "T") + "Z").toLocaleDateString('en-IN', { year: 'numeric', month: 'short' }) 
-                        : "—"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Bottom Info */}
-              <button
-                onClick={() => setSelectedProfile(null)}
-                className="mt-6 w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-md transition-all duration-200"
-              >
-                Close Profile
-              </button>
-            </div>
-          </div>
-        </div>
+        <TravelerProfileDialog
+          profile={selectedProfile}
+          roleBadge={getRoleBadge(selectedProfile.role)}
+          onClose={() => setSelectedProfile(null)}
+        />
       )}
 
       {/* Profile Loading spinner */}

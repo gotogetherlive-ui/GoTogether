@@ -5,6 +5,30 @@ import { v4 as uuidv4 } from 'uuid';
 import { computeMatch, type CompatibilityProfile, type BudgetProfile } from '@/lib/matchEngine';
 import { hasCompleteProfile } from '@/lib/profile';
 
+type UserCompatibilityRow = CompatibilityProfile & {
+  budget_min: number | string | null;
+  budget_max: number | string | null;
+};
+
+type BuddyTripRow = {
+  organizer_id: string;
+  organizer_fooding_habit: string | null;
+  registration_closed: number | string | null;
+  accepted_count: number | string | null;
+  [key: string]: unknown;
+};
+
+function parseStringArray(value: unknown): string[] {
+  if (Array.isArray(value)) return value.filter((item): item is string => typeof item === 'string');
+  if (typeof value !== 'string' || !value) return [];
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
 export async function GET() {
   try {
     const user = await getSession();
@@ -15,28 +39,36 @@ export async function GET() {
     let userBudget: BudgetProfile | null = null;
 
     if (user) {
-      userProfile = await queryOne<CompatibilityProfile>(
-        'SELECT user_id, food_preference, travel_style, activity_preferences, energy_level, social_personality, cleanliness_preference, drinking_preference, smoking_preference, languages, trip_behavior, ideal_trip_type, created_at, updated_at FROM compatibility_profiles WHERE user_id = $1',
+      const compatibility = await queryOne<UserCompatibilityRow>(
+        `SELECT cp.food_preference, cp.travel_style, cp.activity_preferences, cp.energy_level,
+                cp.social_personality, cp.cleanliness_preference, cp.drinking_preference,
+                cp.smoking_preference, cp.languages, cp.trip_behavior, cp.ideal_trip_type,
+                tb.budget_min, tb.budget_max
+         FROM compatibility_profiles cp
+         LEFT JOIN trip_budgets tb ON tb.user_id = cp.user_id
+         WHERE cp.user_id = $1`,
         [user.id]
       );
-      hasCompatibilityProfile = !!userProfile;
-      userBudget = await queryOne<BudgetProfile>(
-        'SELECT budget_min, budget_max FROM trip_budgets WHERE user_id = $1',
-        [user.id]
-      );
+      userProfile = compatibility;
+      hasCompatibilityProfile = Boolean(compatibility);
+      if (compatibility?.budget_min != null && compatibility.budget_max != null) {
+        userBudget = { budget_min: Number(compatibility.budget_min), budget_max: Number(compatibility.budget_max) };
+      }
     }
 
-    const allTrips = await query(`
+    const allTrips = await query<BuddyTripRow>(`
       SELECT
         t.id, t.title, t.description, t.starting_location, t.destination, t.start_date as trip_date,
-        t.duration_days, t.duration_nights, t.image_url, t.status, t.registration_closed, t.created_at,
+        t.duration_days, t.duration_nights, t.image_url, COALESCE(t.traveller_type, 'solo') as traveller_type,
+        t.status, t.registration_closed, t.created_at,
         u.id as organizer_id, u.full_name as organizer_name, u.gender as organizer_gender,
         u.fooding_habit as organizer_fooding_habit, u.profession as organizer_profession,
         u.age as organizer_age, u.avatar_url as organizer_avatar,
-        (SELECT status FROM trip_requests WHERE trip_id = t.id AND requester_id = $1) as user_request_status,
+        current_request.status as user_request_status,
         (SELECT COUNT(*)::int FROM trip_requests WHERE trip_id = t.id AND status = 'accepted') as accepted_count
       FROM trips t
       JOIN users u ON t.organizer_id = u.id
+      LEFT JOIN trip_requests current_request ON current_request.trip_id = t.id AND current_request.requester_id = $1
       WHERE t.status = 'live' AND t.trip_type = 'buddy'
         AND (
           NULLIF(t.start_date, '') IS NULL
@@ -44,7 +76,7 @@ export async function GET() {
         )
       ORDER BY t.created_at DESC
       LIMIT 100
-    `, [userId || 'none']) as any[];
+    `, [userId || 'none']);
 
     const organizerIds = [...new Set(allTrips.map((trip) => trip.organizer_id).filter(Boolean))];
     const profileRows = organizerIds.length
@@ -86,7 +118,7 @@ export async function GET() {
         common_languages,
         organizer_travel_style: organizerProfile?.travel_style || null,
         organizer_food_pref: organizerProfile?.food_preference || trip.organizer_fooding_habit || null,
-        organizer_languages: organizerProfile?.languages || null,
+        organizer_languages: parseStringArray(organizerProfile?.languages),
         organizer_energy: organizerProfile?.energy_level || null,
         organizer_social: organizerProfile?.social_personality || null,
       };
@@ -119,7 +151,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { starting_location, destination, trip_date, duration_days, duration_nights, image_url } = body;
+    const { starting_location, destination, trip_date, duration_days, duration_nights, image_url, traveller_type } = body;
 
     if (typeof starting_location !== 'string' || typeof destination !== 'string' || typeof trip_date !== 'string') {
       return NextResponse.json({ error: 'Starting location, destination, and trip date are required.' }, { status: 400 });
@@ -149,14 +181,17 @@ export async function POST(request: Request) {
         (typeof image_url !== 'string' || image_url.length > 2000 || !/^https:\/\//i.test(image_url))) {
       return NextResponse.json({ error: 'Use a valid uploaded trip image.' }, { status: 400 });
     }
+    if (traveller_type !== 'solo' && traveller_type !== 'couple') {
+      return NextResponse.json({ error: 'Choose whether you are travelling solo or as a couple.' }, { status: 400 });
+    }
 
     const tripId = uuidv4();
     const title = `Trip to ${normalizedDestination}`;
     const description = `Looking for a buddy to travel to ${normalizedDestination} for ${parsedDurationDays} days and ${parsedDurationNights} nights.`;
 
     await run(`
-      INSERT INTO trips (id, organizer_id, title, description, starting_location, destination, start_date, duration_days, duration_nights, image_url, status, trip_type)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'live', 'buddy')
+      INSERT INTO trips (id, organizer_id, title, description, starting_location, destination, start_date, duration_days, duration_nights, image_url, traveller_type, status, trip_type)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'live', 'buddy')
     `, [tripId,
       user.id,
       title,
@@ -166,7 +201,8 @@ export async function POST(request: Request) {
       normalizedTripDate,
       parsedDurationDays,
       parsedDurationNights,
-      image_url || null]);
+      image_url || null,
+      traveller_type]);
 
     return NextResponse.json({ success: true, tripId }, { status: 201 });
   } catch (err) {

@@ -208,6 +208,7 @@ export async function initializeSchema(): Promise<void> {
         start_date TEXT,
         images TEXT,
         starting_location TEXT,
+        traveller_type TEXT CHECK (traveller_type IN ('solo', 'couple')),
         slug TEXT,
         registration_closed INTEGER DEFAULT 0,
         max_capacity INTEGER,
@@ -217,6 +218,24 @@ export async function initializeSchema(): Promise<void> {
     `);
     await client.query(`ALTER TABLE public.trips ADD COLUMN IF NOT EXISTS slug TEXT`);
     await client.query(`ALTER TABLE public.trips ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`);
+    await client.query(`ALTER TABLE public.trips ADD COLUMN IF NOT EXISTS traveller_type TEXT`);
+    await client.query(`UPDATE public.trips SET traveller_type = 'solo' WHERE trip_type = 'buddy' AND traveller_type IS NULL`);
+    await client.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1
+          FROM pg_constraint
+          WHERE conrelid = 'public.trips'::regclass
+            AND conname = 'trips_traveller_type_check'
+        ) THEN
+          ALTER TABLE public.trips
+            ADD CONSTRAINT trips_traveller_type_check
+            CHECK (traveller_type IS NULL OR traveller_type IN ('solo', 'couple'));
+        END IF;
+      END
+      $$;
+    `);
     await client.query(`
       CREATE OR REPLACE FUNCTION public.set_trips_updated_at()
       RETURNS TRIGGER
