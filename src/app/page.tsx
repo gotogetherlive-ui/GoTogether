@@ -73,7 +73,7 @@ export default async function Home() {
       <div className="gt-editorial min-h-screen bg-slate-50 text-slate-900">
         <JsonLd data={[organizationJsonLd(), websiteJsonLd()]} />
         <Navbar />
-        <main>
+        <main className="overflow-x-clip">
           <section className="gt-immersive-hero">
             <HeroSlideshow />
             <div className="gt-container relative z-10 pointer-events-none">

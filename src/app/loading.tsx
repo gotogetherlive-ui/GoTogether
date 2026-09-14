@@ -22,8 +22,8 @@ export default function Loading() {
       {/* Page content shimmer */}
       <div className="pt-28 pb-24 px-6 md:px-12 max-w-7xl mx-auto">
         <div className="space-y-8">
-          <div className="h-10 w-64 bg-slate-200 rounded-xl animate-pulse" />
-          <div className="h-5 w-96 bg-slate-100 rounded-lg animate-pulse" />
+          <div className="h-10 w-64 max-w-full bg-slate-200 rounded-xl animate-pulse" />
+          <div className="h-5 w-96 max-w-full bg-slate-100 rounded-lg animate-pulse" />
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-12">
             {[1, 2, 3].map((i) => (
               <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm border border-slate-100">

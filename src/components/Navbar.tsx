@@ -130,15 +130,15 @@ export default function Navbar() {
     <>
       <nav
         aria-label="Primary navigation"
-        className={`fixed top-0 z-50 flex w-full items-center transition-all duration-300 ${navBg}`}
+        className={`fixed inset-x-0 top-0 z-50 flex w-full max-w-full items-center transition-all duration-300 ${navBg}`}
       >
-        <div className="mx-auto flex h-17 w-full max-w-[1360px] items-center justify-between gap-5 px-4 sm:px-6">
+        <div className="mx-auto flex h-17 w-full max-w-[1360px] items-center justify-between gap-2 px-4 sm:gap-5 sm:px-6">
           {/* Logo */}
-          <Link href="/" className={`flex shrink-0 items-center gap-2.5 ${logoColor}`}>
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-orange-400 to-orange-600 text-white shadow-md shadow-orange-500/20">
+          <Link href="/" className={`flex min-w-0 items-center gap-2 sm:gap-2.5 ${logoColor}`}>
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-orange-400 to-orange-600 text-white shadow-md shadow-orange-500/20">
               <Compass className="h-5 w-5" />
             </span>
-            <span className="text-xl font-bold tracking-tight">GoTogether</span>
+            <span className="truncate text-lg font-bold tracking-tight sm:text-xl">GoTogether</span>
           </Link>
 
           {/* Desktop Nav */}
@@ -286,12 +286,12 @@ export default function Navbar() {
           </div>
 
           {/* Mobile Menu Button + Notification */}
-          <div className="flex items-center gap-2 xl:hidden">
+          <div className="flex shrink-0 items-center gap-2 xl:hidden">
           {userLoaded && user && <NotificationBell className={textColor} />}
           <button
             type="button"
             onClick={() => setMobileOpen(!mobileOpen)}
-            className={`rounded-lg border p-2 transition ${hasSolidHeader ? "border-slate-200 hover:bg-slate-100" : "border-white/20 hover:bg-white/10"} ${textColor}`}
+            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border p-2 transition ${hasSolidHeader ? "border-slate-200 hover:bg-slate-100" : "border-white/20 hover:bg-white/10"} ${textColor}`}
             aria-label="Toggle menu"
             aria-expanded={mobileOpen}
             aria-controls="mobile-navigation"
