@@ -66,7 +66,7 @@ export default async function OrganizersPage() {
       />
       <Navbar />
       <main className="flex-1 pt-28 pb-20 px-6 md:px-12 max-w-6xl mx-auto w-full">
-        <h1 className="text-4xl md:text-6xl font-extrabold mb-5">Verified Travel Organizers</h1>
+        <h1 className="gt-page-title text-4xl md:text-6xl font-bold mb-5">Verified Travel Organizers</h1>
         <p className="text-lg text-slate-600 max-w-4xl mb-10">
           Public organizer profiles help travelers compare who owns a trip, which destinations they serve, and what upcoming public trips they operate. Organizer pages never expose payment accounts, dashboard data, internal notes, or private booking data.
         </p>

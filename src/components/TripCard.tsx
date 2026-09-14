@@ -4,7 +4,6 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { MapPin, Calendar, ShieldCheck } from "lucide-react";
-import Tilt from "react-parallax-tilt";
 
 export interface TripSummary {
   id: string;
@@ -78,6 +77,13 @@ export default function TripCard({ trip, linkToTrips = false }: TripCardProps) {
     };
   }, []);
 
+  const displayPrice = (value: string) => {
+    const numeric = Number(value.replace(/[₹,\s]/g, ""));
+    return value.trim() && Number.isFinite(numeric) ? new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(numeric) : value;
+  };
+
+  const price = trip.gotogether_price || trip.b2c_price || trip.b2b_price;
+
   const isFeatured = trip.is_featured === 1;
   const isBusiness = trip.organizer_role === "business";
   const href = linkToTrips ? "/trips" : `/trips/${trip.slug || trip.id}`;
@@ -92,18 +98,9 @@ export default function TripCard({ trip, linkToTrips = false }: TripCardProps) {
     : null;
 
   return (
-    <Tilt 
-      tiltMaxAngleX={5} 
-      tiltMaxAngleY={5} 
-      scale={1.02} 
-      transitionSpeed={2500} 
-      className="h-full flex"
-      glareEnable={true}
-      glareMaxOpacity={0.1}
-      glarePosition="bottom"
-    >
+    <article className="gt-card-lift h-full flex rounded-lg">
       <div
-        className="bg-white rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl hover:shadow-orange-500/10 transition-all group border border-slate-100 flex flex-col w-full h-full"
+        className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow group border border-slate-200 flex flex-col w-full h-full"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
@@ -116,7 +113,7 @@ export default function TripCard({ trip, linkToTrips = false }: TripCardProps) {
               alt={`${trip.title} group trip image in ${trip.destination}`}
               fill
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-              className="object-cover transition-transform duration-700 group-hover:scale-105"
+              className="object-cover transition-transform duration-700 "
             />
             {/* Image dots indicator */}
             {imageList.length > 1 && (
@@ -141,7 +138,7 @@ export default function TripCard({ trip, linkToTrips = false }: TripCardProps) {
         )}
         {isFeatured ? (
           <div className="absolute top-4 right-4">
-            <span className="bg-rose-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">
+            <span className="bg-white text-slate-900 text-xs font-bold px-3 py-1 rounded-full shadow-md">
               Featured
             </span>
           </div>
@@ -168,11 +165,11 @@ export default function TripCard({ trip, linkToTrips = false }: TripCardProps) {
       </div>
       <div className="p-6 flex-1 flex flex-col">
         <h3 className="text-xl font-bold text-slate-900 mb-2 group-hover:text-orange-500 transition-colors line-clamp-2">
-          {trip.title}
+          <Link href={href}>{trip.title}</Link>
         </h3>
 
         {/* Route and Price */}
-        {(trip.pickup_point || trip.b2b_price) && (
+        {(trip.pickup_point || trip.b2c_price || trip.gotogether_price || trip.b2b_price) && (
           <div className="flex flex-col gap-1 mb-3">
             {trip.pickup_point && trip.drop_point && (
               <div className="text-xs font-semibold text-slate-600 flex items-center gap-1.5 bg-slate-100 w-fit px-2 py-1 rounded-md">
@@ -181,10 +178,10 @@ export default function TripCard({ trip, linkToTrips = false }: TripCardProps) {
                 <span className="truncate max-w-[100px]">{trip.drop_point}</span>
               </div>
             )}
-            {(trip.b2c_price || trip.gotogether_price || trip.b2b_price) && (
-              <div className="flex items-center gap-3 text-xs font-bold text-slate-700 mt-1">
-                {trip.b2c_price && <span className="text-slate-500 line-through">Retail: {trip.b2c_price}</span>}
-                {(trip.gotogether_price || trip.b2b_price) && <span className="text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded text-sm">GoTogether: {trip.gotogether_price || trip.b2b_price}</span>}
+            {price && (
+              <div className="mt-2 flex flex-wrap items-baseline gap-2">
+                <span className="text-xl font-semibold text-slate-900">{displayPrice(price)}</span>
+                <span className="text-xs text-slate-500">per person</span>
               </div>
             )}
           </div>
@@ -201,7 +198,7 @@ export default function TripCard({ trip, linkToTrips = false }: TripCardProps) {
               try {
                 const tags = JSON.parse(trip.tags);
                 return tags.map((tag: string) => (
-                  <span key={tag} className="bg-blue-50 text-blue-600 text-xs font-semibold px-2.5 py-1 rounded-md">
+                  <span key={tag} className="bg-slate-100 text-slate-600 text-xs font-semibold px-2.5 py-1 rounded-md">
                     #{tag}
                   </span>
                 ));
@@ -214,7 +211,7 @@ export default function TripCard({ trip, linkToTrips = false }: TripCardProps) {
 
         <div className="mt-auto flex items-center justify-between border-t border-slate-100 pt-4">
           <Link href={trip.organizer_slug ? `/organizers/${trip.organizer_slug}` : href} className="flex items-center gap-2 min-w-0">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-white shadow-inner ${trip.organizer_role === 'super_admin' ? 'bg-gradient-to-tr from-orange-400 to-rose-400' : 'bg-blue-100 text-blue-600 border border-blue-200'}`}>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-white shadow-inner ${trip.organizer_role === 'super_admin' ? 'bg-slate-900' : 'bg-blue-100 text-blue-600 border border-blue-200'}`}>
               {trip.organizer_avatar ? (
                 <Image src={trip.organizer_avatar} alt={`${trip.organizer_name || "Organizer"} profile image`} width={32} height={32} className="w-full h-full rounded-full object-cover" />
               ) : (
@@ -236,6 +233,6 @@ export default function TripCard({ trip, linkToTrips = false }: TripCardProps) {
         </div>
       </div>
       </div>
-    </Tilt>
+    </article>
   );
 }

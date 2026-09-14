@@ -10,7 +10,6 @@ export async function GET(request: Request, context: any) {
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { bookingId } = await context.params;
-    const normalizedProfilePhone = (user.phone_number || '').replace(/\D/g, '');
     const booking = await queryOne(`
       SELECT b.id, b.booking_ref, b.booking_status, b.payment_status, b.approval_status,
              b.amount, b.expires_at, b.paid_at, b.verified_at,
@@ -26,23 +25,10 @@ export async function GET(request: Request, context: any) {
       LEFT JOIN payments.transactions pt ON pt.order_id = po.id AND pt.status = 'SUCCESS'
       LEFT JOIN booking_tickets tk ON tk.booking_id = b.id
       WHERE b.id = $1
-        AND (
-          b.user_id = $2
-          OR (
-            $3 <> ''
-            AND t.organizer_id <> $2
-            AND b.booking_status IN ('pending_payment', 'payment_processing')
-            AND b.expires_at IS NOT NULL
-            AND b.expires_at > NOW()
-            AND (
-              regexp_replace(COALESCE(b.phone_number, ''), '[^0-9]', '', 'g') = $3
-              OR regexp_replace(COALESCE(b.alternate_phone_number, ''), '[^0-9]', '', 'g') = $3
-            )
-          )
-        )
+        AND b.user_id = $2
       ORDER BY pt.created_at DESC NULLS LAST
       LIMIT 1
-    `, [bookingId, user.id, normalizedProfilePhone]) as any;
+    `, [bookingId, user.id]) as any;
 
     if (!booking) return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
 

@@ -19,7 +19,7 @@ function allowPaymentSimulation(): boolean {
   return simulationRequested && ['1', 'true', 'yes', 'on'].includes(String(process.env.ALLOW_UNSAFE_PRODUCTION_PAYMENT_SIMULATION || '').toLowerCase());
 }
 
-function getRazorpayClient(providerAccount?: ProviderAccount | null): Razorpay {
+function getRazorpayCredentials(providerAccount?: ProviderAccount | null) {
   let key_id = process.env.RAZORPAY_KEY_ID;
   let key_secret = process.env.RAZORPAY_KEY_SECRET;
 
@@ -45,7 +45,11 @@ function getRazorpayClient(providerAccount?: ProviderAccount | null): Razorpay {
   }
 
   if (!key_id || !key_secret) throw new Error("Razorpay credentials are not configured");
-  return new Razorpay({ key_id, key_secret });
+  return { key_id, key_secret };
+}
+
+function getRazorpayClient(providerAccount?: ProviderAccount | null): Razorpay {
+  return new Razorpay(getRazorpayCredentials(providerAccount));
 }
 
 function verifyHmac(message: string, secret: string | undefined, signature: string | null): boolean {
@@ -168,8 +172,25 @@ export class RazorpayAdapter implements PaymentProviderAdapter {
     if (!isConfigured && allowPaymentSimulation()) {
       return { status: "SUCCESS", refundId: `rzp_ref_mock_${Math.random().toString(36).substring(2, 10)}` };
     }
-    const razorpay = getRazorpayClient(input.providerAccount);
-    return razorpay.payments.refund(input.providerPaymentId, { amount: input.amount, notes: input.notes });
+    if (!input.idempotencyKey) throw new Error('Refund requires an idempotency key');
+    const { key_id, key_secret } = getRazorpayCredentials(input.providerAccount);
+    const response = await fetch(`https://api.razorpay.com/v1/payments/${encodeURIComponent(input.providerPaymentId)}/refund`, {
+      method: 'POST', signal: AbortSignal.timeout(30000),
+      headers: { Authorization: `Basic ${Buffer.from(`${key_id}:${key_secret}`).toString('base64')}`,
+        'Content-Type': 'application/json', 'X-Refund-Idempotency': input.idempotencyKey },
+      body: JSON.stringify({ amount: input.amount, notes: input.notes }),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(`Refund request failed (${response.status})`);
+    return result;
+  }
+
+  async fetchSuccessfulPayment(providerOrderId: string, providerAccount?: ProviderAccount | null) {
+    const payments = await getRazorpayClient(providerAccount).orders.fetchPayments(providerOrderId);
+    const payment = payments.items.find(p => p.status === 'captured');
+    if (!payment) return null;
+    return { providerOrderId, providerPaymentId: payment.id, amount: Number(payment.amount),
+      currency: payment.currency, method: payment.method || null, rawPayment: payment };
   }
 
   async fetchOrderStatus(providerOrderId: string, providerAccount?: ProviderAccount | null): Promise<{ status: PaymentStatus; raw: unknown } | null> {

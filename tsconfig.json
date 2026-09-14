@@ -34,9 +34,18 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
-    "**/*.mts"
+    "**/*.mts",
+    ".next-audit/types/**/*.ts",
+    ".next-audit/dev/types/**/*.ts",
+    ".next-audit-e2e/types/**/*.ts",
+    ".next-audit-e2e/dev/types/**/*.ts",
+    ".next-audit-release/types/**/*.ts",
+    ".next-audit-release/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "data",
+    "test-results",
+    "playwright-report"
   ]
 }

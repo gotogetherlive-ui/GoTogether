@@ -7,6 +7,8 @@ interface TripData {
   id: string;
   title: string;
   status: string;
+  created_at: string;
+  interest_count: number;
   organizer_name: string;
   organizer_role: string;
   organizer_email: string;
@@ -88,7 +90,7 @@ export default function AdminUserTripsPage() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-wrap justify-between items-center gap-4 mb-8">
         <h1 className="text-3xl font-bold text-slate-900">User Trips</h1>
         <button
           onClick={fetchTrips}
@@ -120,6 +122,8 @@ export default function AdminUserTripsPage() {
                 <th className="p-4">Organizer</th>
                 <th className="p-4">Type</th>
                 <th className="p-4">Status</th>
+                <th className="p-4 whitespace-nowrap">Created (IST)</th>
+                <th className="p-4 whitespace-nowrap" title="Unique people who submitted interest, including pending, accepted, and rejected requests">People interested</th>
                 <th className="p-4 text-right">Actions</th>
               </tr>
             </thead>
@@ -149,6 +153,12 @@ export default function AdminUserTripsPage() {
                       {trip.status}
                     </span>
                   </td>
+                  <td className="p-4 whitespace-nowrap text-sm text-slate-600">
+                    <time dateTime={trip.created_at}>{new Date(trip.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })}</time>
+                  </td>
+                  <td className="p-4">
+                    <span className="inline-flex min-w-9 items-center justify-center rounded-full bg-orange-50 px-3 py-1 text-sm font-bold text-orange-700">{trip.interest_count ?? 0}</span>
+                  </td>
                   <td className="p-4 text-right flex items-center justify-end gap-2">
                     {trip.status === 'pending' && (
                       <>
@@ -168,7 +178,7 @@ export default function AdminUserTripsPage() {
               ))}
               {trips.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="p-8 text-center text-slate-500">No trips found.</td>
+                  <td colSpan={7} className="p-8 text-center text-slate-500">No trips found.</td>
                 </tr>
               )}
             </tbody>

@@ -16,7 +16,7 @@ export default function Loading() {
 
       {/* Progress bar */}
       <div className="fixed top-0 left-0 right-0 z-[100] h-1 bg-slate-100">
-        <div className="h-full bg-gradient-to-r from-orange-400 to-rose-400 rounded-r-full animate-loading-bar" />
+        <div className="h-full bg-slate-900 rounded-r-full animate-loading-bar" />
       </div>
 
       {/* Page content shimmer */}
@@ -26,7 +26,7 @@ export default function Loading() {
           <div className="h-5 w-96 bg-slate-100 rounded-lg animate-pulse" />
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-12">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-white rounded-3xl overflow-hidden shadow-sm border border-slate-100">
+              <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm border border-slate-100">
                 <div className="h-64 bg-slate-200 animate-pulse" />
                 <div className="p-6 space-y-3">
                   <div className="h-6 w-3/4 bg-slate-200 rounded animate-pulse" />

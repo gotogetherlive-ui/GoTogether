@@ -4,5 +4,5 @@ import { privateMetadata } from "@/lib/seo";
 export const metadata: Metadata = privateMetadata("Dashboard | GoTogether");
 
 export default function DashboardPrivateLayout({ children }: { children: React.ReactNode }) {
-  return children;
+  return <div className="gt-workspace gt-page-canvas min-h-screen">{children}</div>;
 }

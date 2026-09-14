@@ -2,18 +2,18 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import dynamic from "next/dynamic";
-import { 
-  Heart, 
-  MessageCircle, 
-  Send, 
-  Trash2, 
-  MapPin, 
-  Plus, 
-  X, 
-  ChevronLeft, 
-  ChevronRight, 
-  Loader2, 
-  Sparkles, 
+import {
+  Heart,
+  MessageCircle,
+  Send,
+  Trash2,
+  MapPin,
+  Plus,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  Sparkles,
   Link2,
   Camera,
   Compass,
@@ -152,6 +152,14 @@ interface StoriesClientProps {
   currentUser: SessionUser;
   isAdmin: boolean;
   userTrips: LinkedTrip[];
+  initialFeed: {
+    stories?: Story[];
+    activeUsers?: ActiveUser[];
+    storiesBlocked?: boolean;
+    hasMore?: boolean;
+    nextCursor?: string | null;
+    competition?: CompetitionState;
+  } | null;
 }
 
 function timeAgo(dateStr: string | null): string {
@@ -169,16 +177,16 @@ function timeAgo(dateStr: string | null): string {
   return `${diffDays}d ago`;
 }
 
-function SafeAvatar({ 
-  avatarUrl, 
-  name, 
-  sizeClass = "w-10 h-10", 
+function SafeAvatar({
+  avatarUrl,
+  name,
+  sizeClass = "w-10 h-10",
   textClass = "text-sm",
-  onClick 
-}: { 
-  avatarUrl: string | null | undefined; 
-  name: string; 
-  sizeClass?: string; 
+  onClick
+}: {
+  avatarUrl: string | null | undefined;
+  name: string;
+  sizeClass?: string;
   textClass?: string;
   onClick?: () => void;
 }) {
@@ -186,9 +194,9 @@ function SafeAvatar({
   const initial = name?.charAt(0).toUpperCase() || "U";
 
   return (
-    <div 
+    <div
       onClick={onClick}
-      className={`${sizeClass} relative rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center font-bold text-slate-700 shadow-inner overflow-hidden border border-slate-100 select-none ${onClick ? "cursor-pointer hover:scale-105 transition-all duration-200" : ""}`}
+      className={`${sizeClass} relative rounded-full bg-gradient-to-br from-slate-100 to-slate-100 flex items-center justify-center font-bold text-slate-700 shadow-inner overflow-hidden border border-slate-100 select-none ${onClick ? "cursor-pointer  transition-all duration-200" : ""}`}
     >
       {avatarUrl && !imgFailed ? (
         <Image
@@ -207,14 +215,14 @@ function SafeAvatar({
 }
 
 
-export default function StoriesClient({ currentUser, isAdmin, userTrips }: StoriesClientProps) {
-  const [stories, setStories] = useState<Story[]>([]);
-  const [activeUsers, setActiveUsers] = useState<ActiveUser[]>([]);
-  const [storiesBlocked, setStoriesBlocked] = useState(false);
-  const [loading, setLoading] = useState(true);
+export default function StoriesClient({ currentUser, isAdmin, userTrips, initialFeed }: StoriesClientProps) {
+  const [stories, setStories] = useState<Story[]>(initialFeed?.stories || []);
+  const [activeUsers, setActiveUsers] = useState<ActiveUser[]>(initialFeed?.activeUsers || []);
+  const [storiesBlocked, setStoriesBlocked] = useState(Boolean(initialFeed?.storiesBlocked));
+  const [loading, setLoading] = useState(!initialFeed);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(false);
-  const [cursor, setCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(Boolean(initialFeed?.hasMore));
+  const [cursor, setCursor] = useState<string | null>(initialFeed?.nextCursor || null);
 
   // Composer state
   const [content, setContent] = useState("");
@@ -243,7 +251,7 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
   const [realtimePulse, setRealtimePulse] = useState(false);
   const [rankingLeaders, setRankingLeaders] = useState<RankingEntry[]>([]);
   const [currentRanking, setCurrentRanking] = useState<RankingEntry | null>(null);
-  const [competition, setCompetition] = useState<CompetitionState | null>(null);
+  const [competition, setCompetition] = useState<CompetitionState | null>(initialFeed?.competition || null);
 
   const isProfileComplete = !!(
     currentUser.full_name?.trim() &&
@@ -341,11 +349,11 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
 
   useEffect(() => {
     const initialLoad = window.setTimeout(() => {
-      void fetchStoriesRef.current(true);
+      if (!initialFeed) void fetchStoriesRef.current(true);
       void fetchRankings();
     }, 0);
     return () => window.clearTimeout(initialLoad);
-  }, [fetchRankings]);
+  }, [fetchRankings, initialFeed]);
   useEffect(() => {
     if (typeof window === "undefined" || !window.EventSource) return;
 
@@ -359,10 +367,13 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
     const scheduleRefresh = () => {
       setRealtimePulse(true);
       if (refreshTimer) clearTimeout(refreshTimer);
+      // Spread refreshes across a short window so a popular story does not make
+      // every connected client hit the feed API in the same millisecond.
+      const refreshDelay = 350 + Math.floor(Math.random() * 1650);
       refreshTimer = setTimeout(() => {
         void fetchStoriesRef.current(true);
         setRealtimePulse(false);
-      }, 450);
+      }, refreshDelay);
     };
 
     const connect = () => {
@@ -761,13 +772,13 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
     switch (role) {
       case "super_admin":
         return (
-          <span className="px-2 py-0.5 text-[10px] font-extrabold bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-full flex items-center gap-0.5 shadow-sm">
+          <span className="px-2 py-0.5 text-[10px] font-bold bg-gradient-to-r from-slate-600 to-slate-600 text-white rounded-full flex items-center gap-0.5 shadow-sm">
             👑 Admin
           </span>
         );
       case "business":
         return (
-          <span className="px-2 py-0.5 text-[10px] font-extrabold bg-gradient-to-r from-blue-500 to-sky-500 text-white rounded-full flex items-center gap-0.5 shadow-sm">
+          <span className="px-2 py-0.5 text-[10px] font-bold bg-gradient-to-r from-blue-500 to-slate-500 text-white rounded-full flex items-center gap-0.5 shadow-sm">
             🏢 Verified Host
           </span>
         );
@@ -778,17 +789,17 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
 
   return (
     <div className='max-w-7xl mx-auto w-full px-4 md:px-6 pb-20'>
-      
+
       {/* Community header */}
-      <div className="relative mb-8 overflow-hidden rounded-[2rem] border border-slate-800 bg-slate-950 p-6 text-white shadow-2xl shadow-slate-900/15 md:p-9">
-        <div className="absolute -right-16 -top-20 h-64 w-64 rounded-full bg-fuchsia-500/20 blur-3xl" />
-        <div className="absolute -bottom-24 left-1/3 h-56 w-56 rounded-full bg-sky-500/20 blur-3xl" />
+      <div className="relative mb-8 overflow-hidden rounded-xl border border-slate-800 bg-slate-950 p-6 text-white shadow-2xl shadow-slate-900/15 md:p-9">
+
+
         <div className="relative z-10 flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-fuchsia-300/20 bg-fuchsia-400/10 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.2em] text-fuchsia-200">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-200">
               <Sparkles className="w-3.5 h-3.5" /> GoTogether community
             </div>
-            <h1 className="text-3xl font-black tracking-tight md:text-5xl">Stories from the road.</h1>
+            <h1 className="gt-page-title text-3xl font-semibold tracking-tight md:text-5xl">Stories from the road.</h1>
             <p className="mt-3 max-w-xl text-sm font-medium leading-relaxed text-slate-300 md:text-base">
               Share real travel moments, meet travellers with similar interests, and turn every journey into a useful recommendation.
             </p>
@@ -799,18 +810,18 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
 
           <div className="grid grid-cols-2 gap-3 sm:flex sm:items-center">
             <div className="rounded-2xl bg-white/7 px-4 py-3 ring-1 ring-white/10">
-              <p className="text-xl font-black">{activeUsers.length}</p>
+              <p className="text-xl font-semibold">{activeUsers.length}</p>
               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Active travellers</p>
             </div>
             <div className="rounded-2xl bg-white/7 px-4 py-3 ring-1 ring-white/10">
-              <p className="text-xl font-black">{stories.length}</p>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Stories loaded</p>
+              <p className="text-xl font-semibold">{stories.length}</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Recent stories</p>
             </div>
             {isProfileComplete && !eventPostingClosed && (
               <button
                 type="button"
                 onClick={openComposer}
-                className="col-span-2 inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 text-xs font-extrabold text-slate-950 shadow-lg transition hover:-translate-y-0.5 hover:bg-orange-50 sm:col-span-1"
+                className="col-span-2 inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 text-xs font-bold text-slate-950 shadow-lg transition  hover:bg-orange-50 sm:col-span-1"
               >
                 <Plus className="h-4 w-4 text-orange-500" /> Share a story
               </button>
@@ -820,7 +831,7 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
       </div>
 
       {competition ? (
-        <section className={`mb-6 overflow-hidden rounded-3xl border shadow-sm ${competition.phase === 'featured' ? 'border-amber-200 bg-amber-50' : 'border-indigo-100 bg-white'}`}>
+        <section className={`mb-6 overflow-hidden rounded-xl border shadow-sm ${competition.phase === 'featured' ? 'border-amber-200 bg-amber-50' : 'border-slate-100 bg-white'}`}>
           {competition.phase === 'featured' ? (
             <div className='p-5 md:p-6'>
               <div className='flex flex-col gap-5 sm:flex-row sm:items-center'>
@@ -831,14 +842,14 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
                   <button type='button' onClick={() => fetchUserProfile(competition.featuredWinner!.user_id)} className='flex min-w-0 flex-1 items-center gap-3 text-left'>
                     <SafeAvatar avatarUrl={competition.featuredWinner.avatar_url} name={competition.featuredWinner.full_name} sizeClass='h-12 w-12' textClass='text-base' />
                     <span className='min-w-0'>
-                      <span className='block text-[10px] font-extrabold uppercase tracking-[0.18em] text-amber-700'>Saturday featured traveler</span>
-                      <span className='block truncate text-xl font-black text-slate-900'>{competition.featuredWinner.full_name}</span>
+                      <span className='block text-[10px] font-bold uppercase tracking-[0.18em] text-amber-700'>Saturday featured traveler</span>
+                      <span className='block truncate text-xl font-semibold text-slate-900'>{competition.featuredWinner.full_name}</span>
                       <span className='block text-xs font-bold text-slate-500'>{competition.featuredWinner.total_likes} likes · {formatCreditPoints(competition.featuredWinner.score)} points</span>
                     </span>
                   </button>
                 ) : (
                   <div>
-                    <p className='text-lg font-extrabold text-slate-900'>No winner this week</p>
+                    <p className='text-lg font-bold text-slate-900'>No winner this week</p>
                     <p className='text-xs font-semibold text-slate-500'>The event ended without any eligible likes.</p>
                   </div>
                 )}
@@ -848,13 +859,13 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
           ) : (
             <div className='flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between'>
               <div>
-                <p className='text-[10px] font-extrabold uppercase tracking-[0.18em] text-indigo-600'>Weekly traveler event · Sunday to Friday</p>
-                <h2 className='mt-1 text-lg font-extrabold text-slate-900'>Win with likes across both of your posts</h2>
+                <p className='text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600'>Weekly traveler event · Sunday to Friday</p>
+                <h2 className='mt-1 text-lg font-bold text-slate-900'>Win with likes across both of your posts</h2>
                 <p className='mt-1 text-xs font-semibold text-slate-500'>1 like = {formatCreditPoints(competition.pointPerLike)} points · scoring closes Friday at 11:59 PM IST</p>
               </div>
-              <div className='shrink-0 rounded-2xl bg-indigo-50 px-4 py-3 text-center ring-1 ring-indigo-100'>
-                <p className='text-xl font-black text-indigo-700'>{competition.currentUserPosts}/{competition.postLimit}</p>
-                <p className='text-[9px] font-extrabold uppercase tracking-wide text-indigo-500'>Posts used</p>
+              <div className='shrink-0 rounded-2xl bg-slate-50 px-4 py-3 text-center ring-1 ring-slate-100'>
+                <p className='text-xl font-semibold text-slate-700'>{competition.currentUserPosts}/{competition.postLimit}</p>
+                <p className='text-[9px] font-bold uppercase tracking-wide text-slate-500'>Posts used</p>
               </div>
             </div>
           )}
@@ -862,7 +873,7 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
       ) : null}
 
       {realtimePulse && (
-        <div className="mb-5 flex items-center justify-center gap-2 rounded-2xl border border-sky-100 bg-sky-50 px-4 py-2 text-xs font-bold text-sky-700 shadow-sm animate-in fade-in duration-200">
+        <div className="mb-5 flex items-center justify-center gap-2 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-2 text-xs font-bold text-slate-700 shadow-sm animate-in fade-in duration-200">
           <Loader2 className="w-3.5 h-3.5 animate-spin" />
           Fresh stories are syncing...
         </div>
@@ -889,9 +900,9 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
         <>
           {/* Travel circle */}
           {(activeUsers.length > 0 || (isProfileComplete && !eventPostingClosed)) && (
-            <div className="mb-6 overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="mb-6 overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className="mb-3 flex items-center justify-between">
-                <h3 className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-500">
+                <h3 className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
                   <Sparkles className="w-3.5 h-3.5 text-orange-500" /> Your travel circle
                 </h3>
                 <span className="text-[10px] font-bold text-emerald-600">Live community</span>
@@ -915,7 +926,7 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
                       onClick={() => fetchUserProfile(u.id)}
                       className="flex flex-col items-center gap-1.5 flex-shrink-0 group focus:outline-none"
                     >
-                      <div className="relative p-0.5 rounded-full bg-gradient-to-tr from-orange-500 via-rose-500 to-fuchsia-500 group-hover:scale-105 transition-all duration-300 shadow-sm">
+                      <div className="relative p-0.5 rounded-full bg-gradient-to-tr from-orange-500 via-rose-500 to-slate-500  transition-all duration-300 shadow-sm">
                         <div className="p-0.5 bg-white rounded-full">
                           <SafeAvatar
                             avatarUrl={u.avatar_url}
@@ -931,7 +942,7 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
                       <span className="text-xs font-bold text-slate-700 max-w-[72px] truncate group-hover:text-orange-600 transition-colors">
                         {u.full_name?.split(" ")[0]}
                       </span>
-                      <span className='text-[9px] font-extrabold text-violet-500'>
+                      <span className='text-[9px] font-bold text-slate-500'>
                         {u.traveler_rank ? `#${u.traveler_rank}` : 'New'} · {formatCreditPoints(u.credit_points)} pts
                       </span>
                     </button>
@@ -955,8 +966,8 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
                   </p>
                 </div>
               </div>
-              <Link 
-                href="/dashboard" 
+              <Link
+                href="/dashboard"
                 className="w-full md:w-auto text-center px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-orange-500/10"
               >
                 Go to Dashboard
@@ -964,10 +975,10 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
             </div>
           ) : (
             /* Story Composer */
-            <div ref={composerRef} className="mb-8 scroll-mt-28 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-lg shadow-slate-200/35 transition-all duration-300 focus-within:border-orange-200 focus-within:shadow-xl">
+            <div ref={composerRef} className="mb-8 scroll-mt-28 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg shadow-slate-200/35 transition-all duration-300 focus-within:border-orange-200 focus-within:shadow-xl">
               <form onSubmit={handleCreateStory}>
                 <div className="border-b border-slate-100 px-5 py-3">
-                  <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-orange-500">Create a travel story</p>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-orange-500">Create a travel story</p>
                   <p className="mt-0.5 text-xs font-semibold text-slate-500">Share a useful moment, tip or memory with the community.</p>
                 </div>
                 <div className="p-5 flex gap-3">
@@ -978,9 +989,12 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
                     textClass="text-sm"
                     onClick={() => fetchUserProfile(currentUser.id)}
                   />
-                  
+
                   <div className="flex-1">
                     <textarea
+                      id="story-content"
+                      name="story-content"
+                      aria-label="Story text"
                       disabled={eventPostingClosed}
                       value={content}
                       onChange={(e) => {
@@ -1032,20 +1046,26 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
                       <div className="relative">
                         <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                         <input
+                          id="story-location"
+                          name="story-location"
+                          aria-label="Story location"
                           type="text"
                           value={location}
                           onChange={(e) => setLocation(e.target.value)}
                           placeholder="Add location (e.g. Manali, India)"
-                          className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 placeholder-slate-400 focus:outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100 transition-all duration-200"
+                          className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 placeholder-slate-400 focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100 transition-all duration-200"
                         />
                       </div>
 
                       <div className="relative">
                         <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                         <select
+                          id="story-trip"
+                          name="story-trip"
+                          aria-label="Related trip"
                           value={selectedTripId}
                           onChange={(e) => setSelectedTripId(e.target.value)}
-                          className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100 transition-all duration-200 appearance-none"
+                          className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100 transition-all duration-200 appearance-none"
                         >
                           <option value="">Link to a trip (Optional)</option>
                           {userTrips.map((trip) => (
@@ -1060,6 +1080,9 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
                     <div className="flex justify-between items-center pt-2 border-t border-slate-100">
                       <div className="flex gap-2">
                         <input
+                          id="story-images"
+                          name="story-images"
+                          aria-label="Upload story images"
                           type="file"
                           ref={fileInputRef}
                           onChange={handleImageSelect}
@@ -1072,10 +1095,10 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
                             type="button"
                             onClick={() => fileInputRef.current?.click()}
                             disabled={uploading}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all"
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-600 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-all"
                           >
                             {uploading ? (
-                              <Loader2 className="w-4 h-4 animate-spin text-purple-500" />
+                              <Loader2 className="w-4 h-4 animate-spin text-slate-500" />
                             ) : (
                               <Camera className="w-4 h-4" />
                             )}
@@ -1140,12 +1163,12 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
         </div>
       ) : stories.length === 0 ? (
         <div className="bg-white border border-slate-200/80 rounded-2xl p-12 text-center shadow-sm">
-          <div className="w-16 h-16 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-indigo-100">
-            <Compass className="w-8 h-8 text-indigo-500 animate-bounce" />
+          <div className="w-16 h-16 bg-gradient-to-br from-slate-50 to-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-slate-100">
+            <Compass className="w-8 h-8 text-slate-500 animate-bounce" />
           </div>
           <h2 className="text-xl font-bold text-slate-800">No Travel Stories Yet</h2>
           <p className="text-slate-400 text-sm mt-1 max-w-sm mx-auto mb-6">
-            {storiesBlocked 
+            {storiesBlocked
               ? "The travel stories feed is temporarily paused by the administrator."
               : "Be the first to share your adventures, travel snaps, or details of your latest expedition!"
             }
@@ -1156,7 +1179,7 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
                 setComposerExpanded(true);
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }}
-              className="px-5 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl text-sm font-semibold shadow-md shadow-indigo-600/10 hover:shadow-lg transition-all"
+              className="px-5 py-2 bg-gradient-to-r from-slate-600 to-slate-600 text-white rounded-xl text-sm font-semibold shadow-md shadow-slate-600/10 hover:shadow-lg transition-all"
             >
               Post Your First Story
             </button>
@@ -1170,10 +1193,10 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
             const canDelete = story.user_id === currentUser.id || isAdmin;
 
             return (
-              <article 
+              <article
                 key={story.id}
                 id={`story-${story.id}`}
-                className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-lg shadow-slate-200/35 transition-all duration-300 animate-in fade-in scroll-mt-28 hover:shadow-xl hover:shadow-slate-200/50"
+                className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg shadow-slate-200/35 transition-all duration-300 animate-in fade-in scroll-mt-28 hover:shadow-xl hover:shadow-slate-200/50"
               >
                 {/* Header info */}
                 <div className="p-5 flex justify-between items-start">
@@ -1188,9 +1211,9 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
 
                     <div>
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span 
+                        <span
                           onClick={() => fetchUserProfile(story.user_id)}
-                          className="text-sm font-bold text-slate-800 cursor-pointer hover:text-indigo-600 transition-colors"
+                          className="text-sm font-bold text-slate-800 cursor-pointer hover:text-slate-600 transition-colors"
                         >
                           {story.author_name}
                         </span>
@@ -1199,7 +1222,7 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
                       <div className='mt-0.5 flex items-center gap-1.5 text-[10px] font-semibold text-slate-400'>
                         <span>{timeAgo(story.created_at)}</span>
                         <span>·</span>
-                        <span className='font-bold text-violet-600'>{formatCreditPoints(story.author_credit_points)} event points</span>
+                        <span className='font-bold text-slate-600'>{formatCreditPoints(story.author_credit_points)} event points</span>
                         {story.author_rank ? <><span>·</span><span>#{story.author_rank}</span></> : null}
                       </div>
                     </div>
@@ -1208,7 +1231,7 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
                   <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => handleShareStory(story)}
-                      className="p-1.5 text-slate-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-all duration-200"
+                      className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-all duration-200"
                       title="Share story"
                     >
                       <Share2 className="w-4 h-4" />
@@ -1277,20 +1300,20 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
                 )}
 
                 {story.trip_id && story.trip_title && (
-                  <div className="mx-4 my-3 p-3 bg-gradient-to-br from-slate-50 to-slate-100/60 border border-slate-200/60 rounded-xl flex items-center justify-between gap-3 group/trip hover:border-indigo-300 hover:shadow-sm transition-all duration-300">
+                  <div className="mx-4 my-3 p-3 bg-gradient-to-br from-slate-50 to-slate-100/60 border border-slate-200/60 rounded-xl flex items-center justify-between gap-3 group/trip hover:border-slate-300 hover:shadow-sm transition-all duration-300">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-9 h-9 rounded-lg bg-indigo-50 flex items-center justify-center border border-indigo-100 text-indigo-600 flex-shrink-0 group-hover/trip:scale-105 transition-transform duration-200">
+                      <div className="w-9 h-9 rounded-lg bg-slate-50 flex items-center justify-center border border-slate-100 text-slate-600 flex-shrink-0 group-hover/trip:scale-105 transition-transform duration-200">
                         <Compass className="w-4 h-4" />
                       </div>
                       <div className="min-w-0">
-                        <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">Linked Trip</span>
+                        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block">Linked Trip</span>
                         <p className="text-xs font-bold text-slate-800 truncate">{story.trip_title}</p>
                         <span className="text-[9px] font-semibold text-slate-400 block mt-0.5">Destination: {story.trip_destination}</span>
                       </div>
                     </div>
                     <Link
                       href={`/trips/${story.trip_id}`}
-                      className="text-[10px] font-bold text-indigo-600 border border-indigo-200 group-hover/trip:bg-indigo-600 group-hover/trip:text-white px-2.5 py-1 rounded-lg transition-all"
+                      className="text-[10px] font-bold text-slate-600 border border-slate-200 group-hover/trip:bg-slate-600 group-hover/trip:text-white px-2.5 py-1 rounded-lg transition-all"
                     >
                       View Trip
                     </Link>
@@ -1306,10 +1329,10 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
                     className="flex items-center gap-1 text-slate-600 hover:text-rose-500 font-bold text-xs transition-colors group/like disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <div className={`p-1.5 rounded-lg group-hover/like:bg-rose-50 transition-colors ${story.is_liked ? "text-rose-500" : ""}`}>
-                      <Heart 
+                      <Heart
                         className={`w-5 h-5 transition-transform duration-200 ${
                           story.is_liked ? "fill-rose-500 scale-125" : "group-hover/like:scale-110"
-                        }`} 
+                        }`}
                       />
                     </div>
                     <span>{story.likes_count} Likes · {formatCreditPoints(story.likes_count * (competition?.pointPerLike ?? 0.25))} pts</span>
@@ -1317,9 +1340,9 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
 
                   <button
                     onClick={() => handleToggleCommentsSection(story.id)}
-                    className="flex items-center gap-1 text-slate-600 hover:text-indigo-600 font-bold text-xs transition-colors group/comment"
+                    className="flex items-center gap-1 text-slate-600 hover:text-slate-600 font-bold text-xs transition-colors group/comment"
                   >
-                    <div className={`p-1.5 rounded-lg group-hover/comment:bg-indigo-50 transition-colors ${expandedComments[story.id] ? "text-indigo-600" : ""}`}>
+                    <div className={`p-1.5 rounded-lg group-hover/comment:bg-slate-50 transition-colors ${expandedComments[story.id] ? "text-slate-600" : ""}`}>
                       <MessageCircle className="w-5 h-5 group-hover/comment:scale-110 transition-transform" />
                     </div>
                     <span>{story.comments_count} Comments</span>
@@ -1329,7 +1352,7 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
                     onClick={() => handleShareStory(story)}
                     className="ml-auto flex items-center gap-1 text-slate-600 hover:text-emerald-600 font-bold text-xs transition-colors group/share"
                   >
-                    <div className="p-1.5 rounded-lg group-hover/share:bg-sky-50 transition-colors">
+                    <div className="p-1.5 rounded-lg group-hover/share:bg-slate-50 transition-colors">
                       <Share2 className="w-5 h-5 group-hover/share:scale-110 transition-transform" />
                     </div>
                     <span>Share</span>
@@ -1341,7 +1364,7 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
                     <div className="space-y-3">
                       {loadingComments[story.id] && (!comments[story.id] || comments[story.id].length === 0) ? (
                         <div className="flex items-center justify-center py-4">
-                          <Loader2 className="w-5 h-5 text-indigo-500 animate-spin" />
+                          <Loader2 className="w-5 h-5 text-slate-500 animate-spin" />
                         </div>
                       ) : !comments[story.id] || comments[story.id].length === 0 ? (
                         <p className="text-xs text-slate-400 font-semibold text-center py-2">No comments yet. Be the first to say something!</p>
@@ -1360,9 +1383,9 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
 
                               <div className="bg-white border border-slate-100 p-2.5 rounded-2xl flex-1 shadow-sm">
                                 <div className="flex justify-between items-center mb-0.5">
-                                  <span 
+                                  <span
                                     onClick={() => fetchUserProfile(comment.user_id)}
-                                    className="font-bold text-slate-800 cursor-pointer hover:text-indigo-600 transition-colors"
+                                    className="font-bold text-slate-800 cursor-pointer hover:text-slate-600 transition-colors"
                                   >
                                     {comment.author_name}
                                   </span>
@@ -1388,6 +1411,9 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
 
                     <div className="flex gap-2 pt-2 border-t border-slate-200/60">
                       <input
+                        id={`comment-${story.id}`}
+                        name={`comment-${story.id}`}
+                        aria-label="Write a comment"
                         type="text"
                         disabled={!isProfileComplete || (storiesBlocked && !isAdmin)}
                         value={commentInputs[story.id] || ""}
@@ -1399,16 +1425,16 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
                           }
                         }}
                         placeholder={
-                          !isProfileComplete 
+                          !isProfileComplete
                             ? "Complete your profile to comment..."
                             : (storiesBlocked && !isAdmin ? "Interactions are frozen..." : "Add a comment...")
                         }
-                        className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 placeholder-slate-400 focus:outline-none focus:border-indigo-400 transition-all duration-200 disabled:bg-slate-50 disabled:cursor-not-allowed"
+                        className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-all duration-200 disabled:bg-slate-50 disabled:cursor-not-allowed"
                       />
                       <button
                         onClick={() => handlePostComment(story.id)}
                         disabled={!isProfileComplete || (storiesBlocked && !isAdmin) || submittingComment[story.id] || !(commentInputs[story.id]?.trim())}
-                        className="p-2 bg-indigo-600 text-white hover:bg-indigo-700 rounded-xl disabled:opacity-50 disabled:pointer-events-none transition-all flex items-center justify-center flex-shrink-0"
+                        className="p-2 bg-slate-600 text-white hover:bg-slate-700 rounded-xl disabled:opacity-50 disabled:pointer-events-none transition-all flex items-center justify-center flex-shrink-0"
                       >
 
                         {submittingComment[story.id] ? (
@@ -1431,11 +1457,11 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
           <button
             onClick={() => fetchStories(false)}
             disabled={loadingMore}
-            className="flex items-center gap-2 px-6 py-2.5 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 hover:text-indigo-600 shadow-sm transition-all duration-200 disabled:opacity-50"
+            className="flex items-center gap-2 px-6 py-2.5 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 hover:text-slate-600 shadow-sm transition-all duration-200 disabled:opacity-50"
           >
             {loadingMore ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />
+                <Loader2 className="w-4 h-4 animate-spin text-slate-500" />
                 <span>Loading more stories...</span>
               </>
             ) : (
@@ -1448,12 +1474,12 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
         </main>
 
         <aside className='space-y-5 lg:sticky lg:top-24'>
-          <section className='overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm'>
-            <div className='bg-gradient-to-br from-slate-950 via-indigo-950 to-violet-900 p-5 text-white'>
+          <section className='overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm'>
+            <div className='bg-gradient-to-br from-slate-950 via-slate-950 to-slate-900 p-5 text-white'>
               <div className='flex items-center justify-between'>
                 <div>
-                  <p className='text-[10px] font-extrabold uppercase tracking-[0.2em] text-indigo-200'>Your traveler status</p>
-                  <h2 className='mt-1 text-xl font-extrabold'>
+                  <p className='text-[10px] font-bold uppercase tracking-[0.2em] text-slate-200'>Your traveler status</p>
+                  <h2 className='mt-1 text-xl font-bold'>
                     {currentRanking ? getTravelerLevel(Number(currentRanking.credit_points)).name : 'Explorer'}
                   </h2>
                 </div>
@@ -1464,15 +1490,15 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
 
               <div className='mt-5 grid grid-cols-3 gap-2'>
                 <div className='rounded-2xl bg-white/10 p-2.5 text-center'>
-                  <p className='text-lg font-black'>{currentRanking ? `#${currentRanking.rank}` : '—'}</p>
+                  <p className='text-lg font-semibold'>{currentRanking ? `#${currentRanking.rank}` : '—'}</p>
                   <p className='text-[9px] font-bold uppercase tracking-wide text-white/60'>Rank</p>
                 </div>
                 <div className='rounded-2xl bg-white/10 p-2.5 text-center'>
-                  <p className='text-lg font-black'>{currentRanking ? currentRanking.total_likes : 0}</p>
+                  <p className='text-lg font-semibold'>{currentRanking ? currentRanking.total_likes : 0}</p>
                   <p className='text-[9px] font-bold uppercase tracking-wide text-white/60'>Likes</p>
                 </div>
                 <div className='rounded-2xl bg-white/10 p-2.5 text-center'>
-                  <p className='text-lg font-black'>{currentRanking ? formatCreditPoints(currentRanking.credit_points) : '0'}</p>
+                  <p className='text-lg font-semibold'>{currentRanking ? formatCreditPoints(currentRanking.credit_points) : '0'}</p>
                   <p className='text-[9px] font-bold uppercase tracking-wide text-white/60'>Points</p>
                 </div>
               </div>
@@ -1499,11 +1525,11 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
             </div>
           </section>
 
-          <section className='rounded-3xl border border-slate-200 bg-white p-4 shadow-sm'>
+          <section className='rounded-xl border border-slate-200 bg-white p-4 shadow-sm'>
             <div className='mb-4 flex items-center justify-between'>
               <div>
-                <p className='text-[10px] font-extrabold uppercase tracking-[0.18em] text-violet-500'>Community</p>
-                <h2 className='text-lg font-extrabold text-slate-900'>Top travelers</h2>
+                <p className='text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500'>Community</p>
+                <h2 className='text-lg font-bold text-slate-900'>Top travelers</h2>
               </div>
               <TrendingUp className='h-5 w-5 text-emerald-500' />
             </div>
@@ -1514,17 +1540,17 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
                   key={traveler.id}
                   type='button'
                   onClick={() => fetchUserProfile(traveler.id)}
-                  className={`flex w-full items-center gap-3 rounded-2xl p-2.5 text-left transition-colors hover:bg-slate-50 ${traveler.id === currentUser.id ? 'bg-indigo-50 ring-1 ring-indigo-100' : ''}`}
+                  className={`flex w-full items-center gap-3 rounded-2xl p-2.5 text-left transition-colors hover:bg-slate-50 ${traveler.id === currentUser.id ? 'bg-slate-50 ring-1 ring-slate-100' : ''}`}
                 >
-                  <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-xl text-xs font-black ${traveler.rank === 1 ? 'bg-amber-100 text-amber-700' : traveler.rank === 2 ? 'bg-slate-200 text-slate-700' : traveler.rank === 3 ? 'bg-orange-100 text-orange-700' : 'bg-slate-50 text-slate-500'}`}>
+                  <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-xl text-xs font-semibold ${traveler.rank === 1 ? 'bg-amber-100 text-amber-700' : traveler.rank === 2 ? 'bg-slate-200 text-slate-700' : traveler.rank === 3 ? 'bg-orange-100 text-orange-700' : 'bg-slate-50 text-slate-500'}`}>
                     {traveler.rank <= 3 ? <Medal className='h-4 w-4' /> : traveler.rank}
                   </span>
                   <SafeAvatar avatarUrl={traveler.avatar_url} name={traveler.full_name} sizeClass='h-9 w-9' textClass='text-xs' />
                   <span className='min-w-0 flex-1'>
-                    <span className='block truncate text-xs font-extrabold text-slate-800'>{traveler.full_name}</span>
+                    <span className='block truncate text-xs font-bold text-slate-800'>{traveler.full_name}</span>
                     <span className='block text-[10px] font-semibold text-slate-400'>{traveler.total_likes} likes · {traveler.story_count}/2 posts</span>
                   </span>
-                  <span className='text-right text-xs font-black text-violet-600'>{formatCreditPoints(traveler.credit_points)}<span className='block text-[9px] font-bold text-slate-400'>points</span></span>
+                  <span className='text-right text-xs font-semibold text-slate-600'>{formatCreditPoints(traveler.credit_points)}<span className='block text-[9px] font-bold text-slate-400'>points</span></span>
                 </button>
               )) : (
                 <p className='rounded-2xl bg-slate-50 px-3 py-6 text-center text-xs font-semibold text-slate-400'>Rankings will appear after event posts receive likes.</p>
@@ -1558,7 +1584,7 @@ export default function StoriesClient({ currentUser, isAdmin, userTrips }: Stori
       {loadingProfile && (
         <div className="fixed inset-0 z-[120] bg-black/40 backdrop-blur-xs flex items-center justify-center">
           <div className="bg-white p-4 rounded-2xl shadow-xl flex items-center gap-2.5 font-bold text-sm text-slate-700 border border-slate-100">
-            <Loader2 className="w-5 h-5 text-indigo-500 animate-spin" />
+            <Loader2 className="w-5 h-5 text-slate-500 animate-spin" />
             <span>Opening Profile...</span>
           </div>
         </div>

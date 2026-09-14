@@ -35,7 +35,7 @@ export default function DestinationsPage() {
       />
       <Navbar />
       <main className="flex-1 pt-28 pb-20 px-6 md:px-12 max-w-6xl mx-auto w-full">
-        <h1 className="text-4xl md:text-6xl font-extrabold mb-5">Group Trip Destinations in India</h1>
+        <h1 className="gt-page-title text-4xl md:text-6xl font-bold mb-5">Group Trip Destinations in India</h1>
         <p className="text-lg text-slate-600 max-w-4xl mb-10">
           GoTogether destination pages help travelers compare verified group trips by place, dates, duration, organizer, itinerary, inclusions, exclusions, pickup city, and cancellation policy. Choose a destination to review useful travel context and public trip links.
         </p>

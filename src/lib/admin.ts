@@ -34,7 +34,7 @@ async function getAdminEmails(): Promise<Set<string>> {
 /**
  * Check if an email is in the admin_accounts table.
  */
-export async function isAdminEmail(email: string): Promise<boolean> {
+async function isAdminEmail(email: string): Promise<boolean> {
   const emails = await getAdminEmails();
   return emails.has(email.trim().toLowerCase());
 }

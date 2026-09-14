@@ -11,6 +11,7 @@ function strongEnv(overrides = {}) {
     NEXT_PUBLIC_BASE_URL: "https://app.gotogether.test",
     NEXT_PUBLIC_APP_URL: "https://app.gotogether.test",
     SUPER_ADMIN_EMAIL: "admin@gotogether.test",
+    CHAT_ENCRYPTION_KEY: 'a'.repeat(64),
     SESSION_SECRET: "session_secret_32_chars_minimum_value",
     CRON_SECRET: "cron_secret_32_chars_minimum_value__",
     PAYMENTS_MASTER_KEY: "payments_master_key_32_chars_value",
@@ -28,6 +29,7 @@ function strongEnv(overrides = {}) {
     GOOGLE_CLIENT_ID: "google-client-id.apps.googleusercontent.com",
     GOOGLE_CLIENT_SECRET: "google_client_secret_value",
     NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: "google_maps_browser_key_value",
+    NEXT_PUBLIC_GA_MEASUREMENT_ID: "G-ABC1234567",
     RESEND_API_KEY: "resend_live_key_value",
     RESEND_FROM_EMAIL: "GoTogether <no-reply@gotogether.test>",
     ...overrides,
@@ -42,10 +44,37 @@ test("production env validator accepts complete non-placeholder Razorpay config"
 test("production env validator rejects non-canonical origins and weak secrets", () => {
   const result = validateProductionEnv(strongEnv({
     NEXT_PUBLIC_APP_URL: "https://app.gotogether.test/login",
+    CHAT_ENCRYPTION_KEY: 'a'.repeat(64),
     SESSION_SECRET: "short",
   }));
   assert(result.errors.some((error) => error.includes("canonical origin")));
   assert(result.errors.some((error) => error.includes("SESSION_SECRET")));
+});
+
+test("production env validator rejects an invalid Google Analytics measurement ID", () => {
+  const result = validateProductionEnv(strongEnv({ NEXT_PUBLIC_GA_MEASUREMENT_ID: "UA-123456-1" }));
+  assert(result.errors.some((error) => error.includes("GA4 web measurement ID")));
+});
+
+test("production env validator keeps WhatsApp optional while disabled", () => {
+  const result = validateProductionEnv(strongEnv({ WHATSAPP_CRM_ENABLED: "false" }));
+  assert.deepEqual(result.errors, []);
+});
+
+test("production env validator requires complete pinned WhatsApp configuration when enabled", () => {
+  const missing = validateProductionEnv(strongEnv({ WHATSAPP_CRM_ENABLED: "true", WHATSAPP_GRAPH_API_VERSION: "latest" }));
+  assert(missing.errors.some((error) => error.includes("WHATSAPP_ACCESS_TOKEN is required")));
+  assert(missing.errors.some((error) => error.includes("pinned Graph API version")));
+
+  const complete = validateProductionEnv(strongEnv({
+    WHATSAPP_CRM_ENABLED: "true",
+    WHATSAPP_GRAPH_API_VERSION: "v25.0",
+    WHATSAPP_ACCESS_TOKEN: "EAAB-production-token-value",
+    WHATSAPP_PHONE_NUMBER_ID: "123456789012345",
+    WHATSAPP_APP_SECRET: "meta_app_secret_secure_value",
+    WHATSAPP_VERIFY_TOKEN: "whatsapp_verify_token_secure_value",
+  }));
+  assert.deepEqual(complete.errors, []);
 });
 
 test("production env validator allows organizer-owned mode without platform provider credentials", () => {

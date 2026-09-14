@@ -35,6 +35,8 @@ export class PlatformControlledPaymentStrategy implements PaymentStrategy {
 
   refundPayment(input: StrategyRefundInput, adapter: PaymentProviderAdapter) {
     return adapter.refundPayment({
+      providerOrderId: input.providerOrderId,
+      idempotencyKey: input.idempotencyKey,
       providerPaymentId: input.providerPaymentId,
       amount: input.amount,
       notes: input.notes,

@@ -175,6 +175,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description: `Book ${trip.title} with GoTogether. Explore ${trip.destination} with a verified organizer, detailed itinerary, transparent pricing, inclusions, exclusions, cancellation policy, and secure booking.`,
     path: `/trips/${resolved.canonicalSlug}`,
     image: parseImages(trip)[0],
+    imageAlt: `${trip.title} group trip to ${trip.destination}`,
   });
 }
 
@@ -301,7 +302,7 @@ export default async function TripDetailsPage({ params, searchParams }: Props) {
       <main className="flex-1 pt-28 pb-24 px-6 md:px-12 max-w-5xl mx-auto w-full space-y-8">
         <TripDetailsClient trip={tripView} />
 
-        <section className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8">
+        <section className="bg-white rounded-xl shadow-sm border border-slate-100 p-8">
           <h2 className="text-2xl font-bold text-slate-900 mb-4">Trip Facts</h2>
           <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div><dt className="text-xs uppercase font-bold text-slate-400">Destination</dt><dd className="font-semibold">{trip.destination}</dd></div>
@@ -319,7 +320,7 @@ export default async function TripDetailsPage({ params, searchParams }: Props) {
           </dl>
         </section>
 
-        <section className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 space-y-6">
+        <section className="bg-white rounded-xl shadow-sm border border-slate-100 p-8 space-y-6">
           <div>
             <h2 className="text-2xl font-bold text-slate-900 mb-3">Direct Answer</h2>
             <p className="text-slate-600 leading-relaxed">
@@ -338,7 +339,7 @@ export default async function TripDetailsPage({ params, searchParams }: Props) {
           </div>
         </section>
 
-        <section className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8">
+        <section className="bg-white rounded-xl shadow-sm border border-slate-100 p-8">
           <h2 className="text-2xl font-bold text-slate-900 mb-5">FAQs</h2>
           <div className="space-y-4">
             {faqs.map((faq) => (

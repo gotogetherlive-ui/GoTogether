@@ -8,7 +8,7 @@ export interface BookingDetailsForPolicy {
   trip_date: string; // ISO string or text representing travel date
 }
 
-export const DEFAULT_CANCELLATION_RULES: CancellationRule[] = [
+const DEFAULT_CANCELLATION_RULES: CancellationRule[] = [
   { hours_before: 72, refund_pct: 100 }, // 72+ hours before trip -> 100%
   { hours_before: 24, refund_pct: 50 },  // 24 to 72 hours before trip -> 50%
   { hours_before: 0, refund_pct: 0 }     // Under 24 hours -> 0%

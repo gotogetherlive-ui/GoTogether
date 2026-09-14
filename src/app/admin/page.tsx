@@ -186,7 +186,7 @@ export default function AdminDashboard() {
   return (
     <div>
       {/* Header row */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Dashboard Overview</h1>
           <p className="text-sm text-slate-500 mt-1">Real-time insights into your platform</p>
@@ -208,14 +208,14 @@ export default function AdminDashboard() {
       </div>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-10">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 mb-10">
         {statCards.map((card, idx) => {
           const Icon = card.icon;
           return (
             <Link
               key={card.label}
               href={card.link}
-              className={`group bg-white p-5 rounded-2xl shadow-sm border border-slate-100 hover:shadow-lg hover:border-slate-200 hover:-translate-y-1 transition-all duration-300 relative overflow-hidden`}
+              className={`group bg-white p-4 sm:p-5 rounded-lg shadow-sm border border-slate-100 hover:shadow-lg hover:border-slate-200  transition-all duration-300 relative overflow-hidden`}
               style={{ animationDelay: `${idx * 100}ms` }}
             >
               {/* Subtle gradient background on hover */}
@@ -223,10 +223,10 @@ export default function AdminDashboard() {
               
               <div className="relative">
                 <div className="flex items-start justify-between mb-3">
-                  <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${card.gradient} flex items-center justify-center text-white shadow-md ${card.glow} group-hover:scale-110 transition-transform duration-300`}>
+                  <div className={`w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-700  transition-transform duration-300`}>
                     <Icon className="w-5 h-5" />
                   </div>
-                  <ArrowUpRight className="w-4 h-4 text-slate-300 group-hover:text-orange-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-300" />
+                  <ArrowUpRight className="w-4 h-4 text-slate-300 group-hover:text-orange-400 group-hover:translate-x-0.5  transition-all duration-300" />
                 </div>
                 <h3 className="text-2xl font-bold text-slate-900 mb-0.5">{card.value}</h3>
                 <p className="text-slate-500 text-xs font-medium">{card.label}</p>
@@ -251,9 +251,9 @@ export default function AdminDashboard() {
 
         {/* Recent Users */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow duration-300">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
             <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center">
                 <Users className="w-4 h-4 text-white" />
               </div>
               Recent Users
@@ -271,7 +271,7 @@ export default function AdminDashboard() {
             <div className="space-y-2">
               {recentUsers.map((u, i) => (
                 <div key={u.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl hover:bg-blue-50/50 transition-colors duration-200 group" style={{ animationDelay: `${i * 50}ms` }}>
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 text-white flex items-center justify-center text-sm font-bold flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 text-white flex items-center justify-center text-sm font-bold flex-shrink-0  transition-transform duration-200">
                     {u.full_name?.charAt(0)?.toUpperCase() || "U"}
                   </div>
                   <div className="min-w-0">
@@ -287,9 +287,9 @@ export default function AdminDashboard() {
 
         {/* Recent Trips */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow duration-300">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
             <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 to-rose-500 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center">
                 <MapPin className="w-4 h-4 text-white" />
               </div>
               Recent Trips
@@ -307,7 +307,7 @@ export default function AdminDashboard() {
             <div className="space-y-2">
               {recentTrips.map((t, i) => (
                 <div key={t.id} className="flex items-start gap-3 p-3 bg-slate-50 rounded-xl hover:bg-orange-50/50 transition-colors duration-200 group" style={{ animationDelay: `${i * 50}ms` }}>
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-orange-400 to-rose-500 text-white flex items-center justify-center text-sm font-bold flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
+                  <div className="w-9 h-9 rounded-full bg-slate-900 text-white flex items-center justify-center text-sm font-bold flex-shrink-0  transition-transform duration-200">
                     {t.destination?.charAt(0)?.toUpperCase() || "T"}
                   </div>
                   <div className="min-w-0 flex-1">

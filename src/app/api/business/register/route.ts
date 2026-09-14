@@ -47,6 +47,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "You are already registered as a business" }, { status: 400 });
     }
 
+    const introduction = await queryOne<{ status: string }>(
+      "SELECT status FROM business_introductions WHERE user_id = $1", [session.id]
+    );
+    if (introduction?.status !== "approved") {
+      return NextResponse.json({ error: "Submit your business introduction and wait for admin approval before registering." }, { status: 403 });
+    }
+
     const existing = await queryOne("SELECT status FROM business_applications WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1", [session.id]) as { status: string } | undefined;
     if (existing?.status === "pending") {
       return NextResponse.json({ error: "You already have a pending application" }, { status: 400 });

@@ -13,7 +13,10 @@ const profiles = {
   scale1000: [{ duration: '8m', target: 1000 }, { duration: '10m', target: 1000 }, { duration: '3m', target: 0 }],
   target2000: [{ duration: '12m', target: 2000 }, { duration: '15m', target: 2000 }, { duration: '5m', target: 0 }],
   above2500: [{ duration: '15m', target: 2500 }, { duration: '10m', target: 2500 }, { duration: '5m', target: 0 }],
+  target3000: [{ duration: '15m', target: 3000 }, { duration: '20m', target: 3000 }, { duration: '5m', target: 0 }],
+  target4000: [{ duration: '20m', target: 4000 }, { duration: '20m', target: 4000 }, { duration: '8m', target: 0 }],
   spike3000: [{ duration: '2m', target: 3000 }, { duration: '3m', target: 3000 }, { duration: '5m', target: 0 }],
+  spike4000: [{ duration: '3m', target: 4000 }, { duration: '3m', target: 4000 }, { duration: '6m', target: 0 }],
   soak1000: [{ duration: '10m', target: 1000 }, { duration: '2h', target: 1000 }, { duration: '10m', target: 0 }],
   soak2000: [{ duration: '15m', target: 2000 }, { duration: '2h', target: 2000 }, { duration: '15m', target: 0 }],
   contention25: [{ duration: '30s', target: 25 }, { duration: '5m', target: 25 }, { duration: '30s', target: 0 }],
@@ -24,6 +27,7 @@ const profiles = {
 if (!profiles[profile]) throw new Error(`Unknown PROFILE: ${profile}`);
 
 export const options = {
+  discardResponseBodies: true,
   scenarios: {
     web: {
       executor: 'ramping-vus',

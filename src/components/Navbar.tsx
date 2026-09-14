@@ -26,7 +26,6 @@ export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
   const { user, isLoaded: userLoaded, setSessionSignedOut } = useSession();
   const [avatarFailed, setAvatarFailed] = useState(false);
   const [avatarMenuOpen, setAvatarMenuOpen] = useState(false);
@@ -35,14 +34,6 @@ export default function Navbar() {
   const [notice, setNotice] = useState("");
   const [signingOut, setSigningOut] = useState(false);
 
-  const isHomepage = pathname === "/";
-
-  useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 50);
-    handleScroll();
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
   useEffect(() => {
     if (!mobileOpen && !avatarMenuOpen) return;
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -76,14 +67,18 @@ export default function Navbar() {
     return () => controller.abort();
   }, [user?.id]);
 
-  const navBg =
-    mobileOpen || (!isHomepage || scrolled)
-      ? "bg-white/90 backdrop-blur-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] border-b border-white/50"
-      : "bg-transparent";
-  const textColor =
-    mobileOpen || (!isHomepage || scrolled) ? "text-slate-700" : "text-white drop-shadow-md";
-  const logoColor =
-    mobileOpen || (!isHomepage || scrolled) ? "text-slate-900" : "text-white drop-shadow-md";
+  const hasSolidHeader = true;
+  const navBg = "border-b border-slate-200 bg-slate-50/95 backdrop-blur-lg";
+  const textColor = "text-slate-700";
+  const logoColor = "text-slate-950";
+  const navRailClass = "border-transparent bg-transparent";
+  const navTabClass = (active: boolean) => active
+    ? "bg-slate-200/55 text-slate-950"
+    : "text-slate-600 hover:bg-slate-100 hover:text-slate-950";
+
+  const isNavActive = (href: string) => href === "/"
+    ? pathname === "/"
+    : pathname === href || pathname.startsWith(`${href}/`);
 
   const isAdmin = !!user?.is_admin;
 
@@ -111,7 +106,7 @@ export default function Navbar() {
       <button
         type="button"
         onClick={() => setAvatarMenuOpen((prev) => !prev)}
-        className={`relative flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-rose-500 text-white font-bold text-sm shadow-lg hover:shadow-orange-500/40 transition-all ring-2 ring-white hover:scale-105 ${className}`}
+        className={`relative flex h-9 w-9 items-center justify-center rounded-lg border border-orange-700 bg-orange-600 text-sm font-bold text-white shadow-sm transition hover:bg-orange-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 ${className}`}
         aria-label="Open user menu"
         aria-expanded={avatarMenuOpen}
         aria-haspopup="menu"
@@ -135,16 +130,19 @@ export default function Navbar() {
     <>
       <nav
         aria-label="Primary navigation"
-        className={`fixed top-0 w-full z-50 px-6 py-4 flex items-center justify-between transition-all duration-300 ${navBg}`}
+        className={`fixed top-0 z-50 flex w-full items-center transition-all duration-300 ${navBg}`}
       >
-        {/* Logo */}
-        <Link href="/" className={`flex items-center gap-2 ${logoColor}`}>
-          <Compass className="w-8 h-8 text-orange-500" />
-          <span className="text-2xl font-bold tracking-tight">GoTogether</span>
-        </Link>
+        <div className="mx-auto flex h-17 w-full max-w-[1360px] items-center justify-between gap-5 px-4 sm:px-6">
+          {/* Logo */}
+          <Link href="/" className={`flex shrink-0 items-center gap-2.5 ${logoColor}`}>
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-orange-400 to-orange-600 text-white shadow-md shadow-orange-500/20">
+              <Compass className="h-5 w-5" />
+            </span>
+            <span className="text-xl font-bold tracking-tight">GoTogether</span>
+          </Link>
 
-        {/* Desktop Nav */}
-        <div className={`hidden md:flex items-center gap-6 font-medium ${textColor}`}>
+          {/* Desktop Nav */}
+          <div className={`hidden min-w-0 items-center gap-1 rounded-xl border p-1 text-sm font-semibold backdrop-blur-md xl:flex ${navRailClass}`}>
           {navLinks.map((link) => {
             const isProfileComplete = hasCompleteProfile(user);
             const requiresAuth = false;
@@ -175,15 +173,11 @@ export default function Navbar() {
                 key={link.href}
                 href={link.href}
                 onClick={handleRestrictedClick}
-                aria-current={pathname === link.href ? "page" : undefined}
-                className={`hover:text-orange-500 transition-colors relative py-1 ${pathname === link.href ? "text-orange-500" : ""
-                  } ${((!userLoaded || (requiresAuth && !user) || (user && !isProfileComplete)) && requiresProfile) ? "opacity-50 cursor-not-allowed" : ""}`}
+                aria-current={isNavActive(link.href) ? "page" : undefined}
+                className={`whitespace-nowrap rounded-lg px-3 py-2 transition ${link.href === "/custom-trip" || link.href === "/buddy" ? "gt-nav-feature" : navTabClass(isNavActive(link.href))} ${((!userLoaded || (requiresAuth && !user) || (user && !isProfileComplete)) && requiresProfile) ? "cursor-not-allowed opacity-50" : ""}`}
                 title={requiresProfile ? (!userLoaded ? "Checking account" : requiresAuth && !user ? "Sign in to unlock" : user && !isProfileComplete ? "Complete profile to unlock" : "") : ""}
               >
                 {link.label}
-                {pathname === link.href && (
-                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-orange-500 rounded-full" />
-                )}
               </Link>
             );
           })}
@@ -191,10 +185,9 @@ export default function Navbar() {
           {userLoaded && user && hasTeamChats && (
             <Link
               href="/team-chat"
-              className={`hover:text-orange-500 transition-colors relative py-1 flex items-center gap-1.5 ${pathname === "/team-chat" || pathname.startsWith("/chat/") ? "text-orange-500" : ""}`}
+              className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 transition ${navTabClass(pathname === "/team-chat" || pathname.startsWith("/chat/"))}`}
             >
               <MessageCircle className="w-4 h-4" /> Team Chat
-              {(pathname === "/team-chat" || pathname.startsWith("/chat/")) && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-orange-500 rounded-full" />}
             </Link>
           )}
 
@@ -202,13 +195,9 @@ export default function Navbar() {
           {userLoaded && user && !isAdmin && (
             <Link
               href={user.role === 'business' ? "/dashboard/business" : "/register-business"}
-              className={`hover:text-orange-500 transition-colors relative py-1 ${pathname === "/register-business" || pathname === "/dashboard/business" ? "text-orange-500" : ""
-                }`}
+              className={`whitespace-nowrap rounded-lg px-3 py-2 transition ${navTabClass(pathname === "/register-business" || pathname === "/dashboard/business")}`}
             >
               {user.role === 'business' ? "Business Dashboard" : "Register Business"}
-              {(pathname === "/register-business" || pathname === "/dashboard/business") && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-orange-500 rounded-full" />
-              )}
             </Link>
           )}
 
@@ -216,8 +205,7 @@ export default function Navbar() {
           {isAdmin && (
             <Link
               href="/admin"
-              className={`hover:text-orange-500 transition-colors flex items-center gap-1 ${pathname.startsWith("/admin") ? "text-orange-500" : ""
-                }`}
+              className={`flex items-center gap-1 whitespace-nowrap rounded-lg px-3 py-2 transition ${navTabClass(pathname.startsWith("/admin"))}`}
             >
               <ShieldCheck className="w-4 h-4" />
               Admin
@@ -226,16 +214,17 @@ export default function Navbar() {
 
           {/* Feedback and Notifications — logged-in users only */}
           {userLoaded && user && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 pl-1">
               <NotificationBell className={textColor} />
               <button
                 type="button"
                 onClick={() => setFeedbackOpen(true)}
-                className={`hover:text-orange-500 transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-transparent hover:border-orange-200 hover:bg-orange-50/50 ${textColor}`}
+                className={`flex items-center gap-1.5 rounded-lg px-2.5 py-2 transition hover:bg-white/70 ${textColor}`}
+                aria-label="Send Feedback"
                 title="Send Feedback"
               >
                 <MessageSquare className="w-4 h-4" />
-                Feedback
+                <span className="hidden 2xl:inline">Feedback</span>
               </button>
             </div>
           )}
@@ -248,7 +237,7 @@ export default function Navbar() {
                   {renderAvatarButton()}
                   {/* Dropdown */}
                   {avatarMenuOpen && (
-                    <div className="absolute right-0 top-12 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                    <div className="absolute right-0 top-12 z-50 w-60 rounded-xl border border-slate-200 bg-white py-2 shadow-xl animate-in fade-in slide-in-from-top-2 duration-150">
                       <div className="px-4 py-3 border-b border-slate-100">
                         <p className="text-sm font-semibold text-slate-900 truncate">
                           {user.full_name || "Traveler"}
@@ -287,28 +276,29 @@ export default function Navbar() {
               ) : (
                 <AnimatedButton
                   href="/login"
-                  className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2.5 rounded-full shadow-lg hover:shadow-orange-500/30 font-semibold text-sm"
+                  className="rounded-lg bg-orange-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-orange-700"
                 >
                   Sign In
                 </AnimatedButton>
               )}
             </>
           )}
-        </div>
+          </div>
 
-        {/* Mobile Menu Button + Notification */}
-        <div className="md:hidden flex items-center gap-2">
+          {/* Mobile Menu Button + Notification */}
+          <div className="flex items-center gap-2 xl:hidden">
           {userLoaded && user && <NotificationBell className={textColor} />}
           <button
             type="button"
             onClick={() => setMobileOpen(!mobileOpen)}
-            className={`p-2 rounded-lg ${textColor}`}
+            className={`rounded-lg border p-2 transition ${hasSolidHeader ? "border-slate-200 hover:bg-slate-100" : "border-white/20 hover:bg-white/10"} ${textColor}`}
             aria-label="Toggle menu"
             aria-expanded={mobileOpen}
             aria-controls="mobile-navigation"
           >
             {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
+          </div>
         </div>
       </nav>
 
@@ -324,8 +314,8 @@ export default function Navbar() {
 
       {/* Mobile Menu Overlay */}
       {mobileOpen && (
-        <div id="mobile-navigation" className="fixed inset-0 z-40 overflow-y-auto bg-white flex flex-col pt-20 px-6 pb-6 md:hidden animate-in slide-in-from-top-2">
-          <div className="space-y-1">
+        <div id="mobile-navigation" className="fixed inset-0 z-40 flex flex-col overflow-y-auto bg-slate-50 px-4 pb-6 pt-21 xl:hidden animate-in slide-in-from-top-2">
+          <div className="mx-auto w-full max-w-lg space-y-1 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
             {navLinks.map((link) => {
               const isProfileComplete = hasCompleteProfile(user);
               const requiresAuth = false;
@@ -364,8 +354,8 @@ export default function Navbar() {
                   href={link.href}
                   onClick={handleRestrictedClick}
                   aria-current={pathname === link.href ? "page" : undefined}
-                  className={`block px-4 py-3 rounded-xl text-lg font-medium transition-colors ${pathname === link.href
-                      ? "bg-orange-50 text-orange-600"
+                  className={`block rounded-lg px-4 py-3 text-sm font-semibold transition-colors ${link.href === "/custom-trip" || link.href === "/buddy" ? "gt-nav-feature" : isNavActive(link.href)
+                      ? "bg-orange-50 text-orange-700 ring-1 ring-orange-200/70"
                       : "text-slate-700 hover:bg-slate-50"
                     } ${((!userLoaded || (requiresAuth && !user) || (user && !isProfileComplete)) && requiresProfile) ? "opacity-50" : ""}`}
                 >
@@ -378,7 +368,7 @@ export default function Navbar() {
               <Link
                 href="/team-chat"
                 onClick={() => setMobileOpen(false)}
-                className={`flex items-center gap-2 px-4 py-3 rounded-xl text-lg font-medium transition-colors ${pathname === "/team-chat" || pathname.startsWith("/chat/") ? "bg-orange-50 text-orange-600" : "text-slate-700 hover:bg-slate-50"}`}
+                className={`flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-semibold transition-colors ${pathname === "/team-chat" || pathname.startsWith("/chat/") ? "bg-orange-50 text-orange-700 ring-1 ring-orange-200/70" : "text-slate-700 hover:bg-slate-50"}`}
               >
                 <MessageCircle className="w-5 h-5" /> Team Chat
               </Link>
@@ -389,8 +379,8 @@ export default function Navbar() {
               <Link
                 href={user.role === 'business' ? "/dashboard/business" : "/register-business"}
                 onClick={() => setMobileOpen(false)}
-                className={`block px-4 py-3 rounded-xl text-lg font-medium transition-colors ${pathname === "/register-business" || pathname === "/dashboard/business"
-                    ? "bg-orange-50 text-orange-600"
+                className={`block rounded-lg px-4 py-3 text-sm font-semibold transition-colors ${pathname === "/register-business" || pathname === "/dashboard/business"
+                    ? "bg-orange-50 text-orange-700 ring-1 ring-orange-200/70"
                     : "text-slate-700 hover:bg-slate-50"
                   }`}
               >
@@ -403,8 +393,8 @@ export default function Navbar() {
               <Link
                 href="/admin"
                 onClick={() => setMobileOpen(false)}
-                className={`flex items-center gap-2 px-4 py-3 rounded-xl text-lg font-medium transition-colors ${pathname.startsWith("/admin")
-                    ? "bg-orange-50 text-orange-600"
+                className={`flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-semibold transition-colors ${pathname.startsWith("/admin")
+                    ? "bg-orange-50 text-orange-700 ring-1 ring-orange-200/70"
                     : "text-slate-700 hover:bg-slate-50"
                   }`}
               >
@@ -418,7 +408,7 @@ export default function Navbar() {
               <button
                 type="button"
                 onClick={() => { setMobileOpen(false); setFeedbackOpen(true); }}
-                className="flex items-center gap-2 px-4 py-3 rounded-xl text-lg font-medium text-slate-700 hover:bg-slate-50 transition-colors w-full text-left"
+                className="flex w-full items-center gap-2 rounded-lg px-4 py-3 text-left text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
               >
                 <MessageSquare className="w-5 h-5" />
                 Feedback
@@ -426,12 +416,12 @@ export default function Navbar() {
             )}
           </div>
 
-          <div className="mt-6 pt-6 border-t border-slate-100">
+          <div className="mx-auto mt-4 w-full max-w-lg border-t border-slate-200 pt-4">
             {user ? (
               <>
                 {/* User info row */}
-                <div className="flex items-center gap-3 px-4 py-3 mb-2 bg-slate-50 rounded-xl">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-rose-500 flex items-center justify-center text-white font-bold text-sm overflow-hidden">
+                <div className="mb-3 flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
+                  <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-orange-600 text-sm font-bold text-white">
                     {user.avatar_url && !avatarFailed ? (
                       <img
                         src={user.avatar_url}
@@ -451,7 +441,7 @@ export default function Navbar() {
                 <Link
                   href="/dashboard"
                   onClick={() => setMobileOpen(false)}
-                  className="block w-full text-center bg-orange-500 hover:bg-orange-600 text-white px-6 py-3.5 rounded-full font-semibold shadow-lg mb-2"
+                  className="mb-2 block w-full rounded-lg bg-orange-600 px-6 py-3 text-center font-semibold text-white shadow-sm hover:bg-orange-700"
                 >
                   My Dashboard
                 </Link>
@@ -459,7 +449,7 @@ export default function Navbar() {
                   onClick={() => { setMobileOpen(false); handleSignOut(); }}
                   type="button"
                   disabled={signingOut}
-                  className="block w-full text-center border border-rose-200 text-rose-600 px-6 py-3 rounded-full font-semibold"
+                  className="block w-full rounded-lg border border-rose-200 bg-white px-6 py-3 text-center font-semibold text-rose-700 hover:bg-rose-50"
                 >
                   {signingOut ? "Signing out…" : "Sign Out"}
                 </button>
@@ -468,7 +458,7 @@ export default function Navbar() {
               <Link
                 href="/login"
                 onClick={() => setMobileOpen(false)}
-                className="block w-full text-center bg-orange-500 hover:bg-orange-600 text-white px-6 py-3.5 rounded-full font-semibold shadow-lg"
+                className="block w-full rounded-lg bg-orange-600 px-6 py-3 text-center font-semibold text-white shadow-sm hover:bg-orange-700"
               >
                 Sign In
               </Link>

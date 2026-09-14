@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
 import crypto from 'node:crypto';
+import { cache } from 'react';
 import { queryOne, run, ensureSchema } from './db';
 
 // ─── Password helpers (ASYNC — non-blocking, uses thread pool) ───
@@ -39,7 +40,7 @@ function scheduleCacheCleanup() {
 }
 
 /** Invalidate a specific session from cache */
-export function invalidateSessionCache(token: string) {
+function invalidateSessionCache(token: string) {
   sessionCache.delete(token);
 }
 
@@ -122,7 +123,7 @@ export async function createSession(userId: string): Promise<string> {
   return token;
 }
 
-export async function getSession(): Promise<SessionUser | null> {
+async function readSession(): Promise<SessionUser | null> {
   try {
     if (process.env.NODE_ENV === 'test' && (global as any).mockSessionUser) {
       return (global as any).mockSessionUser;
@@ -184,6 +185,10 @@ export async function getSession(): Promise<SessionUser | null> {
     return null;
   }
 }
+
+// A layout and its page often need the same session. React request memoization
+// keeps that to one cookie/cache/database read per server render.
+export const getSession = cache(readSession);
 
 export async function destroySession(): Promise<void> {
   const cookieStore = await cookies();

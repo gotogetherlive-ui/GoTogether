@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { X, MessageSquare, Send, Loader2, CheckCircle, AlertTriangle, Bug, MapPin, Compass, Sparkles } from "lucide-react";
+import { useState, useEffect, useRef, useCallback, type FormEvent } from "react";
+import { X, MessageSquare, Send, Loader2, CheckCircle, AlertTriangle, Bug, MapPin, Compass, Sparkles, Heart, Star } from "lucide-react";
 import { apiJson } from "@/lib/apiClient";
 
 const CATEGORIES = [
@@ -41,6 +41,18 @@ const CATEGORIES = [
     ring: "ring-orange-300",
     glow: "shadow-orange-500/20",
   },
+  {
+    value: "love",
+    label: "I Like GoTogether",
+    description: "Share what you enjoyed and rate us",
+    icon: Heart,
+    gradient: "from-pink-500 to-rose-600",
+    bg: "bg-pink-50",
+    border: "border-pink-200",
+    activeBg: "bg-pink-50",
+    ring: "ring-pink-300",
+    glow: "shadow-pink-500/20",
+  },
 ];
 
 interface FeedbackModalProps {
@@ -52,23 +64,31 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
   const [category, setCategory] = useState("");
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
+  const [rating, setRating] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
   const [visible, setVisible] = useState(false);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setVisible(false);
-    setTimeout(() => {
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    closeTimerRef.current = setTimeout(() => {
       setCategory("");
       setSubject("");
       setDescription("");
+      setRating(0);
       setSubmitted(false);
       setError("");
       onClose();
     }, 200);
-  };
+  }, [onClose]);
+
+  useEffect(() => () => {
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+  }, []);
 
   // Animate entrance
   useEffect(() => {
@@ -78,7 +98,7 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
         closeButtonRef.current?.focus();
       });
     } else {
-      setVisible(false);
+      queueMicrotask(() => setVisible(false));
     }
   }, [isOpen]);
 
@@ -89,11 +109,13 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  });
+  }, [handleClose, isOpen]);
 
-  const isValid = category && subject.trim() && description.trim();
+  const isPraise = category === "love";
+  const isValid = Boolean(category && subject.trim() && description.trim() && (!isPraise || rating >= 1));
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     if (!isValid) return;
     setSubmitting(true);
     setError("");
@@ -101,7 +123,7 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
     try {
       await apiJson("/api/feedback", {
         method: "POST",
-        body: JSON.stringify({ category, subject: subject.trim(), description: description.trim() }),
+        body: JSON.stringify({ category, subject: subject.trim(), description: description.trim(), rating: isPraise ? rating : null }),
       }, { timeoutMs: 12000 });
 
       setSubmitted(true);
@@ -130,12 +152,12 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
       />
 
       {/* Modal */}
-      <div className="fixed inset-0 z-[101] flex items-center justify-center p-4">
+      <div className="gt-viewport-modal fixed inset-0 z-[101] flex items-center justify-center">
         <div
           role="dialog"
           aria-modal="true"
           aria-labelledby="feedback-dialog-title"
-          className={`bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto transition-all duration-300 ${
+          className={`gt-viewport-dialog w-full max-w-lg overflow-y-auto rounded-xl bg-white shadow-2xl transition-all duration-300 ${
             visible ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-95 translate-y-4"
           }`}
           onClick={(e) => e.stopPropagation()}
@@ -171,6 +193,7 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
             </div>
           </div>
 
+          <form onSubmit={handleSubmit}>
           {/* Body */}
           <div className="px-6 py-5 space-y-5">
             {submitted ? (
@@ -183,7 +206,7 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
                     <Sparkles className="w-4 h-4 text-amber-500" />
                   </div>
                 </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-2">Thank You! 🎉</h3>
+                <h3 className="text-xl font-bold text-slate-900 mb-2">Thank you!</h3>
                 <p className="text-slate-500 text-sm max-w-xs">
                   Your feedback has been submitted successfully. Our team will review it shortly.
                 </p>
@@ -195,7 +218,7 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
                   <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
                     What&apos;s this about? *
                   </label>
-                  <div className="space-y-2">
+                  <div className="grid gap-2 sm:grid-cols-2">
                     {CATEGORIES.map((cat) => {
                       const Icon = cat.icon;
                       const selected = category === cat.value;
@@ -203,7 +226,7 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
                         <button
                           key={cat.value}
                           type="button"
-                          onClick={() => setCategory(cat.value)}
+                          onClick={() => { setCategory(cat.value); setError(""); if (cat.value !== "love") setRating(0); }}
                           className={`w-full flex items-center gap-3.5 p-4 rounded-2xl border text-left transition-all duration-300 group ${
                             selected
                               ? `${cat.activeBg} ${cat.border} ring-2 ${cat.ring} shadow-md ${cat.glow}`
@@ -213,7 +236,7 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
                           <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 ${
                             selected
                               ? `bg-gradient-to-br ${cat.gradient} text-white shadow-lg ${cat.glow}`
-                              : `${cat.bg} group-hover:scale-110`
+                              : `${cat.bg} `
                           }`}>
                             <Icon className={`w-5 h-5 ${selected ? "text-white" : "text-slate-500"}`} />
                           </div>
@@ -225,7 +248,7 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
                           </div>
                           {selected && (
                             <div className="ml-auto">
-                              <CheckCircle className={`w-5 h-5 ${cat.value === 'technical' ? 'text-red-500' : cat.value === 'trip' ? 'text-blue-500' : 'text-orange-500'}`} />
+                              <CheckCircle className={`w-5 h-5 ${cat.value === 'technical' ? 'text-red-500' : cat.value === 'trip' ? 'text-blue-500' : cat.value === 'love' ? 'text-pink-500' : 'text-orange-500'}`} />
                             </div>
                           )}
                         </button>
@@ -234,16 +257,32 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
                   </div>
                 </div>
 
+                {isPraise && (
+                  <fieldset className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 p-4 text-center">
+                    <legend className="px-2 text-xs font-bold uppercase tracking-wider text-amber-800">How much do you like GoTogether? *</legend>
+                    <div className="mt-2 flex justify-center gap-1" role="radiogroup" aria-label="GoTogether rating">
+                      {[1, 2, 3, 4, 5].map((value) => (
+                        <button key={value} type="button" role="radio" aria-checked={rating === value} aria-label={`${value} star${value === 1 ? "" : "s"}`} onClick={() => { setRating(value); setError(""); }} className="rounded-xl p-1.5 transition hover:-translate-y-0.5 hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500">
+                          <Star className={`h-8 w-8 transition ${value <= rating ? "fill-amber-400 text-amber-500 drop-shadow-sm" : "text-amber-200 hover:text-amber-300"}`} />
+                        </button>
+                      ))}
+                    </div>
+                    <p aria-live="polite" className="mt-2 text-sm font-semibold text-amber-900">{rating ? ["", "Needs improvement", "It was okay", "Good experience", "Really enjoyed it", "Absolutely loved it"][rating] : "Select a rating"}</p>
+                  </fieldset>
+                )}
+
                 {/* Subject */}
                 <div>
-                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                  <label htmlFor="feedback-subject" className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
                     Subject *
                   </label>
                   <input
+                    id="feedback-subject"
+                    name="feedback-subject"
                     type="text"
                     value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
-                    placeholder="Brief summary of the issue"
+                    onChange={(e) => { setSubject(e.target.value); setError(""); }}
+                    placeholder={isPraise ? "What did you like most?" : "Brief summary of the issue"}
                     maxLength={150}
                     className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none text-slate-900 font-medium transition-all duration-300 text-sm hover:border-slate-300"
                   />
@@ -256,16 +295,24 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
 
                 {/* Description */}
                 <div>
-                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                  <label htmlFor="feedback-description" className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
                     Description *
                   </label>
                   <textarea
+                    id="feedback-description"
+                    name="feedback-description"
                     value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Please describe the issue in detail..."
+                    onChange={(e) => { setDescription(e.target.value); setError(""); }}
+                    placeholder={isPraise ? "Tell us what made your experience enjoyable..." : "Please describe the issue in detail..."}
                     rows={4}
+                    maxLength={5000}
                     className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none text-slate-900 font-medium transition-all duration-300 resize-none text-sm hover:border-slate-300"
                   />
+                  <div className="mt-1 flex justify-end">
+                    <span className={`text-[10px] font-medium transition-colors ${description.length > 4500 ? "text-amber-500" : "text-slate-300"}`}>
+                      {description.length}/5000
+                    </span>
+                  </div>
                 </div>
 
                 {/* Error */}
@@ -290,8 +337,7 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
                 Cancel
               </button>
               <button
-                type="button"
-                onClick={handleSubmit}
+                type="submit"
                 disabled={!isValid || submitting}
                 className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-white text-sm font-bold transition-all duration-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none ${
                   selectedCat
@@ -308,6 +354,7 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
               </button>
             </div>
           )}
+          </form>
         </div>
       </div>
     </>

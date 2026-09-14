@@ -3,7 +3,7 @@ import { getSession } from '@/lib/auth';
 import { queryOne, run } from '@/lib/db';
 import { isAdminUser } from '@/lib/admin';
 
-export async function GET(request: Request, context: any) {
+export async function GET(_request: Request, context: RouteContext<"/api/admin/feedbacks/[id]">) {
   try {
     const user = await getSession();
     if (!user || !(await isAdminUser(user))) {
@@ -13,7 +13,7 @@ export async function GET(request: Request, context: any) {
     const { id } = await context.params;
 
     const feedback = await queryOne(`
-      SELECT f.id, f.category, f.subject, f.description, f.status, f.created_at,
+      SELECT f.id, f.category, f.subject, f.description, f.rating, f.status, f.created_at,
              u.id as user_id, u.full_name as user_name, u.email as user_email, 
              u.phone_number as user_phone, u.age as user_age, u.gender as user_gender,
              u.avatar_url as user_avatar
@@ -33,7 +33,7 @@ export async function GET(request: Request, context: any) {
   }
 }
 
-export async function PATCH(request: Request, context: any) {
+export async function PATCH(request: Request, context: RouteContext<"/api/admin/feedbacks/[id]">) {
   try {
     const user = await getSession();
     if (!user || !(await isAdminUser(user))) {

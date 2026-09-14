@@ -207,7 +207,7 @@ export default function AdminRetentionPage() {
           <button
             onClick={handleRunNow}
             disabled={running || activeRulesCount === 0}
-            className="flex items-center gap-2 bg-gradient-to-br from-indigo-500 to-violet-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-md shadow-indigo-500/20 hover:shadow-indigo-500/40 hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none"
+            className="flex items-center gap-2 bg-gradient-to-br from-indigo-500 to-violet-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-md shadow-indigo-500/20 hover:shadow-indigo-500/40  transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none"
           >
             {running ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 fill-current" />}
             {running ? "Executing..." : "Run Active Rules Now"}
@@ -371,7 +371,7 @@ export default function AdminRetentionPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1.5">Rule Name</label>
-                  <input
+                  <input aria-label={'Campaign Name'} name="campaign-name"
                     required
                     type="text"
                     value={formData.name}
@@ -382,7 +382,7 @@ export default function AdminRetentionPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1.5">Inactive Days Threshold</label>
-                  <input
+                  <input aria-label={'Inactive Days'} name="inactive-days"
                     required
                     type="number"
                     min="1"
@@ -395,8 +395,8 @@ export default function AdminRetentionPage() {
 
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1.5">Email Subject</label>
-                <input
-                  required
+                  <input aria-label={'Email Subject'} name="email-subject"
+                    required
                   type="text"
                   value={formData.subject}
                   onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
@@ -408,8 +408,8 @@ export default function AdminRetentionPage() {
 
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1.5">Email Body (HTML)</label>
-                <textarea
-                  required
+                  <textarea aria-label={'Email Body'} name="email-body"
+                    required
                   rows={8}
                   value={formData.body_html}
                   onChange={(e) => setFormData({ ...formData, body_html: e.target.value })}

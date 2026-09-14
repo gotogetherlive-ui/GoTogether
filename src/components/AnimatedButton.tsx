@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { ReactNode } from "react";
+import { ReactNode, type MouseEventHandler } from "react";
 
 interface AnimatedButtonProps {
   href?: string;
-  onClick?: (e: any) => void;
+  onClick?: MouseEventHandler<HTMLButtonElement | HTMLAnchorElement>;
   children: ReactNode;
   className?: string;
   title?: string;
@@ -17,34 +17,9 @@ export default function AnimatedButton({ href, onClick, children, className = ""
   const hasDisplayClass = /\b(flex|inline-flex|block|inline-block|grid|inline-grid|hidden)\b/.test(className);
   const displayClass = hasDisplayClass ? "" : "inline-block";
 
-  const innerClass = `${displayClass} ${className} transition-transform duration-200 ${disabled ? "opacity-60 cursor-not-allowed" : "hover:scale-105 hover:-translate-y-0.5 active:scale-95 active:translate-y-0.5"}`;
-
-  const inner = (
-    <div
-      className={innerClass}
-      onClick={disabled ? undefined : onClick}
-      title={title}
-    >
-      {children}
-    </div>
-  );
-
+  const buttonClass = `${displayClass} ${className} transition-colors duration-150 ${disabled ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`;
   if (href && !disabled) {
-    return (
-      <Link href={href} className={displayClass || "block"}>
-        {inner}
-      </Link>
-    );
+    return <Link href={href} onClick={onClick} className={buttonClass} title={title}>{children}</Link>;
   }
-
-  return (
-    <button
-      type={type}
-      disabled={disabled}
-      className="inline-block p-0 bg-transparent border-none cursor-pointer disabled:cursor-not-allowed w-full text-left"
-      title={title}
-    >
-      {inner}
-    </button>
-  );
+  return <button type={type} disabled={disabled} onClick={onClick} className={buttonClass} title={title}>{children}</button>;
 }

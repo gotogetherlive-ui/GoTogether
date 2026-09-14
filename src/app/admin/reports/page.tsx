@@ -2,9 +2,10 @@
 
 import {
   CheckCircle, AlertTriangle, Loader2, MessageSquare, X,
-  Bug, MapPin, Compass, Clock, User, Mail, Phone, RefreshCw,
+  Bug, MapPin, Compass, Clock, User, Mail, Phone, RefreshCw, Heart, Star,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import Image from "next/image";
 
 /* ────── Feedback Types ────── */
 interface FeedbackData {
@@ -12,6 +13,7 @@ interface FeedbackData {
   category: string;
   subject: string;
   description: string;
+  rating: number | null;
   status: string;
   created_at: string;
   user_name: string;
@@ -24,6 +26,7 @@ interface FeedbackDetail {
   category: string;
   subject: string;
   description: string;
+  rating: number | null;
   status: string;
   created_at: string;
   user_id: string;
@@ -63,6 +66,15 @@ const CATEGORY_CONFIG: Record<string, { label: string; icon: typeof Bug; gradien
     text: "text-orange-600",
     border: "border-orange-200",
     glow: "shadow-orange-500/20",
+  },
+  love: {
+    label: "Loved GoTogether",
+    icon: Heart,
+    gradient: "from-pink-500 to-rose-600",
+    bg: "bg-pink-50",
+    text: "text-pink-600",
+    border: "border-pink-200",
+    glow: "shadow-pink-500/20",
   },
 };
 
@@ -119,7 +131,16 @@ export default function AdminFeedbackPage() {
   };
 
   useEffect(() => {
-    fetchFeedbacks();
+    const controller = new AbortController();
+    fetch("/api/admin/feedbacks", { signal: controller.signal, cache: "no-store" })
+      .then((response) => {
+        if (!response.ok) throw new Error("Failed to fetch feedbacks");
+        return response.json();
+      })
+      .then((data) => setFeedbacks(data.feedbacks || []))
+      .catch(() => { if (!controller.signal.aborted) setFeedbacksError("Failed to load feedbacks"); })
+      .finally(() => { if (!controller.signal.aborted) setFeedbacksLoading(false); });
+    return () => controller.abort();
   }, []);
 
   /* ── Open Feedback Detail ── */
@@ -181,7 +202,7 @@ export default function AdminFeedbackPage() {
   return (
     <div>
       {/* ─── Header ─── */}
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-wrap justify-between items-center gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Feedback Management</h1>
           <p className="text-sm text-slate-500 mt-1">Review and manage user feedback submissions</p>
@@ -254,12 +275,12 @@ export default function AdminFeedbackPage() {
                 <div
                   key={fb.id}
                   onClick={() => openFeedbackDetail(fb.id)}
-                  className={`group bg-white rounded-2xl p-5 shadow-sm border transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 cursor-pointer ${catConfig.border} hover:${catConfig.border}`}
+                  className={`group bg-white rounded-2xl p-5 shadow-sm border transition-all duration-300 hover:shadow-lg  cursor-pointer ${catConfig.border} hover:${catConfig.border}`}
                   style={{ animationDelay: `${idx * 30}ms` }}
                 >
                   <div className="flex items-start gap-4">
                     {/* Category Icon */}
-                    <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${catConfig.gradient} flex items-center justify-center text-white shadow-lg ${catConfig.glow} flex-shrink-0 group-hover:scale-110 transition-transform duration-300`}>
+                    <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${catConfig.gradient} flex items-center justify-center text-white shadow-lg ${catConfig.glow} flex-shrink-0  transition-transform duration-300`}>
                       <CatIcon className="w-5 h-5" />
                     </div>
 
@@ -269,6 +290,7 @@ export default function AdminFeedbackPage() {
                         <div className="min-w-0">
                           <h3 className="font-semibold text-slate-900 truncate group-hover:text-orange-600 transition-colors">{fb.subject}</h3>
                           <p className="text-sm text-slate-500 mt-0.5 line-clamp-1">{fb.description}</p>
+                          {fb.rating && <span className="mt-2 inline-flex items-center gap-0.5 rounded-full bg-amber-50 px-2.5 py-1 text-amber-600" aria-label={`${fb.rating} out of 5 stars`}>{[1, 2, 3, 4, 5].map((value) => <Star key={value} className={`h-3.5 w-3.5 ${value <= fb.rating! ? "fill-current" : "text-amber-200"}`} />)}<b className="ml-1 text-[10px]">{fb.rating}/5</b></span>}
                         </div>
                         <span className={`flex-shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                           fb.status === "pending"
@@ -319,7 +341,7 @@ export default function AdminFeedbackPage() {
           {/* Modal */}
           <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 animate-in fade-in zoom-in-95 duration-300">
             <div
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto"
+              className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
               {detailLoading ? (
@@ -333,7 +355,7 @@ export default function AdminFeedbackPage() {
                 return (
                   <>
                     {/* Header Gradient */}
-                    <div className={`relative h-20 bg-gradient-to-r ${catConfig.gradient} rounded-t-3xl`}>
+                    <div className={`relative h-20 bg-gradient-to-r ${catConfig.gradient} rounded-t-xl`}>
                       <button
                         onClick={() => setSelectedFeedback(null)}
                         className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-colors backdrop-blur-sm"
@@ -350,9 +372,9 @@ export default function AdminFeedbackPage() {
                     {/* Content */}
                     <div className="px-6 pt-10 pb-6">
                       {/* Category + Status */}
-                      <div className="flex items-center justify-between mb-3">
+                      <div className="flex flex-wrap items-center justify-between gap-4 mb-3">
                         <span className={`text-xs font-bold uppercase tracking-wider ${catConfig.text}`}>
-                          {catConfig.label} Issue
+                          {selectedFeedback.category === "love" ? catConfig.label : `${catConfig.label} Issue`}
                         </span>
                         <span className={`px-3 py-1 rounded-full text-xs font-bold ${
                           selectedFeedback.status === "pending"
@@ -365,6 +387,14 @@ export default function AdminFeedbackPage() {
 
                       {/* Subject */}
                       <h2 className="text-xl font-bold text-slate-900 mb-4">{selectedFeedback.subject}</h2>
+
+                      {selectedFeedback.rating && (
+                        <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-center">
+                          <p className="text-xs font-bold uppercase tracking-wider text-amber-700">GoTogether rating</p>
+                          <div className="mt-2 flex justify-center gap-1" aria-label={`${selectedFeedback.rating} out of 5 stars`}>{[1, 2, 3, 4, 5].map((value) => <Star key={value} className={`h-6 w-6 ${value <= selectedFeedback.rating! ? "fill-amber-400 text-amber-500" : "text-amber-200"}`} />)}</div>
+                          <p className="mt-2 text-sm font-bold text-amber-900">{selectedFeedback.rating} out of 5</p>
+                        </div>
+                      )}
 
                       {/* Description */}
                       <div className="bg-slate-50 rounded-2xl p-4 mb-5 border border-slate-100">
@@ -380,9 +410,9 @@ export default function AdminFeedbackPage() {
                           Submitted By
                         </h4>
                         <div className="flex items-center gap-3 mb-3">
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-rose-500 flex items-center justify-center text-white font-bold text-sm overflow-hidden">
+                          <div className="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center text-white font-bold text-sm overflow-hidden">
                             {selectedFeedback.user_avatar ? (
-                              <img src={selectedFeedback.user_avatar} alt="" className="w-full h-full object-cover" />
+                              <Image src={selectedFeedback.user_avatar} alt="" width={40} height={40} className="w-full h-full object-cover" />
                             ) : (
                               initial
                             )}

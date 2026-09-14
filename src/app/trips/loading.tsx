@@ -16,7 +16,7 @@ export default function TripsLoading() {
         {/* Cards grid skeleton */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="bg-white rounded-3xl overflow-hidden shadow-sm border border-slate-100 animate-pulse">
+            <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm border border-slate-100 animate-pulse">
               <div className="h-52 bg-slate-200" />
               <div className="p-5 space-y-3">
                 <div className="h-5 bg-slate-200 rounded-lg w-3/4" />

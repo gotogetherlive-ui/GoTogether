@@ -113,7 +113,7 @@ export default function OrganizerDashboard() {
       <div className="flex items-center justify-center py-20 min-h-[60vh]">
         <div className="flex flex-col items-center gap-4">
           <div className="relative">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-orange-400 to-rose-500 animate-pulse" />
+            <div className="w-16 h-16 rounded-2xl bg-slate-900 animate-pulse" />
             <Loader2 className="w-8 h-8 text-white animate-spin absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
           </div>
           <p className="text-slate-500 font-medium">Loading your trips...</p>
@@ -123,26 +123,27 @@ export default function OrganizerDashboard() {
   }
 
   return (
-    <div className="space-y-8 max-w-5xl mx-auto pt-8 pb-20 px-4">
+    <div className="mx-auto max-w-6xl space-y-6 px-4 pb-20 pt-8 md:px-6">
       {/* Back Link */}
       <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-orange-500 transition-colors group">
         <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> Back to Profile
       </Link>
 
       {/* Hero Header with Stats */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-orange-500 via-rose-500 to-pink-500 p-8 md:p-10 text-white shadow-xl shadow-orange-500/20">
+      <header className="gt-hero-panel relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
         {/* Decorative elements */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
+        <div className="hidden" />
+        <div className="hidden" />
 
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-              <Heart className="w-6 h-6" />
+            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-orange-50 text-orange-700">
+              <Heart className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">Organizer Dashboard</h1>
-              <p className="text-white/70 mt-0.5">Manage your buddy trips and incoming requests</p>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-orange-700">Buddy trip operations</p>
+              <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-950 md:text-4xl">Organizer dashboard</h1>
+              <p className="mt-1 text-slate-600">Manage published plans and incoming traveler requests.</p>
             </div>
           </div>
 
@@ -154,30 +155,30 @@ export default function OrganizerDashboard() {
               { label: "Pending", value: pendingRequests, icon: Clock },
               { label: "Accepted", value: acceptedRequests, icon: CheckCircle },
             ].map((stat) => (
-              <div key={stat.label} className="bg-white/15 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
+              <div key={stat.label} className="gt-panel rounded-xl border border-slate-200 bg-white/80 p-4">
                 <div className="flex items-center gap-2 mb-1">
-                  <stat.icon className="w-4 h-4 text-white/70" />
-                  <span className="text-xs font-semibold text-white/70 uppercase tracking-wider">{stat.label}</span>
+                  <stat.icon className="w-4 h-4 text-slate-500" />
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">{stat.label}</span>
                 </div>
-                <p className="text-2xl font-extrabold">{stat.value}</p>
+                <p className="text-2xl font-bold text-slate-950">{stat.value}</p>
               </div>
             ))}
           </div>
         </div>
-      </div>
+      </header>
 
       {/* Trip List */}
       {trips.length === 0 ? (
-        <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="text-center py-16 px-8">
-            <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-orange-100 to-rose-100 flex items-center justify-center mx-auto mb-6">
-              <MapPin className="w-10 h-10 text-orange-400" />
+            <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-xl bg-orange-50">
+              <MapPin className="w-7 h-7 text-orange-600" />
             </div>
             <h3 className="text-2xl font-bold text-slate-900 mb-2">No trips yet</h3>
             <p className="text-slate-500 mb-8 max-w-sm mx-auto">Create your first buddy trip plan and start connecting with like-minded travelers.</p>
             <button
               onClick={() => router.push('/buddy')}
-              className="bg-gradient-to-r from-orange-500 to-rose-500 text-white px-8 py-3.5 rounded-2xl font-bold shadow-lg shadow-orange-500/25 hover:shadow-xl hover:shadow-orange-500/30 hover:-translate-y-0.5 transition-all"
+              className="gt-primary-action rounded-xl px-6 py-3 font-bold transition"
             >
               Create a Trip Plan
             </button>
@@ -190,17 +191,17 @@ export default function OrganizerDashboard() {
             const isExpanded = expandedTrip === trip.id;
 
             return (
-              <div key={trip.id} className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-lg transition-shadow duration-300">
+              <div key={trip.id} className="gt-panel gt-card-lift overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                 {/* Trip Header */}
                 <div
-                  className="px-6 py-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 cursor-pointer"
+                  className="flex cursor-pointer flex-col items-start justify-between gap-4 px-4 py-5 sm:px-6 md:flex-row md:items-center"
                   onClick={() => setExpandedTrip(isExpanded ? null : trip.id)}
                 >
                   <div className="flex items-start gap-4 flex-1 min-w-0">
                     {/* Status Accent */}
-                    <div className={`w-1.5 h-16 rounded-full shrink-0 hidden md:block ${trip.status === 'live' ? 'bg-gradient-to-b from-emerald-400 to-emerald-500' :
-                        trip.status === 'pending' ? 'bg-gradient-to-b from-amber-400 to-amber-500' :
-                          'bg-gradient-to-b from-rose-400 to-rose-500'
+                    <div className={`hidden h-16 w-1 shrink-0 rounded-full md:block ${trip.status === 'live' ? 'bg-emerald-500' :
+                        trip.status === 'pending' ? 'bg-amber-500' :
+                          'bg-rose-500'
                       }`} />
 
                     <div className="flex-1 min-w-0">
@@ -279,10 +280,10 @@ export default function OrganizerDashboard() {
                     ) : (
                       <div className="space-y-3">
                         {trip.requests.map(req => (
-                          <div key={req.id} className="flex flex-col md:flex-row items-start md:items-center justify-between p-4 rounded-2xl bg-gradient-to-r from-slate-50/80 to-white border border-slate-100 hover:border-slate-200 hover:shadow-sm transition-all gap-4">
+                          <div key={req.id} className="flex flex-col items-start justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 transition hover:bg-white md:flex-row md:items-center">
                             <div className="flex items-center gap-4">
                               {/* Avatar */}
-                              <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-400 to-rose-500 flex items-center justify-center text-white font-bold text-lg overflow-hidden shrink-0 shadow-md shadow-orange-500/20">
+                              <div className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-slate-800 text-base font-bold text-white">
                                 {req.avatar_url ? (
                                   <img src={req.avatar_url} className="w-full h-full object-cover" alt="" />
                                 ) : (

@@ -26,7 +26,7 @@ export async function POST(
     const result = await transaction(async (client) => {
       // 1. Lock trip and verify owner/status
       // Use pg_advisory_xact_lock to prevent concurrent cancellation operations on the same trip
-      await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [tripId]);
+      await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))", [tripId]);
 
       const trip = await client.query(
         `SELECT id, organizer_id, status, title FROM public.trips WHERE id = $1 FOR UPDATE`,
@@ -70,7 +70,7 @@ export async function POST(
       await client.query(
         `SELECT id FROM public.trip_bookings 
          WHERE trip_id = $1 
-           AND booking_status IN ('confirmed', 'payment_processing', 'refund_pending')
+           AND booking_status IN ('confirmed', 'pending_payment', 'payment_processing', 'refund_pending')
            AND cancelled_at IS NULL
          FOR UPDATE`,
         [tripId]
@@ -78,12 +78,15 @@ export async function POST(
 
       const bookings = await client.query(
         `SELECT b.id, b.user_id, b.amount, b.booking_ref,
-                pt.transaction_id, pt.provider, pt.provider_payment_id, po.provider_account_id
+                pt.transaction_id, pt.provider, pt.provider_payment_id, pt.provider_account_id
          FROM public.trip_bookings b
-         LEFT JOIN payments.orders po ON po.booking_id = b.id
-         LEFT JOIN payments.transactions pt ON pt.order_id = po.id AND pt.status = 'SUCCESS'
+         LEFT JOIN LATERAL (
+           SELECT tx.transaction_id, tx.provider, tx.provider_payment_id, po.provider_account_id
+           FROM payments.orders po JOIN payments.transactions tx ON tx.order_id = po.id AND tx.status = 'SUCCESS'
+           WHERE po.booking_id = b.id ORDER BY tx.paid_at DESC NULLS LAST, tx.created_at DESC LIMIT 1
+         ) pt ON TRUE
          WHERE b.trip_id = $1 
-           AND b.booking_status IN ('confirmed', 'payment_processing', 'refund_pending')
+           AND b.booking_status IN ('confirmed', 'pending_payment', 'payment_processing', 'refund_pending')
            AND b.cancelled_at IS NULL`,
         [tripId]
       ).then(res => res.rows);
@@ -98,13 +101,13 @@ export async function POST(
         await client.query(
           `UPDATE public.trip_bookings
            SET booking_status = 'trip_cancelled',
-               payment_status = 'refund_pending',
+               payment_status = CASE WHEN $2::boolean THEN 'refund_pending' ELSE 'unpaid' END,
                cancelled_at = NOW(),
                cancel_reason = 'ORGANIZER_CANCELLED_TRIP',
                status = 'rejected',
                user_notification_seen = 0
            WHERE id = $1`,
-          [booking.id]
+          [booking.id, Boolean(booking.transaction_id)]
         );
 
         // Invalidate tickets

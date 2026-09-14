@@ -1,18 +1,26 @@
-import type { Metadata } from "next";
+import ChatMessageToasts from "@/components/ChatMessageToasts";
+import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import Script from "next/script";
+import { Suspense } from "react";
 import "./globals.css";
 import { getAppSettings } from "@/lib/settings";
 import SessionProvider from "@/components/SessionProvider";
 import MaintenanceGuard from "@/components/MaintenanceGuard";
 import TermsAcceptanceGate from "@/components/TermsAcceptanceGate";
 import NetworkStatus from "@/components/NetworkStatus";
+import GoogleAnalytics from "@/components/GoogleAnalytics";
 
 import { getSession } from '@/lib/auth';
 import { isAdminUser } from '@/lib/admin';
-import { buildMetadata, organizationJsonLd, websiteJsonLd, safeJsonLd } from '@/lib/seo';
+import { buildMetadata } from '@/lib/seo';
+import { DEFAULT_GA_MEASUREMENT_ID, normalizeGoogleAnalyticsId } from '@/lib/analytics';
 
 export const metadata: Metadata = buildMetadata();
+export const viewport: Viewport = { themeColor: "#ea580c" };
+
+const GA_MEASUREMENT_ID = normalizeGoogleAnalyticsId(process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID)
+  || DEFAULT_GA_MEASUREMENT_ID;
 
 export default async function RootLayout({
   children,
@@ -60,31 +68,36 @@ export default async function RootLayout({
         <Script
           id="google-tag-library"
           nonce={nonce}
-          src="https://www.googletagmanager.com/gtag/js?id=G-23RKGDFD6H"
+          src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
           strategy="afterInteractive"
         />
-        <Script
+        <script
           id="google-tag-config"
           nonce={nonce}
-          strategy="afterInteractive"
-        >
-          {`
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{
+            __html: `
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
             gtag('js', new Date());
-            gtag('config', 'G-23RKGDFD6H');
-          `}
-        </Script>
-        <script
-          nonce={nonce}
-          suppressHydrationWarning
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: safeJsonLd([organizationJsonLd(), websiteJsonLd()]) }}
+            window.gtag = gtag;
+            gtag('config', '${GA_MEASUREMENT_ID}', {
+              send_page_view: false,
+              allow_google_signals: false,
+              allow_ad_personalization_signals: false,
+              cookie_flags: 'SameSite=None;Secure'
+            });
+          `,
+          }}
         />
+        <Suspense fallback={null}>
+          <GoogleAnalytics measurementId={GA_MEASUREMENT_ID} />
+        </Suspense>
         <SessionProvider serverUser={serverUser}>
           <MaintenanceGuard maintenanceMode={maintenanceMode}>
             <div id="main-content" tabIndex={-1} className="min-h-full flex-1 outline-none">
               {children}
+              <ChatMessageToasts />
             </div>
           </MaintenanceGuard>
           <TermsAcceptanceGate />

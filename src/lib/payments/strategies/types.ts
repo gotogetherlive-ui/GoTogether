@@ -32,6 +32,8 @@ export interface StrategyWebhookInput {
 }
 
 export interface StrategyRefundInput {
+  providerOrderId?: string;
+  idempotencyKey?: string;
   providerPaymentId: string;
   amount: number;
   notes: Record<string, string>;

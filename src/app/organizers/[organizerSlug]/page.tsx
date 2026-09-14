@@ -104,6 +104,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description: `View ${organizerName} trips on GoTogether. Compare upcoming group trips, destinations, prices, itineraries, reviews, policies, and verified organizer details.`,
     path: `/organizers/${resolved.canonicalSlug}`,
     image: organizer.avatar_url || undefined,
+    imageAlt: `${organizerName}, verified travel organizer on GoTogether`,
   });
 }
 
@@ -179,7 +180,7 @@ export default async function OrganizerPage({ params }: Props) {
       <Navbar />
       <main className="flex-1 pt-28 pb-20 px-6 md:px-12 max-w-6xl mx-auto w-full">
         <Link href="/organizers" className="text-sm font-semibold text-orange-600">All organizers</Link>
-        <h1 className="text-4xl md:text-6xl font-extrabold mt-4 mb-5">{organizer.full_name || "Verified Organizer"}</h1>
+        <h1 className="gt-page-title text-4xl md:text-6xl font-bold mt-4 mb-5">{organizer.full_name || "Verified Organizer"}</h1>
         <p className="text-lg text-slate-600 max-w-4xl mb-8">
           This public organizer profile shows verified marketplace information and live trips owned by this organizer. It does not show payment account details, dashboard data, private bookings, internal notes, or unpublished trips.
         </p>

@@ -78,7 +78,8 @@ async function cashfreeRequest(
   creds: CashfreeCredentials,
   method: string,
   path: string,
-  body?: unknown
+  body?: unknown,
+  idempotencyKey?: string,
 ): Promise<any> {
   const url = `${creds.baseUrl}${path}`;
   const headers: Record<string, string> = {
@@ -86,12 +87,14 @@ async function cashfreeRequest(
     "x-client-id": creds.appId,
     "x-client-secret": creds.secretKey,
     "x-api-version": creds.apiVersion,
+    ...(idempotencyKey ? { "x-idempotency-key": idempotencyKey } : {}),
   };
 
   const res = await fetch(url, {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
+    signal: AbortSignal.timeout(30000),
   });
 
   const data = await res.json();
@@ -194,7 +197,7 @@ export class CashfreeAdapter implements PaymentProviderAdapter {
     if (!secretKey) return false;
 
     // Cashfree webhook signature verification
-    const timestamp = input.headers.get("x-cashfree-timestamp") || "";
+    const timestamp = input.headers.get("x-webhook-timestamp") || "";
     const signPayload = timestamp + input.rawBody;
     const expected = crypto.createHmac("sha256", secretKey).update(signPayload).digest("base64");
 
@@ -211,14 +214,18 @@ export class CashfreeAdapter implements PaymentProviderAdapter {
 
   parseWebhook(rawBody: string, headers: Headers): ParsedWebhookPayment {
     const event = JSON.parse(rawBody);
-    const eventType = String(event.type || event.event || "PAYMENT_SUCCESS");
+    const nativeEventType = String(event.type || event.event || "unknown");
     const paymentData = event.data?.payment || event.data?.order?.payments?.[0] || event.payload?.payment?.entity;
     const orderData = event.data?.order;
     const refundData = event.data?.refund;
 
     return {
-      eventType,
-      providerEventId: headers.get("x-cashfree-event-id") || String(event.event_id || event.id || `${eventType}:${hashPayload(rawBody)}`),
+      eventType: nativeEventType === 'PAYMENT_SUCCESS_WEBHOOK' ? 'payment.captured'
+        : nativeEventType === 'REFUND_STATUS_WEBHOOK'
+          ? (refundData?.refund_status === 'SUCCESS' ? 'refund.processed'
+            : ['CANCELLED', 'FAILED'].includes(refundData?.refund_status) ? 'refund.failed' : 'refund.created')
+          : nativeEventType,
+      providerEventId: headers.get("x-cashfree-event-id") || String(event.event_id || event.id || `${nativeEventType}:${hashPayload(rawBody)}`),
       rawEvent: event,
       payment: (orderData?.order_id || paymentData?.cf_payment_id) ? {
         providerOrderId: orderData?.order_id || paymentData?.order_id || orderData?.cf_order_id || "",
@@ -246,19 +253,30 @@ export class CashfreeAdapter implements PaymentProviderAdapter {
 
     const creds = getCashfreeCredentials(input.providerAccount);
 
-    // Cashfree needs the order_id for refund, which we derive from the payment
+    if (!input.providerOrderId || !input.idempotencyKey) throw new Error("Refund requires order ID and idempotency key");
+
+    // Cashfree refunds are addressed by merchant order ID, not cf_payment_id.
     const refundPayload = {
       refund_amount: input.amount / 100, // Convert paise to rupees
-      refund_id: `ref_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+      refund_id: input.idempotencyKey,
       refund_note: input.notes?.reason || "Refund processed by GoTogether",
     };
 
-    // The providerPaymentId for Cashfree is actually the cf_order_id in our flow
-    const result = await cashfreeRequest(creds, "POST", `/orders/${input.providerPaymentId}/refunds`, refundPayload);
+    const result = await cashfreeRequest(creds, "POST", `/orders/${encodeURIComponent(input.providerOrderId)}/refunds`, refundPayload, input.idempotencyKey);
     return {
       status: result.refund_status === "SUCCESS" ? "SUCCESS" : "PENDING",
       refundId: String(result.cf_refund_id || result.refund_id),
     };
+  }
+
+  async fetchSuccessfulPayment(providerOrderId: string, providerAccount?: ProviderAccount | null) {
+    const creds = getCashfreeCredentials(providerAccount);
+    const payments = await cashfreeRequest(creds, "GET", `/orders/${encodeURIComponent(providerOrderId)}/payments`);
+    const payment = Array.isArray(payments) ? payments.find(p => p.payment_status === 'SUCCESS') : null;
+    if (!payment?.cf_payment_id) return null;
+    return { providerOrderId, providerPaymentId: String(payment.cf_payment_id),
+      amount: Math.round(Number(payment.payment_amount) * 100), currency: payment.payment_currency,
+      method: payment.payment_group || null, rawPayment: payment };
   }
 
   async fetchOrderStatus(providerOrderId: string, providerAccount?: ProviderAccount | null): Promise<{ status: PaymentStatus; raw: unknown } | null> {

@@ -100,13 +100,13 @@ export default function AdminUsersPage() {
   return (
     <div>
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">User Management</h1>
           <p className="text-sm text-slate-500 mt-1">Manage and monitor all registered users</p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white px-4 py-2 rounded-xl shadow-md shadow-blue-500/20 text-sm font-bold flex items-center gap-2">
+          <div className="bg-slate-800 text-white px-4 py-2 rounded-xl shadow-md shadow-blue-500/20 text-sm font-bold flex items-center gap-2">
             <Users className="w-4 h-4" />
             {users.length} Users
           </div>
@@ -124,8 +124,10 @@ export default function AdminUsersPage() {
       <div className="flex flex-col sm:flex-row gap-3 mb-5">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
-            type="text"
+            <input
+              name="user-search"
+              aria-label="Search users"
+              type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by name, email, or phone…"
@@ -160,7 +162,8 @@ export default function AdminUsersPage() {
         </div>
       ) : (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-          <div className="overflow-x-auto">
+          <p className="border-b border-slate-100 px-4 py-2 text-xs text-slate-500 sm:hidden">Swipe the table to see all details and actions.</p>
+          <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="User table">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-gradient-to-r from-slate-50 to-slate-100/50 border-b border-slate-100 text-xs font-bold text-slate-500 uppercase tracking-wider">
@@ -186,7 +189,7 @@ export default function AdminUsersPage() {
                       {/* User */}
                       <td className="p-4">
                         <div className="flex items-center gap-3">
-                          <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${roleGradient} text-white flex items-center justify-center text-sm font-bold flex-shrink-0 group-hover:scale-110 transition-transform duration-200`}>
+                          <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${roleGradient} text-white flex items-center justify-center text-sm font-bold flex-shrink-0  transition-transform duration-200`}>
                             {initial}
                           </div>
                           <div className="min-w-0">
@@ -238,7 +241,7 @@ export default function AdminUsersPage() {
                           {status === 'Pending' && (
                             <button
                               onClick={() => handleVerify(user.id)}
-                              className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all duration-200 hover:scale-110"
+                              className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all duration-200 "
                               title="Verify User"
                             >
                               <CheckCircle className="w-4 h-4" />
@@ -246,7 +249,7 @@ export default function AdminUsersPage() {
                           )}
                           <button
                             onClick={() => handleDelete(user.id)}
-                            className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-all duration-200 hover:scale-110"
+                            className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-all duration-200 "
                             title="Delete User"
                           >
                             <Trash2 className="w-4 h-4" />

@@ -82,7 +82,7 @@ export async function POST(request: Request, context: { params: Promise<{ provid
   }
 
   const webhookLogId = await logWebhook({ provider, eventType: parsed.eventType, providerEventId: parsed.providerEventId, payload: parsed.rawEvent, signature, responseStatus: 200, processed: false });
-  const eventClaim = await claimPaymentEvent({ provider, providerEventId: parsed.providerEventId, payloadHash: hashPayload(rawBody) });
+  const eventClaim = await claimPaymentEvent({ provider, providerEventId: parsed.providerEventId, payloadHash: hashPayload(rawBody), verifiedPayload: parsed });
   if (!eventClaim) {
     await logWebhook({ provider, eventType: parsed.eventType, providerEventId: parsed.providerEventId, payload: { duplicateOf: parsed.providerEventId, webhookLogId }, signature, responseStatus: 200, processed: true });
     return NextResponse.json({ status: 'duplicate_ignored' });

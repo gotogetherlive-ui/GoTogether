@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Headset, X, Send, Loader2, CheckCircle2 } from "lucide-react";
 import { useSession } from "@/components/SessionProvider";
@@ -12,10 +12,43 @@ export default function ContactSupportModal({ open, onClose, defaultCategory }: 
   const [error, setError] = useState("");
   const [mounted, setMounted] = useState(false);
   const { user } = useSession();
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!open || !mounted) return;
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    dialogRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setSuccess(false);
+        setError("");
+        onClose();
+      }
+      if (event.key !== "Tab") return;
+      const controls = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>('a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]') || []).filter(element => element.getClientRects().length > 0);
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (!first) { event.preventDefault(); return; }
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === dialogRef.current)) {
+        event.preventDefault(); last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault(); first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", onKeyDown);
+      previousFocus?.focus();
+    };
+  }, [open, mounted, onClose]);
 
   // Auto-fill user info from the shared session context when modal opens.
   useEffect(() => {
@@ -58,11 +91,11 @@ export default function ContactSupportModal({ open, onClose, defaultCategory }: 
   return createPortal(
     <>
       <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm animate-[fadeIn_0.2s_ease]" onClick={handleClose} />
-      <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 animate-[slideUp_0.3s_ease]">
-        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+      <div onClick={handleClose} className="gt-viewport-modal fixed inset-0 z-[101] flex items-center justify-center">
+        <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Contact Support" tabIndex={-1} className="gt-viewport-dialog w-full max-w-lg overflow-y-auto rounded-xl bg-white shadow-2xl" onClick={e => e.stopPropagation()}>
           {success ? (
             <div className="p-10 text-center">
-              <div className="w-20 h-20 rounded-3xl bg-emerald-100 flex items-center justify-center mx-auto mb-5">
+              <div className="w-20 h-20 rounded-xl bg-emerald-100 flex items-center justify-center mx-auto mb-5">
                 <CheckCircle2 className="w-10 h-10 text-emerald-500" />
               </div>
               <h3 className="text-2xl font-bold text-slate-900 mb-2">Thank You!</h3>
@@ -73,12 +106,12 @@ export default function ContactSupportModal({ open, onClose, defaultCategory }: 
             </div>
           ) : (
             <>
-              <div className="relative h-20 bg-gradient-to-r from-orange-500 to-rose-500 rounded-t-3xl">
-                <button onClick={handleClose} className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-colors backdrop-blur-sm">
+              <div className="relative h-20 bg-slate-900 rounded-t-xl">
+                <button type="button" aria-label="Close support dialog" onClick={handleClose} className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-colors backdrop-blur-sm">
                   <X className="w-4 h-4" />
                 </button>
                 <div className="absolute -bottom-6 left-6">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-rose-500 flex items-center justify-center text-white shadow-xl shadow-orange-500/20 border-4 border-white">
+                  <div className="w-12 h-12 rounded-xl bg-slate-900 flex items-center justify-center text-white shadow-xl shadow-orange-500/20 border-4 border-white">
                     <Headset className="w-6 h-6" />
                   </div>
                 </div>
@@ -95,25 +128,25 @@ export default function ContactSupportModal({ open, onClose, defaultCategory }: 
                 )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="text-xs font-semibold text-slate-600 mb-1 block">Full Name *</label>
-                    <input type="text" required value={form.full_name} onChange={e => setForm({...form, full_name: e.target.value})}
+                    <label htmlFor="support-full-name" className="text-xs font-semibold text-slate-600 mb-1 block">Full Name *</label>
+                    <input id="support-full-name" name="full-name" type="text" required value={form.full_name} onChange={e => setForm({...form, full_name: e.target.value})}
                       className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400 transition-all bg-slate-50/50" placeholder="Your full name" />
                   </div>
                   <div>
-                    <label className="text-xs font-semibold text-slate-600 mb-1 block">Email *</label>
-                    <input type="email" required value={form.email} onChange={e => setForm({...form, email: e.target.value})}
+                    <label htmlFor="support-email" className="text-xs font-semibold text-slate-600 mb-1 block">Email *</label>
+                    <input id="support-email" name="email" type="email" required value={form.email} onChange={e => setForm({...form, email: e.target.value})}
                       className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400 transition-all bg-slate-50/50" placeholder="your@email.com" />
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="text-xs font-semibold text-slate-600 mb-1 block">Phone (optional)</label>
-                    <input type="tel" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})}
+                    <label htmlFor="support-phone" className="text-xs font-semibold text-slate-600 mb-1 block">Phone (optional)</label>
+                    <input id="support-phone" name="phone" type="tel" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})}
                       className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400 transition-all bg-slate-50/50" placeholder="+91 XXXXX XXXXX" />
                   </div>
                   <div>
-                    <label className="text-xs font-semibold text-slate-600 mb-1 block">Category *</label>
-                    <select value={form.category} onChange={e => setForm({...form, category: e.target.value})}
+                    <label htmlFor="support-category" className="text-xs font-semibold text-slate-600 mb-1 block">Category *</label>
+                    <select id="support-category" name="support-category" value={form.category} onChange={e => setForm({...form, category: e.target.value})}
                       className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400 transition-all bg-slate-50/50">
                       <option value="general">General Inquiry</option>
                       <option value="safety">Safety Concern</option>
@@ -125,17 +158,17 @@ export default function ContactSupportModal({ open, onClose, defaultCategory }: 
                   </div>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-600 mb-1 block">Subject *</label>
-                  <input type="text" required value={form.subject} onChange={e => setForm({...form, subject: e.target.value})}
+                  <label htmlFor="support-subject" className="text-xs font-semibold text-slate-600 mb-1 block">Subject *</label>
+                  <input id="support-subject" name="subject" type="text" required value={form.subject} onChange={e => setForm({...form, subject: e.target.value})}
                     className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400 transition-all bg-slate-50/50" placeholder="Brief description of your issue" />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-600 mb-1 block">Message *</label>
-                  <textarea required rows={4} value={form.message} onChange={e => setForm({...form, message: e.target.value})}
+                  <label htmlFor="support-message" className="text-xs font-semibold text-slate-600 mb-1 block">Message *</label>
+                  <textarea id="support-message" name="message" required rows={4} value={form.message} onChange={e => setForm({...form, message: e.target.value})}
                     className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400 transition-all resize-none bg-slate-50/50" placeholder="Please describe your concern in detail..." />
                 </div>
                 <button type="submit" disabled={submitting}
-                  className="w-full py-3 rounded-xl text-sm font-bold bg-gradient-to-r from-orange-500 to-rose-500 text-white shadow-lg shadow-orange-500/30 hover:shadow-orange-500/40 hover:from-orange-600 hover:to-rose-600 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-60">
+                  className="w-full py-3 rounded-xl text-sm font-bold bg-slate-900 text-white shadow-lg shadow-orange-500/30 hover:shadow-orange-500/40 hover:bg-slate-700 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-60">
                   {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                   {submitting ? "Submitting..." : "Submit Request"}
                 </button>

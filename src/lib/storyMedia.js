@@ -1,6 +1,6 @@
-export const STORY_IMAGE_LIMIT = 5;
+const STORY_IMAGE_LIMIT = 5;
 export const STORY_IMAGE_MAX_BYTES = 3 * 1024 * 1024;
-export const STORY_IMAGE_MAX_URL_LENGTH = 2048;
+const STORY_IMAGE_MAX_URL_LENGTH = 2048;
 
 const ALLOWED_DATA_IMAGE_TYPES = new Set([
   "image/jpeg",
@@ -18,7 +18,7 @@ function estimateBase64Bytes(base64) {
   return Math.floor((base64.length * 3) / 4) - padding;
 }
 
-export function isSafeStoryRemoteImageUrl(value) {
+function isSafeStoryRemoteImageUrl(value) {
   if (typeof value !== "string" || value.length > STORY_IMAGE_MAX_URL_LENGTH) {
     return false;
   }
@@ -32,7 +32,7 @@ export function isSafeStoryRemoteImageUrl(value) {
   }
 }
 
-export function validateStoryImage(value, options = {}) {
+function validateStoryImage(value, options = {}) {
   if (isSafeStoryRemoteImageUrl(value)) {
     return { ok: true, value };
   }

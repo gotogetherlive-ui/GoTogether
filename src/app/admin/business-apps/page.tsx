@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Loader2, RefreshCw, CheckCircle, XCircle, Building2, User, Phone, MapPin, Mail, FileSignature, Download } from "lucide-react";
 import { downloadOrganizerAgreementPdf } from "@/lib/organizerAgreementPdf";
+import BusinessIntroductions from "./BusinessIntroductions";
 
 interface Application {
   id: string;
@@ -149,24 +150,39 @@ export default function BusinessAppsPage() {
   const processedApps = apps.filter(a => a.status !== "pending");
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-8">
+    <div className="space-y-6">
+      <header className="gt-hero-panel flex flex-col gap-4 rounded-2xl border p-6 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-            <Building2 className="w-6 h-6 text-orange-500" /> Business Applications
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-orange-700">Organizer onboarding</p>
+          <h1 className="flex items-center gap-2 text-3xl font-bold tracking-tight text-slate-950">
+            <Building2 className="w-6 h-6 text-slate-700" /> Business applications
           </h1>
-          <p className="text-slate-500 text-sm mt-1">Review and manage organizer requests</p>
+          <p className="mt-2 text-sm text-slate-600">Review identity, settlement details, and signed agreements.</p>
         </div>
         <button
           onClick={fetchApps}
-          className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg shadow-sm hover:text-orange-500 hover:border-orange-300 transition-colors"
+          className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
         >
           <RefreshCw className="w-4 h-4" /> Refresh
         </button>
+      </header>
+
+      <BusinessIntroductions />
+
+      <h2 className="text-xl font-bold text-slate-900">Full registration applications</h2>
+      <div className="grid grid-cols-2 gap-3 sm:max-w-md">
+        <div className="gt-panel rounded-xl border border-slate-200 bg-white p-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Awaiting review</p>
+          <p className="mt-1 text-2xl font-bold text-slate-950">{pendingApps.length}</p>
+        </div>
+        <div className="gt-panel rounded-xl border border-slate-200 bg-white p-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Processed</p>
+          <p className="mt-1 text-2xl font-bold text-slate-950">{processedApps.length}</p>
+        </div>
       </div>
 
       {pendingApps.length === 0 && processedApps.length === 0 ? (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-12 text-center">
+        <div className="rounded-xl border border-dashed border-slate-300 bg-white p-12 text-center">
           <Building2 className="w-12 h-12 text-slate-300 mx-auto mb-4" />
           <h3 className="text-lg font-bold text-slate-900">No applications yet</h3>
           <p className="text-slate-500 mt-1">When users apply to become businesses, they will appear here.</p>
@@ -193,7 +209,7 @@ export default function BusinessAppsPage() {
                 <div className="w-2 h-2 rounded-full bg-slate-300" />
                 Processed ({processedApps.length})
               </h2>
-              <div className="grid grid-cols-1 gap-4 opacity-75">
+              <div className="grid grid-cols-1 gap-4">
                 {processedApps.map(app => (
                   <AppCard key={app.id} app={app} onAction={handleAction} processingId={processingId} onPreviewPan={setPreviewUrl} onViewAgreement={openAgreement} agreementLoadingId={agreementLoadingId} />
                 ))}
@@ -205,7 +221,7 @@ export default function BusinessAppsPage() {
 
       {previewUrl && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
-          <div className="relative max-w-4xl max-h-[90vh] w-full bg-white rounded-3xl overflow-hidden p-6 flex flex-col items-center justify-center shadow-2xl border border-slate-100 animate-[scaleUp_0.3s_ease-out]">
+          <div className="relative flex max-h-[90vh] w-full max-w-4xl flex-col items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white p-6 shadow-2xl animate-[scaleUp_0.3s_ease-out]">
             <button
               onClick={() => setPreviewUrl(null)}
               className="absolute top-4 right-4 w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors cursor-pointer z-10 font-bold"
@@ -222,7 +238,7 @@ export default function BusinessAppsPage() {
             </div>
             <button
               onClick={() => setPreviewUrl(null)}
-              className="mt-4 px-6 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-semibold transition-colors shadow-lg shadow-orange-500/20 cursor-pointer"
+              className="gt-primary-action mt-4 cursor-pointer rounded-xl px-6 py-2.5 text-sm font-semibold"
             >
               Close Preview
             </button>
@@ -232,10 +248,10 @@ export default function BusinessAppsPage() {
 
       {agreementPreview && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
-          <div className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
+          <div className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
             <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
               <div>
-                <h3 className="flex items-center gap-2 text-xl font-extrabold text-slate-900">
+                <h3 className="flex items-center gap-2 text-xl font-bold text-slate-900">
                   <FileSignature className="h-5 w-5 text-orange-500" /> {agreementPreview.agreement_title}
                 </h3>
                 <p className="mt-1 text-xs text-slate-500">Immutable signed copy, version {agreementPreview.agreement_version}</p>
@@ -270,7 +286,7 @@ function AppCard({ app, onAction, processingId, onPreviewPan, onViewAgreement, a
   const isProcessing = processingId === app.id;
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 flex flex-col md:flex-row gap-6 items-start">
+    <article className="gt-panel gt-card-lift flex flex-col items-start gap-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm md:flex-row md:p-6">
       {/* Company Info */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-4 mb-4">
@@ -307,7 +323,7 @@ function AppCard({ app, onAction, processingId, onPreviewPan, onViewAgreement, a
           </div>
         </div>
 
-        <div className="mt-3 rounded-xl border border-orange-100 bg-orange-50/50 p-3 text-sm text-slate-700">
+        <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Payment Review</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             <p><span className="font-semibold">Razorpay:</span> <span className="font-mono text-xs">{app.razorpay_account_id || "Missing"}</span></p>
@@ -326,7 +342,7 @@ function AppCard({ app, onAction, processingId, onPreviewPan, onViewAgreement, a
               View PAN document
             </button>
           )}
-          <div className="mt-3 border-t border-orange-100 pt-3">
+          <div className="mt-3 border-t border-slate-200 pt-3">
             {app.agreement_id ? (
               <button
                 type="button"
@@ -399,6 +415,6 @@ function AppCard({ app, onAction, processingId, onPreviewPan, onViewAgreement, a
           </div>
         )}
       </div>
-    </div>
+    </article>
   );
 }

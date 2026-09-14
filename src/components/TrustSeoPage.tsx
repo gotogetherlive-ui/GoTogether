@@ -5,19 +5,19 @@ import { commonFaqs, entityDescription, faqJsonLd } from "@/lib/seo-content";
 const pageCopy: Record<string, { title: string; answer: string; sections: Array<{ title: string; body: string | string[] }> }> = {
   "/how-it-works": {
     title: "How GoTogether Works",
-    answer: "GoTogether helps travelers discover public trips, compare trip details, review organizer profiles, check itinerary and policies, and book securely when ready. The marketplace is built around verified organizers, transparent trip information, and ownership boundaries between each organizer and their trips.",
+    answer: "GoTogether helps travelers discover public trips, compare trip details, review organizer profiles, check itinerary and policies, and book securely when ready. Compare what is included and get to know your organizer before making a decision.",
     sections: [
       { title: "Discover Trips", body: "Browse public trips by destination, category, dates, duration, pickup city, and organizer." },
       { title: "Compare Details", body: ["itinerary", "inclusions", "exclusions", "price", "pickup/drop", "organizer profile", "cancellation policy", "refund policy"] },
-      { title: "Book Securely", body: "When a traveler books, payment and booking ownership must follow the organizer that owns the trip. Private booking and payment data never belongs on public SEO pages." },
+      { title: "Book Securely", body: "Open the trip you want to join, review the booking details, and follow the payment steps. You can find your booking and payment status in your dashboard." },
     ],
   },
   "/verified-organizers": {
     title: "Verified Organizers on GoTogether",
     answer: "Verified organizers are public travel organizer profiles that help travelers review who owns a trip, what destinations they serve, and what public trips they operate. Verification helps discovery, but travelers should still review itinerary, policies, inclusions, exclusions, and support expectations before booking.",
     sections: [
-      { title: "What Verification Means", body: "Verification indicates that GoTogether has organizer information to support public marketplace trust signals. It does not replace reading trip-specific terms." },
-      { title: "What To Check", body: ["profile name", "destinations served", "trip categories", "upcoming public trips", "policies", "reviews when real"] },
+      { title: "What Verification Means", body: "GoTogether reviews organizer information. Check the organizer’s profile and read the terms for your specific trip before booking." },
+      { title: "What To Check", body: ["profile name", "destinations served", "trip categories", "upcoming public trips", "policies", "traveler reviews"] },
       { title: "Reporting Issues", body: "Travelers can contact GoTogether support if public organizer details appear unclear, misleading, or unsafe." },
     ],
   },
@@ -36,15 +36,15 @@ const pageCopy: Record<string, { title: string; answer: string; sections: Array<
     sections: [
       { title: "What Affects Refunds", body: ["traveler cancellation timing", "organizer cancellation", "payment capture status", "gateway refund status", "trip start time"] },
       { title: "What To Save", body: "Keep your booking reference, payment confirmation, passenger contact details used for the booking, cancellation request details, and support thread for faster resolution." },
-      { title: "Important Limit", body: "Public SEO pages must not expose booking confirmations, payment status pages, transaction data, or user contact details." },
+      { title: "Track Your Refund", body: "Check the booking in your dashboard for its latest status. If you need help, contact support with your booking reference and cancellation details." },
     ],
   },
   "/contact": {
     title: "Contact GoTogether",
-    answer: "Travelers and organizers can contact GoTogether for marketplace support, trip questions, organizer issues, and booking help. If GoTogether does not publish a physical office address, it should use service-area messaging rather than inventing an address.",
+    answer: "Travelers and organizers can contact GoTogether for marketplace support, trip questions, organizer issues, and booking help. Use Contact Support to send our team a message.",
     sections: [
       { title: "Support Topics", body: ["trip questions", "organizer profile questions", "booking support", "refund and cancellation questions", "safety reports"] },
-      { title: "Brand Presence", body: "Use consistent GoTogether naming, canonical URLs, and public support channels across search, social previews, and business profiles." },
+      { title: "Help Us Help You", body: "Tell us which trip you are asking about and include your booking reference if you have one. Describe what happened and the help you need." },
       { title: "Private Data", body: "Never send payment credentials, KYC documents, or sensitive booking data through public pages." },
     ],
   },
@@ -54,7 +54,7 @@ const pageCopy: Record<string, { title: string; answer: string; sections: Array<
     sections: [
       { title: "Popular Help Topics", body: ["choosing a trip", "checking organizers", "understanding inclusions", "booking support", "cancellation and refunds", "safety"] },
       { title: "Before You Book", body: "Review the trip facts, policy summaries, itinerary, pickup/drop details, stay type, transport, meals, and support expectations." },
-      { title: "Privacy", body: "Help content should never reveal private user profiles, support tickets, bookings, payments, or internal organizer operations." },
+      { title: "Privacy", body: "Keep booking references and personal details in your private support conversation. Never share passwords, card details, or one-time codes." },
     ],
   },
 };
@@ -72,13 +72,14 @@ export default function TrustSeoPage({ path }: { path: keyof typeof pageCopy }) 
   return (
     <SeoContentPage
       title={copy.title}
+      showSupportAction={path === "/contact" || path === "/help"}
       answer={copy.answer}
       facts={[
-        { label: "Entity", value: "GoTogether" },
-        { label: "Market", value: "India-focused travel marketplace" },
-        { label: "Public Use", value: "Trip discovery, organizer comparison, trust and support information" },
-        { label: "Privacy Rule", value: "No private user, booking, payment, dashboard, admin, or internal data" },
-        { label: "Last Updated", value: "July 6, 2026" },
+        { label: "For", value: "Travelers and organizers" },
+        { label: "Explore", value: "Group trips across India" },
+        { label: "Plan", value: "Compare dates, prices, and itineraries" },
+        { label: "Need a hand?", value: "Contact our support team" },
+        { label: "Manage your trip", value: "Bookings in your dashboard" },
       ]}
       sections={copy.sections}
       faqs={faqs}

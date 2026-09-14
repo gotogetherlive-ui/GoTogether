@@ -1,136 +1,57 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useEffect, useCallback, useRef } from "react";
-
-const heroImages = [
-  {
-    src: "/hero_travel_bg_1776411607714.png",
-    label: "Explore the World",
-  },
-  {
-    src: "/hero_india_tajmahal.png",
-    label: "Taj Mahal, Agra",
-  },
-  {
-    src: "/hero_india_varanasi.png",
-    label: "Varanasi Ghats",
-  },
-  {
-    src: "/hero_india_kerala.png",
-    label: "Kerala Backwaters",
-  },
-  {
-    src: "/hero_india_jaipur.png",
-    label: "Jaipur, Rajasthan",
-  },
-  {
-    src: "/hero_india_ladakh.png",
-    label: "Ladakh, Himalayas",
-  },
-  {
-    src: "/hero_india_goa.png",
-    label: "Goa Beaches",
-  },
-  {
-    src: "/hero_india_munnar.png",
-    label: "Munnar, Kerala",
-  },
-];
+import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
+import { useEffect, useState } from "react";
+import { heroImages } from "@/lib/hero-images";
 
 export default function HeroSlideshow() {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [loadedIndexes, setLoadedIndexes] = useState<Set<number>>(() => new Set([0]));
-  const currentIndexRef = useRef(0);
-
-  const advanceSlide = useCallback(() => {
-    const next = (currentIndexRef.current + 1) % heroImages.length;
-    currentIndexRef.current = next;
-    setLoadedIndexes((loaded) => loaded.has(next) ? loaded : new Set(loaded).add(next));
-    setCurrentIndex(next);
-  }, []);
-
-  const selectSlide = (index: number) => {
-    currentIndexRef.current = index;
-    setLoadedIndexes((loaded) => loaded.has(index) ? loaded : new Set(loaded).add(index));
-    setCurrentIndex(index);
-  };
+  const [current, setCurrent] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(true);
+  const [visible, setVisible] = useState(true);
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const next = (current + 1) % heroImages.length;
 
   useEffect(() => {
-    const interval = setInterval(advanceSlide, 6000);
-    return () => clearInterval(interval);
-  }, [advanceSlide]);
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const updateMotion = () => setReducedMotion(media.matches);
+    const updateVisibility = () => setVisible(!document.hidden);
+    updateMotion();
+    updateVisibility();
+    media.addEventListener("change", updateMotion);
+    document.addEventListener("visibilitychange", updateVisibility);
+    return () => {
+      media.removeEventListener("change", updateMotion);
+      document.removeEventListener("visibilitychange", updateVisibility);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (paused || reducedMotion || !visible || hovered || focused) return;
+    const timer = window.setTimeout(() => setCurrent(next), 6000);
+    return () => window.clearTimeout(timer);
+  }, [paused, reducedMotion, visible, hovered, focused, next]);
 
   return (
-    <>
-      {heroImages.map((img, index) => {
-        if (!loadedIndexes.has(index)) return null;
-        const isActive = index === currentIndex;
-
-        return (
-          <div
-            key={img.src}
-            className={`absolute inset-0 z-0 origin-center transition-opacity duration-[1500ms] ease-in-out ${
-              isActive ? "opacity-100" : "opacity-0 pointer-events-none"
-            }`}
-          >
-            <div
-              className={`relative w-full h-full ${
-                isActive ? "animate-[kenBurns_10s_linear_forwards]" : ""
-              }`}
-            >
-              <Image
-                src={img.src}
-                alt={img.label}
-                fill
-                className="object-cover object-center brightness-[0.55]"
-                priority={index === 0}
-                sizes="100vw"
-              />
-            </div>
-          </div>
-        );
-      })}
-
-      {/* Subtle overlay gradient for depth */}
-      <div className="absolute inset-0 z-[2] bg-gradient-to-b from-black/30 via-transparent to-black/40 pointer-events-none" />
-
-      {/* Destination indicator dots + label */}
-      <div className="absolute bottom-4 md:bottom-10 left-1/2 -translate-x-1/2 z-[25] flex items-center gap-0 md:gap-1">
-        {heroImages.map((img, i) => (
-          <button
-            key={img.src}
-            type="button"
-            onClick={() => selectSlide(i)}
-            className="group relative flex h-11 w-11 items-center justify-center rounded-full"
-            aria-label={`Go to ${img.label}`}
-            aria-current={i === currentIndex ? "true" : undefined}
-          >
-            <span
-              aria-hidden="true"
-              className={`block h-2 rounded-full transition-all duration-300 ${
-                i === currentIndex
-                  ? "w-8 bg-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.6)]"
-                  : "w-2 bg-white/60 group-hover:bg-white/90"
-              }`}
-            />
-            {/* Tooltip on hover */}
-            <span className="absolute bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] font-semibold text-white bg-black/60 backdrop-blur-sm px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-              {img.label}
-            </span>
-          </button>
-        ))}
+    <div className="absolute inset-0 overflow-hidden bg-slate-950" role="region" aria-roledescription="carousel" aria-label="Featured travel destinations">
+      {heroImages.map((slide, index) => (
+        <div key={slide.src} aria-hidden={index !== current} className={`absolute inset-0 transition-opacity duration-1000 motion-reduce:transition-none ${index === current ? "opacity-100" : "opacity-0"}`}>
+          {(index === current || index === next || index === (current + heroImages.length - 1) % heroImages.length) && <Image src={slide.src} alt={slide.label} fill priority={index === 0} loading={index === 0 ? undefined : "eager"} sizes="100vw" className="object-cover object-center" />}
+        </div>
+      ))}
+      <div className="absolute inset-0 bg-gradient-to-r from-slate-950/85 via-slate-950/55 to-slate-950/20" />
+      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/65 via-transparent to-slate-950/10" />
+      <div className="gt-slideshow-controls" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} onFocusCapture={() => setFocused(true)} onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false); }}>
+        <div className="min-w-0"><p className="text-[10px] font-semibold uppercase tracking-[.2em] text-white/70">Find your next view</p><p className="mt-1 text-sm font-semibold text-white" aria-live="off">{heroImages[current].label}</p></div>
+        <div className="flex shrink-0 items-center gap-1">
+          <button type="button" className="gt-slide-control" aria-label="Previous destination" onClick={() => setCurrent((current + heroImages.length - 1) % heroImages.length)}><ChevronLeft className="h-5 w-5" /></button>
+          <span className="w-9 text-center text-xs tabular-nums text-white/80">{current + 1} / {heroImages.length}</span>
+          <button type="button" className="gt-slide-control" aria-label="Next destination" onClick={() => setCurrent(next)}><ChevronRight className="h-5 w-5" /></button>
+          {!reducedMotion && <button type="button" className="gt-slide-control ml-1" aria-label={paused ? "Play slideshow" : "Pause slideshow"} onClick={() => setPaused(!paused)}>{paused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}</button>}
+        </div>
       </div>
-
-      {/* Current destination label */}
-      <div className="absolute bottom-10 md:bottom-16 left-1/2 -translate-x-1/2 z-[25] hidden md:block">
-        <span
-          key={currentIndex}
-          className="text-white/80 text-xs font-semibold tracking-widest uppercase drop-shadow-md animate-[slideUp_0.8s_ease-out_forwards]"
-        >
-          {heroImages[currentIndex].label}
-        </span>
-      </div>
-    </>
+    </div>
   );
 }

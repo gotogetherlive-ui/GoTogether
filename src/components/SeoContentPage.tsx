@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { ArrowRight, Check, ChevronDown, CircleCheck, Compass, LockKeyhole, Search, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowRight, Check, ChevronDown, CircleCheck, Compass, LockKeyhole, Search, ShieldCheck } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import FooterSupportButton from "@/components/FooterSupportButton";
 import JsonLd from "@/components/JsonLd";
 import { breadcrumbJsonLd } from "@/lib/seo";
 import { commonFaqs, type Faq } from "@/lib/seo-content";
@@ -11,24 +12,20 @@ type LinkItem = { href: string; label: string };
 const sectionIcons = [Search, CircleCheck, LockKeyhole];
 
 export default function SeoContentPage({
-  title, answer, facts, sections, faqs = commonFaqs, links = [], breadcrumb, jsonLd = [],
+  title, answer, facts, sections, faqs = commonFaqs, links = [], breadcrumb, jsonLd = [], showSupportAction = false,
 }: {
-  title: string; answer: string; facts: Fact[];
+  title: string; answer: string; facts: Fact[]; showSupportAction?: boolean;
   sections: Array<{ title: string; body: string | string[] }>;
   faqs?: Faq[]; links?: LinkItem[];
   breadcrumb: Array<{ name: string; path: string }>; jsonLd?: unknown[];
 }) {
   const allJsonLd = [breadcrumbJsonLd(breadcrumb), ...jsonLd];
   return (
-    <div className="min-h-screen overflow-hidden bg-[#f8fafc] text-slate-900">
+    <div className="min-h-screen overflow-hidden bg-slate-50 text-slate-900">
       {allJsonLd.map((data, index) => <JsonLd key={index} data={data} />)}
       <Navbar />
       <main>
         <section className="relative isolate px-5 pb-20 pt-28 sm:px-8 sm:pt-32">
-          <div className="absolute inset-0 -z-20 bg-[linear-gradient(180deg,#fff7ed_0%,#fff_48%,#f8fafc_100%)]" />
-          <div className="absolute left-[8%] top-8 -z-10 h-72 w-72 rounded-full bg-orange-200/30 blur-3xl" />
-          <div className="absolute right-[10%] top-20 -z-10 h-80 w-80 rounded-full bg-rose-100/50 blur-3xl" />
-          <div className="absolute inset-0 -z-10 opacity-[0.035] [background-image:radial-gradient(#0f172a_1px,transparent_1px)] [background-size:24px_24px]" />
           <div className="mx-auto max-w-7xl">
             <nav aria-label="Breadcrumb" className="mb-10 flex items-center gap-2 text-sm font-medium text-slate-500">
               {breadcrumb.map((item, index) => (
@@ -38,20 +35,20 @@ export default function SeoContentPage({
                 </span>
               ))}
             </nav>
-            <div className="grid items-end gap-10 lg:grid-cols-[minmax(0,1fr)_360px]">
+            <div className="grid items-end gap-10 lg:grid-cols-[minmax(0,1fr)_300px]">
               <div className="max-w-4xl">
-                <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-orange-200 bg-white/80 px-3.5 py-2 text-xs font-bold uppercase tracking-[0.16em] text-orange-700 shadow-sm backdrop-blur"><Sparkles className="h-3.5 w-3.5" /> Travel made clear</div>
-                <h1 className="text-balance text-5xl font-black tracking-[-0.045em] text-slate-950 sm:text-6xl lg:text-7xl lg:leading-[1.02]">{title}</h1>
+                <p className="gt-eyebrow mb-5">GoTogether · Travel notes</p>
+                <h1 className="gt-page-title text-slate-950">{title}</h1>
                 <p className="mt-7 max-w-3xl text-lg leading-8 text-slate-600 sm:text-xl sm:leading-9">{answer}</p>
                 <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-                  <Link href="/trips" className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-slate-900/15 transition hover:-translate-y-0.5 hover:bg-orange-600">Explore trips <ArrowRight className="h-4 w-4" /></Link>
-                  <Link href="/verified-organizers" className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3.5 text-sm font-bold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-orange-200 hover:text-orange-700"><ShieldCheck className="h-4 w-4 text-orange-500" /> Verified organizers</Link>
+                  {showSupportAction ? <FooterSupportButton className="gt-button" /> : <Link href="/trips" className="gt-button">Explore trips <ArrowRight className="h-4 w-4" /></Link>}
+                  <Link href="/verified-organizers" className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3.5 text-sm font-bold text-slate-700 shadow-sm transition  hover:border-orange-200 hover:text-orange-700"><ShieldCheck className="h-4 w-4 text-orange-500" /> Verified organizers</Link>
                 </div>
               </div>
-              <div className="hidden rounded-3xl border border-white/80 bg-white/70 p-6 shadow-[0_24px_70px_-30px_rgba(15,23,42,0.35)] backdrop-blur-xl lg:block">
+              <div className="hidden rounded-xl border border-white/80 bg-white/70 p-6 shadow-sm backdrop-blur-xl lg:block">
                 <div className="flex items-center gap-3">
                   <div className="grid h-11 w-11 place-items-center rounded-2xl bg-orange-50 text-orange-600"><Compass className="h-5 w-5" /></div>
-                  <div><p className="text-sm font-bold text-slate-950">One trusted marketplace</p><p className="mt-0.5 text-xs text-slate-500">Built for confident decisions</p></div>
+                  <div><p className="text-sm font-bold text-slate-950">Before you go</p><p className="mt-0.5 text-xs text-slate-500">A few things to check</p></div>
                 </div>
                 <div className="mt-6 space-y-3">
                   {["Transparent trip details", "Verified organizer profiles", "Secure booking journey"].map((item) => (
@@ -63,10 +60,10 @@ export default function SeoContentPage({
           </div>
         </section>
         <div className="mx-auto max-w-7xl px-5 pb-24 sm:px-8">
-          <section className="relative z-10 -mt-4 mb-20 overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-[0_24px_80px_-40px_rgba(15,23,42,0.3)]">
+          <section className="relative z-10 -mt-4 mb-20 overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm">
             <div className="flex flex-col gap-2 border-b border-slate-100 px-6 py-6 sm:flex-row sm:items-center sm:justify-between sm:px-8">
               <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-orange-600">At a glance</p><h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-950">Quick facts</h2></div>
-              <p className="text-sm text-slate-500">The essentials, without the fine print.</p>
+              <p className="text-sm text-slate-500">The essentials, in one place.</p>
             </div>
             <dl className="grid sm:grid-cols-2 lg:grid-cols-5">
               {facts.map((fact, index) => (
@@ -81,15 +78,15 @@ export default function SeoContentPage({
           <div className="grid gap-14 lg:grid-cols-[minmax(0,1fr)_300px]">
             <div>
               <div className="mb-8 max-w-2xl">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-orange-600">The journey</p>
-                <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">Simple by design. Clear at every step.</h2>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-orange-600">The details</p>
+                <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">What you need to know.</h2>
               </div>
               <div className="grid gap-5">
                 {sections.map((section, index) => {
                   const Icon = sectionIcons[index % sectionIcons.length];
                   return (
-                    <section key={section.title} className="group relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 transition duration-300 hover:-translate-y-1 hover:border-orange-200 hover:shadow-[0_20px_60px_-35px_rgba(234,88,12,0.4)] sm:p-8">
-                      <span className="absolute right-6 top-4 text-6xl font-black tracking-tighter text-slate-100 transition-colors group-hover:text-orange-50">0{index + 1}</span>
+                    <section key={section.title} className="group relative overflow-hidden rounded-xl border border-slate-200 bg-white p-6 transition duration-300  hover:border-orange-200 hover:shadow-[0_20px_60px_-35px_rgba(234,88,12,0.4)] sm:p-8">
+                      <span className="absolute right-6 top-4 text-6xl font-semibold tracking-tighter text-slate-100 transition-colors group-hover:text-orange-50">0{index + 1}</span>
                       <div className="relative flex flex-col gap-5 sm:flex-row">
                         <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-slate-950 text-white shadow-lg shadow-slate-900/10 transition group-hover:bg-orange-600"><Icon className="h-5 w-5" /></div>
                         <div className="min-w-0 pt-1">
@@ -108,8 +105,8 @@ export default function SeoContentPage({
 
               <section className="mt-20">
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-orange-600">Need to know</p>
-                <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-950">Frequently asked questions</h2>
-                <div className="mt-7 divide-y divide-slate-100 overflow-hidden rounded-3xl border border-slate-200 bg-white">
+                <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Frequently asked questions</h2>
+                <div className="mt-7 divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white">
                   {faqs.map((faq) => (
                     <details key={faq.question} className="group px-5 sm:px-7">
                       <summary className="flex cursor-pointer list-none items-center justify-between gap-5 py-6 font-bold text-slate-900 [&::-webkit-details-marker]:hidden">
@@ -123,7 +120,7 @@ export default function SeoContentPage({
             </div>
 
             <aside className="self-start lg:sticky lg:top-28">
-              <div className="rounded-3xl bg-slate-950 p-6 text-white shadow-xl shadow-slate-900/10">
+              <div className="rounded-xl bg-slate-950 p-6 text-white shadow-xl shadow-slate-900/10">
                 <div className="grid h-11 w-11 place-items-center rounded-2xl bg-white/10 text-orange-400"><ShieldCheck className="h-5 w-5" /></div>
                 <h2 className="mt-5 text-xl font-bold">Explore with confidence</h2>
                 <p className="mt-2 text-sm leading-6 text-slate-400">Helpful guides for every part of your journey.</p>

@@ -1,21 +1,19 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Users, ShieldCheck, ChevronRight, Compass, CircleCheck, Headphones, MapPinned } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Compass, UsersRound, MapPinned } from "lucide-react";
+import HeroSlideshow from "@/components/HeroSlideshow";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import HeroSlideshow from "@/components/HeroSlideshow";
-import HeroFindBuddyButton from "@/components/HeroFindBuddyButton";
-import HeroGreeting from "@/components/HeroGreeting";
 import TripCard, { type TripSummary } from "@/components/TripCard";
 import MaintenanceGuard from "@/components/MaintenanceGuard";
-import FadeInScroll from "@/components/FadeInScroll";
-import TiltWrapper from "@/components/TiltWrapper";
-import AnimatedButton from "@/components/AnimatedButton";
-import Animated3DText from "@/components/Animated3DText";
 import HomeSeoContent from "@/components/HomeSeoContent";
+import DestinationPreviewCard from "@/components/DestinationPreviewCard";
+import ScrollReveal from "@/components/ScrollReveal";
+import JsonLd from "@/components/JsonLd";
 import { query } from '@/lib/db';
 import { ensureTripSlug } from '@/lib/slugs';
 import { ensureOrganizerSlug } from '@/lib/organizer-slugs';
+import { organizationJsonLd, websiteJsonLd } from '@/lib/seo';
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +27,8 @@ async function loadTopTrips(): Promise<TripSummary[]> {
            u.id as organizer_id, u.full_name as organizer_name, u.role as organizer_role, u.avatar_url as organizer_avatar, u.organizer_slug
     FROM trips t
     JOIN users u ON t.organizer_id = u.id
-    WHERE t.status = 'live' AND (t.is_featured = 1 OR t.trip_type = 'business')
+    WHERE t.status = 'live' AND t.trip_type = 'premium'
+      AND t.deleted_at IS NULL AND u.deleted_at IS NULL
     ORDER BY t.is_featured DESC, t.created_at DESC
     LIMIT 2
   `, []);
@@ -71,178 +70,70 @@ export default async function Home() {
 
   return (
     <MaintenanceGuard>
-      <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
-        {/* Shared Navbar */}
+      <div className="gt-editorial min-h-screen bg-slate-50 text-slate-900">
+        <JsonLd data={[organizationJsonLd(), websiteJsonLd()]} />
         <Navbar />
-
-        {/* Hero Section */}
-        <section className="relative min-h-[100svh] px-0 pb-24 pt-28 md:min-h-[90vh] md:pb-24 md:pt-28 flex items-center justify-center overflow-hidden">
-          {/* Auto-changing background slideshow */}
-          <HeroSlideshow />
-
-          <div className="relative z-10 text-center max-w-4xl px-6 flex flex-col items-center">
-            <HeroGreeting />
-            <h1 className="text-[2.65rem] sm:text-5xl md:text-7xl font-extrabold text-white leading-[1.08] mb-5 md:mb-6 drop-shadow-lg">
-              Don&apos;t just travel. <br />
-              <Animated3DText delay={0.3}>
-                <span className="text-orange-400 sm:text-transparent sm:bg-clip-text sm:bg-gradient-to-r sm:from-orange-400 sm:to-rose-400">
-                  GoTogether.
-                </span>
-              </Animated3DText>
-            </h1>
-            <p className="text-base md:text-2xl text-slate-200 mb-8 md:mb-10 max-w-2xl drop-shadow">
-              Connect with like-minded travelers, join verified trips, and create memories that last a lifetime.
+        <main>
+          <section className="gt-immersive-hero">
+            <HeroSlideshow />
+            <div className="gt-container relative z-10 pointer-events-none">
+              <ScrollReveal className="gt-hero-copy max-w-3xl pointer-events-auto" delay={120}>
+                <h1 className="text-5xl font-bold leading-[1.04] tracking-tight text-white sm:text-6xl lg:text-7xl">Don&apos;t just travel.<br /><span className="text-orange-400">GoTogether.</span></h1>
+                <p className="mt-6 max-w-xl text-base leading-8 text-white/85 sm:text-lg">A custom trip built around you. A travel buddy who shares your plans. Find your favourite way to explore, together.</p>
+                <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                  <Link href="/custom-trip" className="gt-glossy-button gt-hero-action gt-hero-action-primary"><MapPinned className="h-5 w-5" />Plan a Custom Trip<ArrowUpRight className="h-4 w-4" /></Link>
+                  <Link href="/buddy" className="gt-glossy-button gt-gold-sweep gt-hero-action gt-hero-action-secondary"><UsersRound className="h-5 w-5" />Find a Travel Buddy<ArrowUpRight className="h-4 w-4" /></Link>
+                </div>
+                <Link href="/trips" className="mt-6 inline-flex items-center gap-3 border-b border-white/50 pb-1 text-sm font-semibold text-white transition hover:border-orange-300 hover:text-orange-200">Or explore group trips <ArrowRight className="h-4 w-4" /></Link>
+              </ScrollReveal>
+            </div>
+          </section>
+          <section className="gt-container" aria-label="Ways to travel">
+            <ScrollReveal className="gt-travel-routes" stagger>
+              {[{ n: '01', title: 'Join a group trip', text: 'Compare itineraries, dates, and organizers.', href: '/trips' }, { n: '02', title: 'Find your people', text: 'Connect over where you want to go next.', href: '/buddy' }, { n: '03', title: 'Make it your own', text: 'A personal itinerary, built around you.', href: '/custom-trip' }].map(item => <Link key={item.n} href={item.href} className="gt-card-lift group flex gap-5 py-7"><span className="pt-1 text-xs text-orange-700">{item.n}</span><div className="flex-1"><h2 className="text-lg font-semibold">{item.title}</h2><p className="mt-1 text-sm leading-6 text-slate-500">{item.text}</p></div><ArrowUpRight className="mt-1 h-5 w-5 shrink-0 text-slate-400 transition-colors group-hover:text-orange-700" /></Link>)}
+            </ScrollReveal>
+          </section>
+          <section className="gt-container gt-section">
+            <ScrollReveal className="gt-section-heading"><div><p className="gt-eyebrow">Where to next?</p><h2 className="gt-title">Follow your curiosity.</h2></div><Link href="/destinations" className="gt-text-link">Explore destinations <ArrowRight className="h-4 w-4" /></Link></ScrollReveal>
+            <ScrollReveal className="flex snap-x gap-5 overflow-x-auto pb-3 sm:grid sm:grid-cols-3 sm:overflow-visible" delay={100} stagger>
+              {[
+                { name: 'The mountains', place: 'Ladakh', image: 'ladakh', note: 'High passes. Wide open skies.', videos: [
+                  { label: 'Aerial' as const, src: 'https://upload.wikimedia.org/wikipedia/commons/transcoded/0/07/Pangong_Tso_and_Tso_Moriri_Lake_Drone_Video.webm/Pangong_Tso_and_Tso_Moriri_Lake_Drone_Video.webm.480p.vp9.webm' },
+                  { label: 'Ground' as const, src: 'https://upload.wikimedia.org/wikipedia/commons/transcoded/4/4e/Panorama_from_Basgo_monastery%2C_Ladakh.webm/Panorama_from_Basgo_monastery%2C_Ladakh.webm.480p.vp9.webm' },
+                ] },
+                { name: 'The slow life', place: 'Kerala', image: 'kerala', note: 'Backwaters and a different pace.', videos: [
+                  { label: 'Aerial' as const, src: 'https://upload.wikimedia.org/wikipedia/commons/transcoded/7/7a/Landscape_view_of_Kochi_from_an_aircraft.webm/Landscape_view_of_Kochi_from_an_aircraft.webm.480p.vp9.webm' },
+                  { label: 'Ground' as const, src: 'https://upload.wikimedia.org/wikipedia/commons/transcoded/9/9a/Kerala_-_India%27s_Paradise_Found.webm/Kerala_-_India%27s_Paradise_Found.webm.480p.vp9.webm' },
+                ] },
+                { name: 'The coast', place: 'Goa', image: 'goa', note: 'Salt air and unhurried afternoons.', videos: [
+                  { label: 'Aerial' as const, src: 'https://upload.wikimedia.org/wikipedia/commons/transcoded/6/66/Layers_of_clouds_as_seen_from_a_flight_window_while_flying_over_Zuari_River%2C_Goa.webm/Layers_of_clouds_as_seen_from_a_flight_window_while_flying_over_Zuari_River%2C_Goa.webm.480p.vp9.webm' },
+                  { label: 'Ground' as const, src: 'https://upload.wikimedia.org/wikipedia/commons/transcoded/3/3c/Aguada_beach%2C_Goa.webm/Aguada_beach%2C_Goa.webm.480p.vp9.webm' },
+                ] },
+              ].map(item => <DestinationPreviewCard key={item.place} {...item} />)}
+            </ScrollReveal>
+            <p className="mt-3 text-[10px] leading-5 text-slate-400">
+              Preview footage via Wikimedia Commons: Ladakh by <a className="underline underline-offset-2 hover:text-slate-600" href="https://commons.wikimedia.org/wiki/File:Pangong_Tso_and_Tso_Moriri_Lake_Drone_Video.webm" target="_blank" rel="noreferrer">Knowledge of India</a> and <a className="underline underline-offset-2 hover:text-slate-600" href="https://commons.wikimedia.org/wiki/File:Panorama_from_Basgo_monastery,_Ladakh.webm" target="_blank" rel="noreferrer">Yann Forget</a>; Kerala by <a className="underline underline-offset-2 hover:text-slate-600" href="https://commons.wikimedia.org/wiki/File:Landscape_view_of_Kochi_from_an_aircraft.webm" target="_blank" rel="noreferrer">Jinoy Tom Jacob</a> and <a className="underline underline-offset-2 hover:text-slate-600" href="https://commons.wikimedia.org/wiki/File:Kerala_-_India%27s_Paradise_Found.webm" target="_blank" rel="noreferrer">Incredible India</a>; Goa by <a className="underline underline-offset-2 hover:text-slate-600" href="https://commons.wikimedia.org/wiki/File:Layers_of_clouds_as_seen_from_a_flight_window_while_flying_over_Zuari_River,_Goa.webm" target="_blank" rel="noreferrer">Subhashish Panigrahi</a> (CC BY/CC BY-SA).
             </p>
-
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full sm:w-auto">
-              <AnimatedButton
-                href="/trips"
-                className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white font-bold text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4 rounded-full shadow-xl hover:shadow-orange-500/40 flex items-center justify-center gap-2"
-              >
-                Find a Trip
-                <ChevronRight className="w-5 h-5" />
-              </AnimatedButton>
-              <HeroFindBuddyButton />
+          </section>
+          <section className="border-y border-slate-200 bg-white">
+            <div className="gt-container gt-section">
+              <ScrollReveal className="gt-section-heading"><div><p className="gt-eyebrow">Ready when you are</p><h2 className="gt-title">Your next shared adventure.</h2></div><Link href="/trips" className="gt-text-link">View all trips <ArrowRight className="h-4 w-4" /></Link></ScrollReveal>
+              <ScrollReveal className="grid gap-6 md:grid-cols-3" delay={100} stagger>
+                {topTrips.map(trip => <TripCard key={trip.id} trip={trip} />)}
+                <div className={`flex flex-col justify-center rounded-lg bg-slate-100 p-8 md:p-10 ${topTrips.length === 0 ? 'md:col-span-3 md:flex-row md:items-center md:justify-between md:gap-12' : ''}`}><div><Compass className="mb-6 h-7 w-7 text-orange-700" /><h3 className="font-serif text-3xl leading-tight">A trip that feels<br />like you.</h3><p className="mt-4 max-w-md text-sm leading-7 text-slate-600">Have a destination in mind? Tell us your dates, budget, and who’s coming. We’ll help you plan the details.</p></div><Link href="/custom-trip" className="gt-text-link mt-7 shrink-0">Plan a custom trip <ArrowRight className="h-4 w-4" /></Link></div>
+              </ScrollReveal>
             </div>
-          </div>
-
-          {/* Decorative wave at the bottom */}
-          <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-slate-50 to-transparent z-20"></div>
-        </section>
-
-        <section className="relative z-30 mx-auto -mt-14 max-w-7xl px-5 sm:px-6 md:px-12">
-          <FadeInScroll delay={0.1}>
-            <div className="grid overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_24px_70px_-35px_rgba(15,23,42,.45)] lg:grid-cols-[minmax(0,1.25fr)_minmax(360px,.75fr)]">
-              <div className="flex flex-col justify-center p-7 sm:p-10 lg:p-12">
-                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[.14em] text-orange-600"><MapPinned className="h-4 w-4" />Custom holidays</div>
-                <h2 className="mt-4 max-w-2xl text-3xl font-bold leading-tight tracking-[-.025em] text-slate-950 sm:text-4xl">Your holiday, planned your way.</h2>
-                <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base sm:leading-7">Tell us where you want to go, or simply describe the kind of break you need. A dedicated travel specialist will shape the route, stays and experiences around your group.</p>
-
-                <div className="mt-6 grid gap-3 text-sm font-semibold text-slate-700 sm:grid-cols-3">
-                  <span className="flex items-center gap-2"><CircleCheck className="h-4 w-4 text-emerald-600" />Free consultation</span>
-                  <span className="flex items-center gap-2"><CircleCheck className="h-4 w-4 text-emerald-600" />Flexible itinerary</span>
-                  <span className="flex items-center gap-2"><CircleCheck className="h-4 w-4 text-emerald-600" />Personal support</span>
-                </div>
-
-                <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-                  <Link href="/custom-trip" className="group inline-flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-6 py-3.5 text-sm font-bold text-white shadow-sm transition hover:bg-orange-600 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-orange-200">Start planning <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" /></Link>
-                  <span className="flex items-center justify-center gap-2 text-xs font-semibold text-slate-500 sm:justify-start"><Headphones className="h-4 w-4 text-slate-400" />Our team will call to discuss the details</span>
-                </div>
-              </div>
-
-              <div className="relative min-h-64 overflow-hidden lg:min-h-[390px]">
-                <Image src="/hero_india_kerala.png" alt="A scenic Kerala backwater holiday planned by GoTogether" fill sizes="(max-width: 1024px) 100vw, 38vw" className="object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/65 via-slate-950/5 to-transparent" />
-                <div className="absolute inset-x-0 bottom-0 p-6 text-white sm:p-8">
-                  <p className="text-xs font-bold uppercase tracking-[.13em] text-white/75">Designed for your group</p>
-                  <p className="mt-2 max-w-sm text-xl font-bold leading-snug">Destination, pace and budget—all decided with you.</p>
-                </div>
-              </div>
+          </section>
+          <section className="gt-container gt-section">
+            <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-20">
+              <ScrollReveal className="relative aspect-[5/4] overflow-hidden rounded-lg" variant="image"><Image src="/hero_india_munnar.png" alt="Rolling green tea plantations in Munnar" fill sizes="(max-width: 1024px) 100vw, 50vw" className="object-cover" /></ScrollReveal>
+              <ScrollReveal variant="right" delay={120}><p className="gt-eyebrow">The people make the journey</p><h2 className="gt-title">Arrive as strangers.<br /><em>Leave with stories.</em></h2><p className="mt-6 text-base leading-8 text-slate-600">Some of the best parts of travel never make it onto an itinerary. A conversation on the road. A shared meal. Someone who sees the same place a little differently.</p><p className="mt-4 text-base leading-8 text-slate-600">Meet travelers, share your experiences, and find a reason to go again.</p><Link href="/stories" className="gt-text-link mt-7">Stories from the community <ArrowRight className="h-4 w-4" /></Link></ScrollReveal>
             </div>
-          </FadeInScroll>
-        </section>
-
-        {/* Featured / Top Trips Section */}
-        <section className="py-24 px-6 md:px-12 max-w-7xl mx-auto overflow-hidden">
-          <FadeInScroll delay={0}>
-            <div className="flex justify-between items-end mb-12">
-              <div>
-                <h2 className="text-4xl font-bold text-slate-900 mb-4">Top Trips</h2>
-                <p className="text-slate-600 text-lg">Handpicked adventures hosted by verified businesses and admins.</p>
-              </div>
-              <Link href="/trips" className="text-orange-500 font-semibold hover:text-orange-600 flex items-center gap-1 group">
-                View all <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </Link>
-            </div>
-          </FadeInScroll>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {/* Dynamic Top Trips */}
-            {topTrips.map((trip) => (
-              <TripCard key={trip.id} trip={trip} linkToTrips />
-            ))}
-
-            {/* Trip Card 3 - CTA Card */}
-            <FadeInScroll delay={0.4} className="h-full">
-              <TiltWrapper className="h-full">
-                <Link
-                  href="/trips"
-                  aria-label="Browse all trips"
-                  className="bg-gradient-to-br from-orange-500 to-rose-500 rounded-3xl overflow-hidden shadow-lg hover:shadow-xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-orange-300 transition-all flex flex-col items-center justify-center p-8 text-center text-white min-h-[400px] h-full relative group cursor-pointer"
-                >
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-white/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
-                  <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center mb-6 transform group-hover:scale-110 group-hover:rotate-12 transition-all duration-500">
-                    <Compass className="w-8 h-8 text-white" />
-                  </div>
-                  <h3 className="text-2xl font-bold mb-3 transform group-hover:translate-y-[-5px] transition-transform duration-500">
-                    Ready to explore?
-                  </h3>
-                  <p className="text-white/80 mb-8 max-w-xs transform group-hover:translate-y-[-5px] transition-transform duration-500 delay-75">
-                    Compare live verified trips, transparent prices, organizers, and itineraries in one place.
-                  </p>
-                  <span className="bg-white text-orange-600 font-bold px-8 py-3 rounded-full shadow-xl group-hover:shadow-white/40 group-active:shadow-inner transition-shadow">
-                    Browse All Trips
-                  </span>
-                </Link>
-              </TiltWrapper>
-            </FadeInScroll>
-          </div>
-        </section>
-
-        {/* Features Section */}
-        <section className="bg-white py-24 border-y border-slate-200 overflow-hidden">
-          <div className="max-w-7xl mx-auto px-6 md:px-12">
-            <FadeInScroll delay={0}>
-              <div className="text-center max-w-2xl mx-auto mb-16">
-                <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">Why GoTogether?</h2>
-                <p className="text-slate-600 text-lg">We&apos;ve built a platform that prioritizes safety, quality, and community.</p>
-              </div>
-            </FadeInScroll>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-12 text-center">
-              <FadeInScroll delay={0.1}>
-                <div className="flex flex-col items-center group">
-                  <div className="w-16 h-16 rounded-2xl bg-orange-100 flex items-center justify-center mb-6 text-orange-500 transform group-hover:-translate-y-2 transition-transform duration-300">
-                    <ShieldCheck className="w-8 h-8" />
-                  </div>
-                  <h3 className="text-xl font-bold text-slate-900 mb-3">Verified Partners</h3>
-                  <p className="text-slate-600">Every business is thoroughly vetted, and admins curate the best experiences for your safety.</p>
-                </div>
-              </FadeInScroll>
-
-              <FadeInScroll delay={0.3}>
-                <div className="flex flex-col items-center group">
-                  <div className="w-16 h-16 rounded-2xl bg-rose-100 flex items-center justify-center mb-6 text-rose-500 transform group-hover:-translate-y-2 transition-transform duration-300">
-                    <Users className="w-8 h-8" />
-                  </div>
-                  <h3 className='text-xl font-bold text-slate-900 mb-3'>Connect Before You Join</h3>
-                  <p className='text-slate-600'>Ask questions, review the organizer, and connect with the group before making a booking decision.</p>
-                </div>
-              </FadeInScroll>
-
-              <FadeInScroll delay={0.5}>
-                <div className="flex flex-col items-center group">
-                  <div className="w-16 h-16 rounded-2xl bg-blue-100 flex items-center justify-center mb-6 text-blue-500 transform group-hover:-translate-y-2 transition-transform duration-300">
-                    <Compass className="w-8 h-8" />
-                  </div>
-                  <h3 className='text-xl font-bold text-slate-900 mb-3'>Clear Trip Comparison</h3>
-                  <p className='text-slate-600'>Compare dates, prices, itineraries, inclusions, policies, and organizer details with less guesswork.</p>
-                </div>
-              </FadeInScroll>
-            </div>
-          </div>
-        </section>
-
-        <HomeSeoContent />
-
-        {/* Shared Footer */}
+          </section>
+          <HomeSeoContent />
+        </main>
         <Footer />
       </div>
     </MaintenanceGuard>
   );
 }
-
-
-
-
-

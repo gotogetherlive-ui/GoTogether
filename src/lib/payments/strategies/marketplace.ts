@@ -58,6 +58,8 @@ export class MarketplacePaymentStrategy implements PaymentStrategy {
   refundPayment(input: StrategyRefundInput, adapter: PaymentProviderAdapter) {
     assertMarketplaceEnabled(input);
     return adapter.refundPayment({
+      providerOrderId: input.providerOrderId,
+      idempotencyKey: input.idempotencyKey,
       providerPaymentId: input.providerPaymentId,
       amount: input.amount,
       notes: input.notes,

@@ -33,7 +33,7 @@ function toEventId(localSundayMs: number): string {
   return `${year}-${month}-${day}`;
 }
 
-export function getStoryCompetitionWindow(now = new Date()): StoryCompetitionWindow {
+function getStoryCompetitionWindow(now = new Date()): StoryCompetitionWindow {
   const istNow = new Date(now.getTime() + IST_OFFSET_MS);
   const localMidnightMs = Date.UTC(
     istNow.getUTCFullYear(),

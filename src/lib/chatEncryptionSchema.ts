@@ -1,0 +1,3 @@
+export const CHAT_ENCRYPTION_SCHEMA_SQL = `
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS encryption_version INTEGER NOT NULL DEFAULT 0;
+`;

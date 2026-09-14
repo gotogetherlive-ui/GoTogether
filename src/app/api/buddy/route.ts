@@ -1,134 +1,18 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { query, queryOne, run } from '@/lib/db';
+import { queryOne, run } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
-import { computeMatch, type CompatibilityProfile, type BudgetProfile } from '@/lib/matchEngine';
 import { hasCompleteProfile } from '@/lib/profile';
+import { invalidateBuddyFeedCache, loadBuddyFeed } from '@/lib/buddyFeed';
+import { isValidBuddyDuration } from '@/lib/buddyDuration';
+import { parseBuddyGroupTagInput } from '@/lib/buddyGroupTags';
 
-type UserCompatibilityRow = CompatibilityProfile & {
-  budget_min: number | string | null;
-  budget_max: number | string | null;
-};
-
-type BuddyTripRow = {
-  organizer_id: string;
-  organizer_fooding_habit: string | null;
-  registration_closed: number | string | null;
-  accepted_count: number | string | null;
-  [key: string]: unknown;
-};
-
-function parseStringArray(value: unknown): string[] {
-  if (Array.isArray(value)) return value.filter((item): item is string => typeof item === 'string');
-  if (typeof value !== 'string' || !value) return [];
-  try {
-    const parsed: unknown = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : [];
-  } catch {
-    return [];
-  }
-}
-
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const user = await getSession();
-    const userId = user?.id || '';
-
-    let hasCompatibilityProfile = false;
-    let userProfile: CompatibilityProfile | null = null;
-    let userBudget: BudgetProfile | null = null;
-
-    if (user) {
-      const compatibility = await queryOne<UserCompatibilityRow>(
-        `SELECT cp.food_preference, cp.travel_style, cp.activity_preferences, cp.energy_level,
-                cp.social_personality, cp.cleanliness_preference, cp.drinking_preference,
-                cp.smoking_preference, cp.languages, cp.trip_behavior, cp.ideal_trip_type,
-                tb.budget_min, tb.budget_max
-         FROM compatibility_profiles cp
-         LEFT JOIN trip_budgets tb ON tb.user_id = cp.user_id
-         WHERE cp.user_id = $1`,
-        [user.id]
-      );
-      userProfile = compatibility;
-      hasCompatibilityProfile = Boolean(compatibility);
-      if (compatibility?.budget_min != null && compatibility.budget_max != null) {
-        userBudget = { budget_min: Number(compatibility.budget_min), budget_max: Number(compatibility.budget_max) };
-      }
-    }
-
-    const allTrips = await query<BuddyTripRow>(`
-      SELECT
-        t.id, t.title, t.description, t.starting_location, t.destination, t.start_date as trip_date,
-        t.duration_days, t.duration_nights, t.image_url, COALESCE(t.traveller_type, 'solo') as traveller_type,
-        t.status, t.registration_closed, t.created_at,
-        u.id as organizer_id, u.full_name as organizer_name, u.gender as organizer_gender,
-        u.fooding_habit as organizer_fooding_habit, u.profession as organizer_profession,
-        u.age as organizer_age, u.avatar_url as organizer_avatar,
-        current_request.status as user_request_status,
-        (SELECT COUNT(*)::int FROM trip_requests WHERE trip_id = t.id AND status = 'accepted') as accepted_count
-      FROM trips t
-      JOIN users u ON t.organizer_id = u.id
-      LEFT JOIN trip_requests current_request ON current_request.trip_id = t.id AND current_request.requester_id = $1
-      WHERE t.status = 'live' AND t.trip_type = 'buddy'
-        AND (
-          NULLIF(t.start_date, '') IS NULL
-          OR (NULLIF(t.start_date, '')::date + INTERVAL '1 day') > (NOW() AT TIME ZONE 'Asia/Kolkata')
-        )
-      ORDER BY t.created_at DESC
-      LIMIT 100
-    `, [userId || 'none']);
-
-    const organizerIds = [...new Set(allTrips.map((trip) => trip.organizer_id).filter(Boolean))];
-    const profileRows = organizerIds.length
-      ? await query<(CompatibilityProfile & BudgetProfile & { user_id: string })>(`
-          SELECT cp.user_id, cp.food_preference, cp.travel_style, cp.activity_preferences, cp.energy_level, cp.social_personality, cp.cleanliness_preference, cp.drinking_preference, cp.smoking_preference, cp.languages, cp.trip_behavior, cp.ideal_trip_type, cp.created_at, cp.updated_at, tb.budget_min, tb.budget_max
-          FROM compatibility_profiles cp
-          LEFT JOIN trip_budgets tb ON tb.user_id = cp.user_id
-          WHERE cp.user_id = ANY($1::text[])
-        `, [organizerIds])
-      : [];
-
-    const profileMap = new Map(profileRows.map((profile) => [profile.user_id, profile]));
-
-    const trips = allTrips.map((trip) => {
-      const organizerProfile = profileMap.get(trip.organizer_id);
-      let match_score = 0;
-      let match_breakdown: ReturnType<typeof computeMatch>['breakdown'] = [];
-      let common_activities: string[] = [];
-      let common_languages: string[] = [];
-
-      if (userProfile && organizerProfile && trip.organizer_id !== userId) {
-        const organizerBudget = organizerProfile.budget_min && organizerProfile.budget_max
-          ? { budget_min: Number(organizerProfile.budget_min), budget_max: Number(organizerProfile.budget_max) }
-          : null;
-        const result = computeMatch(userProfile, organizerProfile, userBudget, organizerBudget);
-        match_score = result.score;
-        match_breakdown = result.breakdown;
-        common_activities = result.commonActivities;
-        common_languages = result.commonLanguages;
-      }
-
-      return {
-        ...trip,
-        registration_closed: Number(trip.registration_closed ?? 0),
-        accepted_count: Number(trip.accepted_count ?? 0),
-        match_score,
-        match_breakdown,
-        common_activities,
-        common_languages,
-        organizer_travel_style: organizerProfile?.travel_style || null,
-        organizer_food_pref: organizerProfile?.food_preference || trip.organizer_fooding_habit || null,
-        organizer_languages: parseStringArray(organizerProfile?.languages),
-        organizer_energy: organizerProfile?.energy_level || null,
-        organizer_social: organizerProfile?.social_personality || null,
-      };
-    });
-
-    if (userProfile) {
-      trips.sort((a, b) => b.match_score - a.match_score);
-    }
-
-    return NextResponse.json({ trips, currentUserId: userId, hasCompatibilityProfile });
+    const mode = new URL(request.url).searchParams.get('view') === 'interests' ? 'interests' : 'discover';
+    if (mode === 'interests' && !user) return NextResponse.json({ error: 'Please sign in.' }, { status: 401 });
+    return NextResponse.json(await loadBuddyFeed(user, mode), { headers: { 'Cache-Control': 'private, no-store' } });
   } catch (err) {
     console.error('Fetch buddy trips error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -151,7 +35,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { starting_location, destination, trip_date, duration_days, duration_nights, image_url, traveller_type } = body;
+    const { starting_location, destination, trip_date, duration_days, duration_nights, image_url, traveller_type, group_tags } = body;
 
     if (typeof starting_location !== 'string' || typeof destination !== 'string' || typeof trip_date !== 'string') {
       return NextResponse.json({ error: 'Starting location, destination, and trip date are required.' }, { status: 400 });
@@ -160,13 +44,12 @@ export async function POST(request: Request) {
     const normalizedDestination = destination.trim();
     const normalizedTripDate = trip_date.trim();
     const parsedDurationDays = Number(duration_days);
-    const parsedDurationNights = duration_nights === undefined || duration_nights === '' ? 0 : Number(duration_nights);
+    const parsedDurationNights = Number(duration_nights);
     if (!normalizedStartingLocation || !normalizedDestination || normalizedStartingLocation.length > 200 || normalizedDestination.length > 200) {
       return NextResponse.json({ error: 'Use valid locations of 200 characters or fewer.' }, { status: 400 });
     }
-    if (!Number.isInteger(parsedDurationDays) || parsedDurationDays < 1 || parsedDurationDays > 365 ||
-        !Number.isInteger(parsedDurationNights) || parsedDurationNights < 0 || parsedDurationNights > 365) {
-      return NextResponse.json({ error: 'Use a valid trip duration.' }, { status: 400 });
+    if (!isValidBuddyDuration(parsedDurationDays, parsedDurationNights)) {
+      return NextResponse.json({ error: 'Nights must be one fewer or one more than days, and cannot be zero.' }, { status: 400 });
     }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(normalizedTripDate)) {
       return NextResponse.json({ error: 'Use a valid trip date.' }, { status: 400 });
@@ -181,8 +64,12 @@ export async function POST(request: Request) {
         (typeof image_url !== 'string' || image_url.length > 2000 || !/^https:\/\//i.test(image_url))) {
       return NextResponse.json({ error: 'Use a valid uploaded trip image.' }, { status: 400 });
     }
-    if (traveller_type !== 'solo' && traveller_type !== 'couple') {
-      return NextResponse.json({ error: 'Choose whether you are travelling solo or as a couple.' }, { status: 400 });
+    if (traveller_type !== 'solo' && traveller_type !== 'couple' && traveller_type !== 'group') {
+      return NextResponse.json({ error: 'Choose solo, couple, or group travel.' }, { status: 400 });
+    }
+    const parsedGroupTags = parseBuddyGroupTagInput(group_tags);
+    if (parsedGroupTags === null) {
+      return NextResponse.json({ error: 'Choose up to five valid group interests.' }, { status: 400 });
     }
 
     const tripId = uuidv4();
@@ -190,8 +77,8 @@ export async function POST(request: Request) {
     const description = `Looking for a buddy to travel to ${normalizedDestination} for ${parsedDurationDays} days and ${parsedDurationNights} nights.`;
 
     await run(`
-      INSERT INTO trips (id, organizer_id, title, description, starting_location, destination, start_date, duration_days, duration_nights, image_url, traveller_type, status, trip_type)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'live', 'buddy')
+      INSERT INTO trips (id, organizer_id, title, description, starting_location, destination, start_date, duration_days, duration_nights, image_url, traveller_type, tags, status, trip_type)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'live', 'buddy')
     `, [tripId,
       user.id,
       title,
@@ -202,7 +89,9 @@ export async function POST(request: Request) {
       parsedDurationDays,
       parsedDurationNights,
       image_url || null,
-      traveller_type]);
+      traveller_type,
+      JSON.stringify(traveller_type === 'group' ? parsedGroupTags : [])]);
+    invalidateBuddyFeedCache();
 
     return NextResponse.json({ success: true, tripId }, { status: 201 });
   } catch (err) {

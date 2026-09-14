@@ -1,0 +1,4 @@
+export const BUDDY_MODERATION_SCHEMA_SQL = `
+ALTER TABLE trip_requests ADD COLUMN IF NOT EXISTS removed_at TIMESTAMPTZ;
+ALTER TABLE trip_requests ADD COLUMN IF NOT EXISTS removal_reason TEXT;
+`;

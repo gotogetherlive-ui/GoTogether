@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { absoluteUrl } from "@/lib/seo";
+import { absoluteUrl, PRIVATE_ROUTE_PREFIXES } from "@/lib/seo";
 
 const DISALLOWED_PATHS = [
   "/admin",
@@ -26,12 +26,12 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: ["/", "/_next/", "/images/", "/favicon.ico"],
-        disallow: DISALLOWED_PATHS,
+        disallow: [...new Set([...DISALLOWED_PATHS, ...PRIVATE_ROUTE_PREFIXES])],
       },
       {
         userAgent: ["GPTBot", "Google-Extended"],
         allow: ["/", "/_next/", "/images/", "/favicon.ico"],
-        disallow: DISALLOWED_PATHS,
+        disallow: [...new Set([...DISALLOWED_PATHS, ...PRIVATE_ROUTE_PREFIXES])],
       },
     ],
     sitemap: absoluteUrl("/sitemap.xml"),

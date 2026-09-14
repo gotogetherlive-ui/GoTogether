@@ -96,7 +96,7 @@ export default function AdminSupportPage() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-wrap justify-between items-center gap-4 mb-8">
         <div><h1 className="text-3xl font-bold text-slate-900">Support Tickets</h1><p className="text-sm text-slate-500 mt-1">Manage user support requests and concerns</p></div>
         <button onClick={fetchTickets} className="flex items-center gap-1.5 text-xs text-slate-600 hover:text-orange-500 border border-slate-200 hover:border-orange-300 px-3 py-1.5 rounded-lg transition-colors">
           <RefreshCw className="w-3.5 h-3.5" /> Refresh
@@ -112,7 +112,7 @@ export default function AdminSupportPage() {
       </div>
 
       {/* Filter Chips */}
-      <div className="flex gap-2 mb-5">
+      <div className="flex flex-wrap gap-2 mb-5">
         {(["all", "open", "in_progress", "resolved", "closed"] as const).map(f => (
           <button key={f} onClick={() => setFilter(f)} className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all duration-200 ${filter === f ? "bg-slate-900 text-white shadow-lg shadow-slate-900/20" : "bg-white text-slate-600 border border-slate-200 hover:border-slate-300"}`}>
             {f === "all" ? "All" : STATUS_STYLES[f]?.label || f}
@@ -134,10 +134,10 @@ export default function AdminSupportPage() {
             const st = STATUS_STYLES[t.status] || STATUS_STYLES.open;
             return (
               <div key={t.id} onClick={() => openDetail(t.id)}
-                className="group bg-white rounded-2xl p-5 shadow-sm border border-slate-100 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 cursor-pointer"
+                className="group bg-white rounded-2xl p-5 shadow-sm border border-slate-100 transition-all duration-300 hover:shadow-lg  cursor-pointer"
                 style={{ animationDelay: `${idx * 30}ms` }}>
                 <div className="flex items-start gap-4">
-                  <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${cat.gradient} flex items-center justify-center text-white shadow-lg ${cat.glow} flex-shrink-0 group-hover:scale-110 transition-transform duration-300`}>
+                  <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${cat.gradient} flex items-center justify-center text-white shadow-lg ${cat.glow} flex-shrink-0  transition-transform duration-300`}>
                     <Headset className="w-5 h-5" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -148,7 +148,7 @@ export default function AdminSupportPage() {
                       </div>
                       <span className={`flex-shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${st.bg} ${st.text}`}>{t.status.replace('_', ' ')}</span>
                     </div>
-                    <div className="flex items-center gap-4 mt-2.5 text-xs text-slate-400">
+                    <div className="flex flex-wrap items-center gap-4 mt-2.5 text-xs text-slate-400">
                       <span className={`inline-flex items-center gap-1 ${cat.text} font-semibold`}>{cat.label}</span>
                       <span className="flex items-center gap-1"><User className="w-3 h-3" />{t.full_name}</span>
                       <span className="flex items-center gap-1"><Mail className="w-3 h-3" />{t.email}</span>
@@ -167,7 +167,7 @@ export default function AdminSupportPage() {
         <>
           <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm" onClick={() => !detailLoading && setSelected(null)} />
           <div className="fixed inset-0 z-[101] flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
               {detailLoading ? (
                 <div className="flex items-center justify-center py-16"><Loader2 className="w-8 h-8 text-orange-400 animate-spin" /></div>
               ) : selected ? (() => {
@@ -175,12 +175,12 @@ export default function AdminSupportPage() {
                 const st = STATUS_STYLES[selected.status] || STATUS_STYLES.open;
                 return (
                   <>
-                    <div className={`relative h-20 bg-gradient-to-r ${cat.gradient} rounded-t-3xl`}>
+                    <div className={`relative h-20 bg-gradient-to-r ${cat.gradient} rounded-t-xl`}>
                       <button onClick={() => setSelected(null)} className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-colors"><X className="w-4 h-4" /></button>
                       <div className="absolute -bottom-6 left-6"><div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${cat.gradient} flex items-center justify-center text-white shadow-xl ${cat.glow} border-4 border-white`}><Headset className="w-6 h-6" /></div></div>
                     </div>
                     <div className="px-6 pt-10 pb-6">
-                      <div className="flex items-center justify-between mb-3">
+                      <div className="flex flex-wrap items-center justify-between gap-4 mb-3">
                         <span className={`text-xs font-bold uppercase tracking-wider ${cat.text}`}>{cat.label} Issue</span>
                         <span className={`px-3 py-1 rounded-full text-xs font-bold ${st.bg} ${st.text}`}>{st.label}</span>
                       </div>
@@ -201,7 +201,7 @@ export default function AdminSupportPage() {
                           <div className="mt-3 pt-3 border-t border-slate-200">
                             <p className="text-[10px] font-semibold text-slate-400 uppercase mb-1">Registered User</p>
                             <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-400 to-rose-500 flex items-center justify-center text-white text-xs font-bold overflow-hidden">
+                              <div className="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center text-white text-xs font-bold overflow-hidden">
                                 {selected.user_avatar ? <img src={selected.user_avatar} alt="" className="w-full h-full object-cover" /> : (selected.user_account_name?.charAt(0)?.toUpperCase() || "U")}
                               </div>
                               <div>

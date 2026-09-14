@@ -1,3 +1,4 @@
+import { v4 as uuidv4 } from "uuid";
 import { query, queryOne, run } from "@/lib/db";
 import {
   sendBookingConfirmedToTraveler,
@@ -17,14 +18,26 @@ export async function processOutboxEvents(limit = 10) {
       `SELECT id, event_type, payload
        FROM payments.payment_events_outbox
        WHERE processed_at IS NULL
+         AND (processing_token IS NULL OR processing_started_at < NOW() - INTERVAL '5 minutes')
        ORDER BY created_at ASC
        LIMIT $1`,
       [limit]
     );
 
     for (const event of events) {
+      const token = uuidv4();
+      const claim = await queryOne<{ payload: any }>(`UPDATE payments.payment_events_outbox
+        SET processing_token = $2, processing_started_at = NOW()
+        WHERE id = $1 AND processed_at IS NULL
+          AND (processing_token IS NULL OR processing_started_at < NOW() - INTERVAL '5 minutes')
+        RETURNING payload`, [event.id, token]);
+      if (!claim) continue;
+      const checkpoint = async (recipient: string) => {
+        await run(`UPDATE payments.payment_events_outbox SET payload = jsonb_set(payload, ARRAY[$3], 'true'::jsonb)
+          WHERE id = $1 AND processing_token = $2`, [event.id, token, recipient]);
+      };
       try {
-        const payload = typeof event.payload === 'string' ? JSON.parse(event.payload) : event.payload;
+        const payload = typeof claim.payload === 'string' ? JSON.parse(claim.payload) : claim.payload;
         
         if (event.event_type === "booking_created") {
           const booking = await queryOne<any>(
@@ -48,13 +61,16 @@ export async function processOutboxEvents(limit = 10) {
               passengerNames = String(booking.names || "").split(",").map(n => n.trim()).filter(Boolean);
             }
 
-            await sendNewBookingNotificationEmail({
-              to: booking.organizer_email,
-              organizerName: booking.organizer_name,
-              tripTitle: booking.trip_title,
-              bookerName: booking.traveler_name,
-              passengerCount: passengerNames.length,
-            });
+            if (!payload.organizer_sent) {
+              await sendNewBookingNotificationEmail({
+                to: booking.organizer_email,
+                organizerName: booking.organizer_name,
+                tripTitle: booking.trip_title,
+                bookerName: booking.traveler_name,
+                passengerCount: passengerNames.length,
+              }, `outbox-${event.id}-organizer`);
+              await checkpoint("organizer_sent");
+            }
           }
         } else if (event.event_type === "booking_confirmed") {
           const booking = await queryOne<any>(
@@ -81,42 +97,48 @@ export async function processOutboxEvents(limit = 10) {
             }
 
             // Send confirmation email to traveler
-            await sendBookingConfirmedToTraveler({
-              to: booking.traveler_email,
-              userName: booking.traveler_name,
-              tripTitle: booking.trip_title,
-              tripDate: booking.trip_date,
-              pickupLocation: booking.pickup_point || "",
-              destination: booking.destination,
-              bookingId: booking.booking_ref || booking.id,
-              ticketNumber: payload.ticketNumber || booking.ticket_number || "",
-              organizerName: booking.organizer_name,
-              organizerPhone: booking.organizer_phone,
-              amountPaid: Number(booking.amount) / 100, // convert paise to INR
-              razorpayPaymentId: payload.paymentId || "",
-            });
+            if (!payload.traveler_sent) {
+              await sendBookingConfirmedToTraveler({
+                to: booking.traveler_email,
+                userName: booking.traveler_name,
+                tripTitle: booking.trip_title,
+                tripDate: booking.trip_date,
+                pickupLocation: booking.pickup_point || "",
+                destination: booking.destination,
+                bookingId: booking.booking_ref || booking.id,
+                ticketNumber: payload.ticketNumber || booking.ticket_number || "",
+                organizerName: booking.organizer_name,
+                organizerPhone: booking.organizer_phone,
+                amountPaid: Number(booking.amount) / 100, // convert paise to INR
+                razorpayPaymentId: payload.paymentId || "",
+              }, `outbox-${event.id}-traveler`);
+              await checkpoint("traveler_sent");
+            }
 
             // Send confirmation email to organizer
-            await sendBookingConfirmedToOrganizer({
-              to: booking.organizer_email,
-              organizerName: booking.organizer_name,
-              tripTitle: booking.trip_title,
-              tripDate: booking.trip_date,
-              pickupLocation: booking.pickup_point || "",
-              destination: booking.destination,
-              bookingId: booking.booking_ref || booking.id,
-              travelerName: booking.traveler_name,
-              travelerAge: null,
-              travelerGender: null,
-              travelerFoodPref: null,
-              travelerProfession: null,
-              travelerPhone: booking.traveler_phone || "",
-              travelerEmail: booking.traveler_email,
-              travelerCount: passengerNames.length,
-              passengerNames,
-              amountPaid: Number(booking.amount) / 100,
-              razorpayPaymentId: payload.paymentId || "",
-            });
+            if (!payload.organizer_sent) {
+              await sendBookingConfirmedToOrganizer({
+                to: booking.organizer_email,
+                organizerName: booking.organizer_name,
+                tripTitle: booking.trip_title,
+                tripDate: booking.trip_date,
+                pickupLocation: booking.pickup_point || "",
+                destination: booking.destination,
+                bookingId: booking.booking_ref || booking.id,
+                travelerName: booking.traveler_name,
+                travelerAge: null,
+                travelerGender: null,
+                travelerFoodPref: null,
+                travelerProfession: null,
+                travelerPhone: booking.traveler_phone || "",
+                travelerEmail: booking.traveler_email,
+                travelerCount: passengerNames.length,
+                passengerNames,
+                amountPaid: Number(booking.amount) / 100,
+                razorpayPaymentId: payload.paymentId || "",
+              }, `outbox-${event.id}-organizer`);
+              await checkpoint("organizer_sent");
+            }
           }
         } else if (
           // Cancellation & refund lifecycle events — these are informational audit trail entries.
@@ -135,11 +157,12 @@ export async function processOutboxEvents(limit = 10) {
 
         // Mark outbox event processed
         await run(
-          `UPDATE payments.payment_events_outbox SET processed_at = NOW() WHERE id = $1`,
-          [event.id]
+          `UPDATE payments.payment_events_outbox SET processed_at = NOW(), processing_token = NULL WHERE id = $1 AND processing_token = $2`,
+          [event.id, token]
         );
         summary.processed++;
       } catch (err: any) {
+        await run(`UPDATE payments.payment_events_outbox SET processing_token = NULL WHERE id = $1 AND processing_token = $2`, [event.id, token]);
         summary.failed++;
         summary.errors.push(`Failed to process event ${event.id}: ${err.message}`);
       }

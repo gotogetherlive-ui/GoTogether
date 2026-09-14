@@ -11,12 +11,14 @@ const required = [
   'NEXT_PUBLIC_APP_URL',
   'SUPER_ADMIN_EMAIL',
   'SESSION_SECRET',
+  'CHAT_ENCRYPTION_KEY',
   'CRON_SECRET',
   'PAYMENTS_MASTER_KEY',
   'PAYMENT_MODE',
   'ENABLED_ORGANIZER_PAYMENT_PROVIDERS',
   'NEXT_PUBLIC_ENABLED_ORGANIZER_PAYMENT_PROVIDERS',
   'NEXT_PUBLIC_GOOGLE_MAPS_API_KEY',
+  'NEXT_PUBLIC_GA_MEASUREMENT_ID',
   'CLOUDINARY_CLOUD_NAME',
   'CLOUDINARY_API_KEY',
   'CLOUDINARY_API_SECRET',
@@ -43,6 +45,7 @@ const placeholders = [
   'your_app_id',
   'your_mid',
   'your_key',
+  'xxxxxxxx',
 ];
 
 const allowedPaymentModes = new Set(['PLATFORM', 'PLATFORM_CONTROLLED', 'ORGANIZER_OWNED', 'MARKETPLACE']);
@@ -176,12 +179,33 @@ export function validateProductionEnv(env = process.env) {
     errors.push('PAYMENTS_MASTER_KEY must be at least 32 characters');
   }
 
+  if (!/^[a-f0-9]{64}$/i.test(value(env, 'CHAT_ENCRYPTION_KEY'))) {
+    errors.push('CHAT_ENCRYPTION_KEY must contain 64 hexadecimal characters');
+  }
+
   if (value(env, 'SESSION_SECRET').length < 32) {
     errors.push('SESSION_SECRET must be at least 32 characters');
   }
 
   if (value(env, 'CRON_SECRET').length < 32) {
     errors.push('CRON_SECRET must be at least 32 characters');
+  }
+
+  const analyticsId = value(env, 'NEXT_PUBLIC_GA_MEASUREMENT_ID').toUpperCase();
+  if (analyticsId && !/^G-[A-Z0-9]{6,20}$/.test(analyticsId)) {
+    errors.push('NEXT_PUBLIC_GA_MEASUREMENT_ID must be a valid GA4 web measurement ID such as G-ABC1234567');
+  }
+
+  if (isTruthy(env, 'WHATSAPP_CRM_ENABLED')) {
+    for (const name of ['WHATSAPP_ACCESS_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID', 'WHATSAPP_APP_SECRET', 'WHATSAPP_VERIFY_TOKEN']) {
+      const raw = value(env, name);
+      if (!raw) errors.push(`${name} is required when WHATSAPP_CRM_ENABLED=true`);
+      else if (hasPlaceholder(raw)) errors.push(`${name} still looks like a placeholder`);
+    }
+    const graphVersion = value(env, 'WHATSAPP_GRAPH_API_VERSION');
+    if (!/^v\d+\.\d+$/.test(graphVersion)) {
+      errors.push('WHATSAPP_GRAPH_API_VERSION must use a pinned Graph API version such as v25.0');
+    }
   }
 
   const dbUrl = value(env, 'DATABASE_URL');

@@ -29,7 +29,7 @@ Required for every production deployment:
 - `TRUST_PROXY=true` only when the app is behind a trusted proxy that overwrites forwarding headers.
 - `PG_POOL_MAX` and `WEB_CONCURRENCY` sized for the database connection limit.
 
-Capacity rule: `WEB_CONCURRENCY × PG_POOL_MAX × application instances` must remain below the database's usable connection allowance. Reserve at least 20% of database connections for migrations, administration, and background jobs. Monitor `/api/health`; a sustained non-zero `pool.waiting` value means requests are queued for a database connection and the pool, query load, or database tier needs attention.
+Capacity rule: `WEB_CONCURRENCY × PG_POOL_MAX × APP_INSTANCE_COUNT` must remain below the database's usable connection allowance. Set `APP_INSTANCE_COUNT` to the maximum simultaneous instance count, including rolling-deploy overlap, and set `PG_DATABASE_MAX_CONNECTIONS` to the actual provider limit so `npm run check:capacity` can enforce the budget. Reserve at least 20% of database connections for migrations, administration, and background jobs. Each web worker also holds one of its pooled connections for realtime PostgreSQL notifications. Monitor `/api/health`; a sustained non-zero `pool.waiting` value means requests are queued for a database connection and the pool, query load, or database tier needs attention.
 
 Recommended for rolling or multi-instance deployments:
 
@@ -71,7 +71,7 @@ Webhook confirmation is the source of truth. Frontend checkout acknowledgement o
 
 1. Use TLS at the platform edge or load balancer. Do not run production payment callbacks over plain HTTP.
 2. Restrict PostgreSQL and management interfaces to private networks. Configure PostgreSQL TLS with hostname verification (`verify-full`) and a trusted CA (`PGSSLROOTCERT` or `PGSSLCA`) when the server certificate is not trusted by the system bundle. If using a managed free-tier database without a downloadable CA, set `ALLOW_UNVERIFIED_DATABASE_SSL=true` intentionally and monitor the release warning.
-3. Run all SQL migrations in `db/migrations` before deploying code that depends on them.
+3. Run all SQL migrations in `db/migrations` before deploying code that depends on them. Business registration now requires `20260912_business_introductions.sql`; apply it with `node scripts/apply-business-introductions-migration.mjs` against the deployment database before releasing the approval flow.
 4. Configure provider webhook/callback URLs using the exact public origin in `NEXT_PUBLIC_BASE_URL`.
 5. Run `npm ci`, then `npm run release:check` with production environment variables present.
 6. Start with `NODE_ENV=production npm start` for platform-managed scaling, or `NODE_ENV=production npm run start:cluster` on a single multi-core VM.
@@ -114,9 +114,38 @@ npm run release:check
 
 ```bash
 node scripts/check-production-env.mjs
+npm run check:capacity
 npm run lint
 npm run typecheck
 npm run build
 ```
 
 The release gate confirms configuration shape and build health. It does not replace staging tests for OAuth, email delivery, Cloudinary uploads, each enabled payment provider, refunds, cron authentication, or database migration rollback/restore.
+
+## 3,000-4,000 Concurrent-user Capacity Gate
+
+The repository includes sustained and spike k6 profiles for the target range. Run them against a production-shaped staging deployment, never against a developer machine or the live site without an approved test window:
+
+```bash
+TARGET_URL=https://staging.gotogethertrip.com npm run load:target3000
+TARGET_URL=https://staging.gotogethertrip.com npm run load:target4000
+TARGET_URL=https://staging.gotogethertrip.com npm run load:spike4000
+```
+
+The target is accepted only when all three profiles meet the checked-in thresholds (request failure rate below 0.1%, p95 below 1.5 seconds, p99 below 3 seconds, and checks above 99%) while application CPU and memory remain stable, PostgreSQL has at least 20% connection headroom, `/api/health` does not show sustained `pool.waiting`, and the load generator itself is not saturated. Repeat the sustained 4,000-user run after changing instance count, worker count, pool size, database tier, proxy, CDN, or region.
+
+Code and a successful build do not certify traffic capacity on their own. Certification requires the generated k6 summary plus infrastructure and PostgreSQL metrics from the same staging run. Keep authenticated responses private at the CDN or reverse proxy; only explicitly public, cookie-free assets and responses may be shared-cache candidates.
+
+### Buddy member removal
+
+Before deploying the buddy removal/reporting feature, run `node scripts/apply-buddy-removal-migration.mjs` against the target database. This idempotently adds removal timestamps and reasons to trip requests. Production does not automatically run this migration.
+
+### Server-managed encrypted chat
+
+For the September release, follow `docs/release-audit-20260914.md` and use `scripts/apply-release-migrations.mjs`. Do not replay every historical SQL migration: several intentionally rewrite or delete old data. Set `ALLOW_RUNTIME_SCHEMA_DDL=false` for an already-migrated hosted database, including local development connected to it.
+
+Set `CHAT_ENCRYPTION_KEY` to 32 cryptographically random bytes encoded as 64 hexadecimal characters in the deployment secret store. Keep it out of the database and source control. All application instances must use the same key. Back it up securely; changing or losing it makes encrypted messages unreadable.
+
+Run `node scripts/apply-chat-encryption-migration.mjs` to add the encryption version column if needed. After configuring the key, run `node scripts/encrypt-existing-chat-messages.mjs` to encrypt existing plaintext messages. The migration verifies each encrypted value before committing. Version-1 end-to-end ciphertext and its old account-key records remain untouched.
+
+Messages use server-managed AES-256-GCM encryption, not end-to-end encryption. Users do not need passwords, recovery codes or trusted-device setup. See `docs/chat-encryption.md`.

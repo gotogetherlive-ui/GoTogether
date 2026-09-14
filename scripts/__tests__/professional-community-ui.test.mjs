@@ -11,7 +11,8 @@ test('FindBuddy presents a professional search flow without removing matching co
   assert.ok(buddyClient.includes('Search available trips'));
   assert.ok(buddyClient.includes('filteredTrips.length'));
   assert.ok(buddyClient.includes('clearFilters'));
-  assert.ok(buddyClient.includes('View match details'));
+  assert.ok(buddyClient.includes('<CompatibilityDetails trip={selectedMatchTrip}'));
+  assert.ok(buddyClient.includes('setSelectedMatchTrip(trip)'));
   assert.ok(buddyClient.includes('Solo Traveller'));
 });
 

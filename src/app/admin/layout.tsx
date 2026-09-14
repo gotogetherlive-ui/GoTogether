@@ -16,12 +16,16 @@ import {
   Headset,
   Mail,
   WandSparkles,
+  Menu,
+  X,
+  ContactRound,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
 
 const sidebarLinks = [
   { href: "/admin", label: "Dashboard", icon: BarChart3, exact: true },
+  { href: "/admin/crm", label: "Customer CRM", icon: ContactRound },
   { href: "/admin/users", label: "User Management", icon: Users },
   { href: "/admin/trips", label: "Trip Moderation", icon: MapPin },
   { href: "/admin/user-trips", label: "User Trips", icon: Compass },
@@ -29,7 +33,9 @@ const sidebarLinks = [
   { href: "/admin/business-apps", label: "Business Apps", icon: Building2 },
   { href: "/admin/support", label: "Support Tickets", icon: Headset },
   { href: "/admin/campaigns", label: "User Campaigns", icon: Mail },
+  { href: "/admin/retention", label: "Automated Emails", icon: Mail },
   { href: "/admin/reports", label: "Feedback", icon: MessageSquare },
+    { href: "/admin/traveler-reports", label: "Traveler Reports", icon: MessageSquare },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
@@ -45,6 +51,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
   const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
   const [checking, setChecking] = useState(true);
+  const [navigationOpen, setNavigationOpen] = useState(false);
+
+  useEffect(() => { setNavigationOpen(false); }, [pathname]);
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -81,11 +90,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   if (!adminUser) return null;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className="gt-workspace min-h-screen bg-slate-50 flex flex-col lg:flex-row">
       {/* Sidebar */}
-      <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col fixed h-full z-20">
+      <aside className="w-full lg:w-64 bg-slate-900 text-slate-300 flex flex-col relative lg:fixed lg:h-dvh z-20">
         {/* Logo */}
-        <div className="p-6 border-b border-slate-800">
+        <div className="p-5 lg:p-6 border-b border-slate-800 relative">
           <Link href="/" className="flex items-center gap-2 text-white group">
             <Compass className="w-6 h-6 text-orange-500" />
             <span className="text-xl font-bold tracking-tight">GoTogether</span>
@@ -99,15 +108,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </Link>
         </div>
 
+        <button type="button" onClick={() => setNavigationOpen(!navigationOpen)} aria-expanded={navigationOpen} aria-controls="admin-navigation" aria-label="Toggle admin navigation" className="absolute right-5 top-6 rounded-md border border-slate-600 p-2 text-white lg:hidden">{navigationOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}</button>
         {/* Admin Panel Label */}
-        <div className="px-6 pt-5 pb-2">
+        <div className={`${navigationOpen ? "block" : "hidden"} lg:block px-6 pt-5 pb-2`}>
           <span className="text-[11px] font-semibold tracking-widest uppercase text-slate-500">
             Admin Panel
           </span>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 py-2 px-4 space-y-1 overflow-y-auto">
+        <nav id="admin-navigation" aria-label="Administration" className={`${navigationOpen ? "block" : "hidden"} lg:block flex-1 py-2 px-4 space-y-1 overflow-y-auto`}>
           {sidebarLinks.map((link) => {
             const Icon = link.icon;
             const active = isActive(link.href, link.exact);
@@ -115,6 +125,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <Link
                 key={link.href}
                 href={link.href}
+                aria-current={active ? "page" : undefined}
                 className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 text-sm font-medium ${
                   active
                     ? "bg-orange-500/10 text-orange-400 shadow-sm"
@@ -130,9 +141,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </nav>
 
         {/* Bottom — real admin info */}
-        <div className="p-4 border-t border-slate-800 space-y-2">
+        <div className={`${navigationOpen ? "block" : "hidden"} lg:block p-4 border-t border-slate-800 space-y-2`}>
           <div className="px-4 py-2 bg-slate-800/50 rounded-lg flex items-center gap-3 mb-2">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-orange-400 to-rose-400 flex items-center justify-center text-white text-xs font-bold shadow-inner overflow-hidden">
+            <div className="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center text-white text-xs font-bold shadow-inner overflow-hidden">
               {adminUser.avatar_url ? (
                 <img src={adminUser.avatar_url} alt="" className="w-full h-full object-cover" />
               ) : (
@@ -158,9 +169,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 ml-64 p-8">
+      <main className="min-w-0 flex-1 lg:ml-64 p-4 sm:p-6 lg:p-8">
         {/* Top Bar */}
-        <div className="flex items-center justify-between mb-8 pb-6 border-b border-slate-200">
+        <div className="flex flex-wrap gap-4 items-center justify-between mb-8 pb-6 border-b border-slate-200">
           <div>
             <p className="text-sm text-slate-500">Welcome back,</p>
             <h2 className="text-lg font-bold text-slate-900">

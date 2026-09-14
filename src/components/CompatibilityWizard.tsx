@@ -318,12 +318,12 @@ export default function CompatibilityWizard({
       }`}
     >
       {selected && (
-        <div className="absolute top-2.5 right-2.5 w-6 h-6 rounded-full bg-gradient-to-br from-orange-500 to-rose-500 flex items-center justify-center">
+        <div className="absolute top-2.5 right-2.5 w-6 h-6 rounded-full bg-slate-900 flex items-center justify-center">
           <Check className="w-3.5 h-3.5 text-white" />
         </div>
       )}
       <div className="flex min-w-0 items-center gap-3">
-        <span className={`${compact ? "text-xl" : "text-2xl"} shrink-0 group-hover:scale-110 transition-transform`}>{emoji}</span>
+        <span className={`${compact ? "text-xl" : "text-2xl"} shrink-0  transition-transform`}>{emoji}</span>
         <div>
           <p className={`font-bold ${selected ? "text-orange-700" : "text-slate-800"} ${compact ? "text-sm" : "text-base"}`}>
             {label}
@@ -507,7 +507,7 @@ export default function CompatibilityWizard({
                     className={`flex flex-col items-center gap-1 cursor-pointer transition-all ${
                       data.cleanliness_preference === item.val
                         ? "scale-125"
-                        : "opacity-50 hover:opacity-80 hover:scale-105"
+                        : "opacity-50 hover:opacity-80 "
                     }`}
                   >
                     <span className="text-2xl">{item.emoji}</span>
@@ -522,12 +522,14 @@ export default function CompatibilityWizard({
               {/* Slider track */}
               <div className="relative h-2 bg-slate-100 rounded-full overflow-hidden">
                 <div
-                  className="absolute h-full bg-gradient-to-r from-orange-400 to-rose-500 rounded-full transition-all duration-300"
+                  className="absolute h-full bg-slate-900 rounded-full transition-all duration-300"
                   style={{ width: `${((data.cleanliness_preference - 1) / 4) * 100}%` }}
                 />
               </div>
-              <input
-                type="range"
+                  <input
+                    name="cleanliness-preference"
+                    aria-label="Cleanliness preference"
+                    type="range"
                 min={1}
                 max={5}
                 value={data.cleanliness_preference}
@@ -671,8 +673,8 @@ export default function CompatibilityWizard({
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
                   Minimum Budget (₹)
                 </label>
-                <input
-                  type="number"
+                  <input aria-label={'Budget Minimum'} name="budget-minimum"
+                    type="number"
                   min={1}
                   value={data.budget_min}
                   onChange={(e) => setData({ ...data, budget_min: e.target.value })}
@@ -684,8 +686,8 @@ export default function CompatibilityWizard({
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
                   Maximum Budget (₹)
                 </label>
-                <input
-                  type="number"
+                  <input aria-label={'Budget Maximum'} name="budget-maximum"
+                    type="number"
                   min={1}
                   value={data.budget_max}
                   onChange={(e) => setData({ ...data, budget_max: e.target.value })}
@@ -714,8 +716,8 @@ export default function CompatibilityWizard({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-md">
-      <div className="bg-white rounded-[2rem] overflow-hidden shadow-2xl border border-slate-100 max-w-lg w-full max-h-[92vh] flex flex-col animate-slide-up">
+    <div className="gt-viewport-modal fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-md">
+      <div className="gt-viewport-dialog flex w-full max-w-lg flex-col overflow-hidden rounded-xl border border-slate-100 bg-white shadow-2xl animate-slide-up">
         {/* Header */}
         <div className="relative bg-gradient-to-r from-orange-500 via-rose-500 to-pink-500 px-6 py-5 shrink-0 overflow-hidden">
           <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" />
@@ -723,7 +725,7 @@ export default function CompatibilityWizard({
 
           <div className="relative z-10 flex items-center justify-between mb-3">
             <div>
-              <h2 className="text-xl font-extrabold text-white">
+              <h2 className="text-xl font-bold text-white">
                 {editMode ? "Edit Your Travel DNA" : "Your Travel DNA"}
               </h2>
               <p className="text-white/70 text-xs mt-0.5">
@@ -792,7 +794,7 @@ export default function CompatibilityWizard({
               type="button"
               onClick={handleSubmit}
               disabled={!canProceed() || saving}
-              className="flex items-center gap-2 px-7 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 text-white text-sm font-bold shadow-lg shadow-orange-500/20 hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              className="flex items-center gap-2 px-7 py-3 rounded-xl bg-slate-900 hover:bg-slate-700 text-white text-sm font-bold shadow-lg shadow-orange-500/20 hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               {saving ? (
                 <>
@@ -811,7 +813,7 @@ export default function CompatibilityWizard({
               type="button"
               onClick={goNext}
               disabled={!canProceed()}
-              className="flex items-center gap-1.5 px-6 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 text-white text-sm font-bold shadow-md shadow-orange-500/10 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              className="flex items-center gap-1.5 px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-700 text-white text-sm font-bold shadow-md shadow-orange-500/10 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
             >
               Next
               <ChevronRight className="w-4 h-4" />

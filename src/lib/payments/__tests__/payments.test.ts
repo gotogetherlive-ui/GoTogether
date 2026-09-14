@@ -1,6 +1,6 @@
 import { test, describe, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert';
-import { run, queryOne } from '@/lib/db';
+import { run, queryOne, getPoolInstance } from '@/lib/db';
 import { PAYMENT_PROVIDER, BOOKING_STATUS, REFUND_STATUS } from '../domain';
 import {
   createBookingPaymentOrder,
@@ -13,6 +13,14 @@ import {
 import { getPaymentProviderAdapter } from '../adapters/registry';
 import { v4 as uuidv4 } from 'uuid';
 import { SecretManager } from '../secret-manager';
+import { GET as listMyBookings } from '@/app/api/user/requests/route';
+import { GET as readBookingStatus } from '@/app/api/bookings/[bookingId]/status/route';
+import { POST as cancelTrip } from '@/app/api/business/trips/[id]/cancel/route';
+import { POST as processBuddyRequest } from '@/app/api/organizer/requests/[id]/route';
+import { reconcilePayments } from '../reconciliation';
+import { processOutboxEvents } from '../outbox';
+import { claimPaymentEvent } from '../repository';
+
 
 describe('GoTogether Payments Subsystem Tests', () => {
   let testUser: { id: string; email: string; full_name: string };
@@ -139,9 +147,12 @@ describe('GoTogether Payments Subsystem Tests', () => {
     const adapter = getPaymentProviderAdapter(PAYMENT_PROVIDER.RAZORPAY);
     adapter.createOrder = originalCreateOrder;
     adapter.refundPayment = originalRefundPayment;
+    await getPoolInstance().end();
   });
 
   beforeEach(async () => {
+    await run('DELETE FROM payments.payment_events_outbox');
+    await run("UPDATE trips SET registration_closed = 0, status = 'live', max_capacity = 5 WHERE id = $1", [testTrip.id]);
     // Clear dynamic tables before each test case
     await run('DELETE FROM public.booking_tickets');
     await run('DELETE FROM public.booking_cancellations');
@@ -524,6 +535,193 @@ describe('GoTogether Payments Subsystem Tests', () => {
       };
     }
   });
+  function traveler(user = testUser) {
+    return { ...user, role: 'regular', phone_number: '9999999999', age: 29, gender: 'Other', profession: 'Tester', fooding_habit: 'Any' } as any;
+  }
+  function bookingInput(count = 1) {
+    return { trip_id: testTrip.id, male_count: count, female_count: 0, child_count: 0,
+      names: Array.from({ length: count }, (_, i) => `Traveler ${i}`), phone_number: '9999999999', trip_date: '2026-07-15' };
+  }
+  async function reserve(count = 1) {
+    const result = await createBookingPaymentOrder(traveler(), bookingInput(count));
+    assert.ok(result.ok, JSON.stringify(result));
+    return result.body;
+  }
+  async function capture(booking: any) {
+    const order = await queryOne<any>('SELECT * FROM payments.orders WHERE booking_id = $1 ORDER BY created_at DESC LIMIT 1', [booking.bookingId]);
+    const result = await confirmPaymentFromWebhook({ provider: order.provider, providerOrderId: order.provider_order_id,
+      providerPaymentId: `pay_${uuidv4()}`, amount: order.amount, currency: 'INR', rawPayment: {} });
+    assert.ok(result.ok, JSON.stringify(result));
+    return result;
+  }
+
+  test('Regression: matching an unverified phone cannot list, read, or claim another booking', async () => {
+    const booking = await reserve();
+    (global as any).mockSessionUser = traveler(testUserB);
+    try {
+      const listed = await listMyBookings();
+      assert.equal(listed.status, 200);
+      assert.equal((await listed.json()).bookings.length, 0);
+      const status = await readBookingStatus(new Request('http://localhost'), { params: Promise.resolve({ bookingId: booking.bookingId }) });
+      assert.equal(status.status, 404);
+      const claim = await createBookingPaymentOrder(traveler(testUserB), { ...bookingInput(), booking_id: booking.bookingId });
+      assert.equal(claim.ok, false);
+      assert.equal((await queryOne<any>('SELECT user_id FROM trip_bookings WHERE id = $1', [booking.bookingId])).user_id, testUser.id);
+    } finally { delete (global as any).mockSessionUser; }
+  });
+
+  test('Regression: retries reject changed passengers and trip, and preserve the stored price', async () => {
+    const booking = await reserve(2);
+    await run("UPDATE payments.orders SET status = 'FAILED' WHERE booking_id = $1", [booking.bookingId]);
+    const fewer = await createBookingPaymentOrder(traveler(), { ...bookingInput(), booking_id: booking.bookingId });
+    assert.equal(fewer.ok, false);
+    const otherTrip = uuidv4();
+    await run(`INSERT INTO trips (id, organizer_id, title, description, duration_days, destination, status, gotogether_price, start_date)
+      VALUES ($1, $2, 'Cheap trip', 'Test description', 1, 'Local', 'live', '1', '2026-07-15')`, [otherTrip, testOrganizer.id]);
+    const wrongTrip = await createBookingPaymentOrder(traveler(), { ...bookingInput(2), trip_id: otherTrip, booking_id: booking.bookingId });
+    assert.equal(wrongTrip.ok, false);
+    await run("UPDATE trips SET gotogether_price = '1' WHERE id = $1", [testTrip.id]);
+    try {
+      const retry = await createBookingPaymentOrder(traveler(), { ...bookingInput(2), booking_id: booking.bookingId });
+      assert.ok(retry.ok, JSON.stringify(retry));
+      assert.equal(retry.body.amount, 10000);
+      await capture(retry.body);
+      const stored = await queryOne<any>('SELECT amount, male_count, booking_status FROM trip_bookings WHERE id = $1', [booking.bookingId]);
+      assert.deepEqual(stored, { amount: 10000, male_count: 2, booking_status: 'confirmed' });
+    } finally { await run("UPDATE trips SET gotogether_price = '50' WHERE id = $1", [testTrip.id]); }
+  });
+
+  test('Regression: the last held seat can resume the same checkout without a second order', async () => {
+    await run('UPDATE trips SET max_capacity = 1 WHERE id = $1', [testTrip.id]);
+    const booking = await reserve();
+    for (const body of [bookingInput(), { ...bookingInput(), booking_id: booking.bookingId }]) {
+      const retry = await createBookingPaymentOrder(traveler(), body);
+      assert.ok(retry.ok, JSON.stringify(retry));
+      assert.equal(retry.body.orderId, booking.orderId);
+    }
+    assert.equal(Number((await queryOne<any>('SELECT COUNT(*) AS count FROM payments.orders WHERE booking_id = $1', [booking.bookingId])).count), 1);
+  });
+
+  test('Regression: organizer cancellation closes unpaid bookings and refunds a late capture', async () => {
+    const booking = await reserve();
+    (global as any).mockSessionUser = { ...traveler(testOrganizer), role: 'business' };
+    try {
+      const response = await cancelTrip(new Request('http://localhost', { method: 'POST', body: JSON.stringify({ reason_type: 'weather', reason: 'Unsafe weather' }) }), { params: Promise.resolve({ id: testTrip.id }) });
+      assert.equal(response.status, 200, await response.text());
+    } finally { delete (global as any).mockSessionUser; }
+    const result = await capture(booking);
+    assert.equal(result.refundRequired, true);
+    assert.equal(Number((await queryOne<any>('SELECT COUNT(*) AS count FROM booking_tickets WHERE booking_id = $1', [booking.bookingId])).count), 0);
+    assert.equal((await queryOne<any>('SELECT status FROM trips WHERE id = $1', [testTrip.id])).status, 'cancelled');
+  });
+
+  test('Regression: concurrent refunds submit once and ambiguous retries preserve amount and identity', async () => {
+    const booking = await reserve(); await capture(booking);
+    const adapter = getPaymentProviderAdapter(PAYMENT_PROVIDER.RAZORPAY);
+    const original = adapter.refundPayment;
+    const attempts: any[] = [];
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    adapter.refundPayment = async input => { attempts.push(input); await gate; throw new Error('Response lost after gateway acceptance'); };
+    try {
+      const first = requestBookingRefund(booking.bookingId, 'Half refund', 2500);
+      while (!attempts.length) await new Promise(resolve => setTimeout(resolve, 10));
+      const second = await requestBookingRefund(booking.bookingId, 'Different caller', 5000);
+      assert.ok(second.ok);
+      const worker = await processPendingRefunds(); assert.equal(worker.processed, 0);
+      release(); assert.equal((await first).ok, false);
+      adapter.refundPayment = async input => { attempts.push(input); return { id: 'refund_idempotent', status: 'pending' }; };
+      const retried = await requestBookingRefund(booking.bookingId, 'Retry with different reason', 5000);
+      assert.ok(retried.ok);
+      assert.equal(attempts.length, 2);
+      assert.equal(attempts[0].amount, 2500);
+      assert.deepEqual(attempts[1], attempts[0]);
+    } finally { release(); adapter.refundPayment = original; }
+  });
+
+  test('Regression: reconciliation ignores rejected logs and replays only the immutable verified event', async () => {
+    const booking = await reserve();
+    const parsed = { eventType: 'payment.captured', providerEventId: 'event_trusted', rawEvent: {},
+      payment: { providerOrderId: booking.orderId, providerPaymentId: 'pay_trusted', amount: booking.amount, currency: 'INR', method: null, raw: {} } };
+    const event = await claimPaymentEvent({ provider: 'RAZORPAY', providerEventId: 'event_trusted', payloadHash: 'trusted_hash', verifiedPayload: parsed });
+    assert.ok(event);
+    const changed = await claimPaymentEvent({ provider: 'RAZORPAY', providerEventId: 'event_trusted', payloadHash: 'changed_hash', verifiedPayload: { ...parsed, eventType: 'payment.failed' } });
+    assert.equal(changed, null);
+    await run("UPDATE payments.payment_events SET created_at = NOW() - INTERVAL '3 minutes' WHERE id = $1", [event.id]);
+    await run(`INSERT INTO payments.webhook_logs (id, provider, provider_event_id, event_type, payload, response_status, processing_error)
+      VALUES ($1, 'RAZORPAY', 'event_trusted', 'payment.captured', $2::jsonb, 400, 'Invalid signature')`, [uuidv4(), JSON.stringify({ event: 'payment.captured', payload: { payment: { entity: { id: 'pay_attacker', order_id: booking.orderId, amount: booking.amount } } } })]);
+    // Avoid sending notification emails; this test concerns recovery authorization.
+    await run('DELETE FROM payments.payment_events_outbox');
+    const originalFetch = global.fetch;
+    global.fetch = async () => new Response(JSON.stringify({ id: 'email_test' }), { status: 200 });
+    try {
+      const result = await reconcilePayments();
+      assert.equal(result.webhookEventsReprocessed, 1, JSON.stringify(result));
+      const payment = await queryOne<any>("SELECT provider_payment_id FROM payments.transactions WHERE status = 'SUCCESS'");
+      assert.equal(payment.provider_payment_id, 'pay_trusted');
+    } finally { global.fetch = originalFetch; }
+  });
+
+  test('Regression: gateway recovery uses a real captured payment ID for later refunds', async () => {
+    const booking = await reserve();
+    await run("UPDATE payments.orders SET created_at = NOW() - INTERVAL '6 minutes' WHERE booking_id = $1", [booking.bookingId]);
+    await run('DELETE FROM payments.payment_events_outbox');
+    const adapter = getPaymentProviderAdapter(PAYMENT_PROVIDER.RAZORPAY);
+    const oldStatus = adapter.fetchOrderStatus, oldPayment = adapter.fetchSuccessfulPayment, oldRefund = adapter.refundPayment;
+    const originalFetch = global.fetch;
+    let refundInput: any;
+    adapter.fetchOrderStatus = async () => ({ status: 'SUCCESS', raw: { status: 'paid', amount: 5000 } });
+    adapter.fetchSuccessfulPayment = async () => ({ providerOrderId: booking.orderId, providerPaymentId: 'pay_real_capture', amount: 5000, currency: 'INR', method: 'card', rawPayment: {} });
+    adapter.refundPayment = async input => { refundInput = input; return { id: 'refund_real_capture' }; };
+    global.fetch = async () => new Response(JSON.stringify({ id: 'email_test' }), { status: 200 });
+    try {
+      assert.equal((await reconcilePayments()).ordersSynced, 1);
+      assert.ok((await requestBookingRefund(booking.bookingId, 'Test')).ok);
+      assert.equal(refundInput.providerPaymentId, 'pay_real_capture');
+      assert.equal(refundInput.providerOrderId, booking.orderId);
+    } finally { adapter.fetchOrderStatus = oldStatus; adapter.fetchSuccessfulPayment = oldPayment; adapter.refundPayment = oldRefund; global.fetch = originalFetch; }
+  });
+
+  test('Regression: outbox failure retries only the failed recipient and concurrent workers claim once', async () => {
+    const booking = await reserve(); await capture(booking);
+    await run("DELETE FROM payments.payment_events_outbox WHERE event_type <> 'booking_confirmed'");
+    const originalFetch = global.fetch;
+    const recipients: string[] = [];
+    let failOrganizer = true;
+    global.fetch = async (_url, init) => {
+      const email = JSON.parse(String(init?.body)); recipients.push(email.to[0]);
+      if (email.to[0] === testOrganizer.email && failOrganizer) return new Response(JSON.stringify({ name: 'validation_error', message: 'Temporary failure' }), { status: 500 });
+      return new Response(JSON.stringify({ id: 'email_mock' }), { status: 200 });
+    };
+    try {
+      const initial = await processOutboxEvents(); assert.equal(initial.failed, 1);
+      const event = await queryOne<any>('SELECT processed_at, payload FROM payments.payment_events_outbox');
+      assert.equal(event.processed_at, null); assert.equal(event.payload.traveler_sent, true);
+      failOrganizer = false;
+      const workers = await Promise.all([processOutboxEvents(), processOutboxEvents()]);
+      assert.equal(workers.reduce((n, w) => n + w.processed, 0), 1);
+      assert.equal(recipients.filter(r => r === testUser.email).length, 1);
+      assert.equal(recipients.filter(r => r === testOrganizer.email).length, 2);
+    } finally { global.fetch = originalFetch; }
+  });
+
+  test('Regression: concurrent buddy decisions leave membership consistent with the winning status', async () => {
+    const requestId = uuidv4();
+    await run("INSERT INTO trip_requests (id, trip_id, requester_id, candidate_details, status) VALUES ($1,$2,$3,'{}','pending')", [requestId, testTrip.id, testUserB.id]);
+    (global as any).mockSessionUser = traveler(testOrganizer);
+    try {
+      const responses = await Promise.all(['accept', 'reject'].map(action => processBuddyRequest(new Request('http://localhost', { method: 'POST', body: JSON.stringify({ action }) }), { params: Promise.resolve({ id: requestId }) })));
+      assert.equal(responses.filter(r => r.status === 200).length, 1);
+      const request = await queryOne<any>('SELECT status FROM trip_requests WHERE id = $1', [requestId]);
+      const member = await queryOne('SELECT id FROM trip_participants WHERE trip_id = $1 AND user_id = $2', [testTrip.id, testUserB.id]);
+      assert.equal(Boolean(member), request.status === 'accepted');
+    } finally {
+      delete (global as any).mockSessionUser;
+      await run('DELETE FROM trip_requests WHERE id = $1', [requestId]);
+      await run('DELETE FROM trip_participants WHERE trip_id = $1', [testTrip.id]);
+    }
+  });
+
 });
 
 

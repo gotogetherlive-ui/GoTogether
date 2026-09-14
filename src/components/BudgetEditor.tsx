@@ -50,8 +50,8 @@ export default function BudgetEditor({ onClose, onSaved, initialBudget }: Props)
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-      <div className="bg-white rounded-3xl overflow-hidden shadow-2xl border border-slate-100 max-w-md w-full animate-slide-up">
+    <div className="gt-viewport-modal fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
+      <div className="gt-viewport-dialog w-full max-w-md overflow-y-auto rounded-xl border border-slate-100 bg-white shadow-2xl animate-slide-up">
         {/* Header */}
         <div className="relative bg-gradient-to-r from-orange-500 via-rose-500 to-pink-500 px-6 py-5 overflow-hidden">
           <div className="absolute top-0 right-0 w-36 h-36 bg-white/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/4" />
@@ -61,7 +61,7 @@ export default function BudgetEditor({ onClose, onSaved, initialBudget }: Props)
                 <Wallet className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h2 className="text-lg font-extrabold text-white">Trip Budget</h2>
+                <h2 className="text-lg font-bold text-white">Trip Budget</h2>
                 <p className="text-white/70 text-xs">Set your per-trip budget range</p>
               </div>
             </div>
@@ -80,8 +80,8 @@ export default function BudgetEditor({ onClose, onSaved, initialBudget }: Props)
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
               Minimum Budget (₹)
             </label>
-            <input
-              type="number"
+          <input aria-label={'Budget Minimum'} name="budget-minimum"
+            type="number"
               min={1}
               value={min}
               onChange={(e) => setMin(e.target.value)}
@@ -93,8 +93,8 @@ export default function BudgetEditor({ onClose, onSaved, initialBudget }: Props)
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
               Maximum Budget (₹)
             </label>
-            <input
-              type="number"
+          <input aria-label={'Budget Maximum'} name="budget-maximum"
+            type="number"
               min={1}
               value={max}
               onChange={(e) => setMax(e.target.value)}
@@ -137,7 +137,7 @@ export default function BudgetEditor({ onClose, onSaved, initialBudget }: Props)
             type="button"
             onClick={handleSave}
             disabled={!isValid || saving}
-            className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 text-white font-bold text-sm shadow-lg shadow-orange-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
+            className="flex-1 px-4 py-3 rounded-xl bg-slate-900 hover:bg-slate-700 text-white font-bold text-sm shadow-lg shadow-orange-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
           >
             {saving ? (
               <>

@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 
-export const SITE_NAME = "GoTogether";
-export const SITE_ALTERNATE_NAMES = ["GoTogetherTrip", "Go Together", "GoTogether Trip", "gotogethertrip.com"] as const;
-export const DEFAULT_TITLE = "GoTogether | Verified Group Trips & Travel Experiences in India";
-export const DEFAULT_DESCRIPTION =
-  "Discover and book verified group trips, weekend trips, backpacking trips, trekking trips, bike trips, and curated travel experiences in India with trusted organizers.";
-export const DEFAULT_OG_IMAGE = "/hero_india_ladakh.png";
-export const INSTAGRAM_URL = "https://www.instagram.com/gotogether.in";
-export const WHATSAPP_COMMUNITY_URL = "https://chat.whatsapp.com/HWmEmqlCvNIBoHvNyfPETP";
-export const CANONICAL_PRODUCTION_ORIGIN = "https://www.gotogethertrip.com";
+const SITE_NAME = "GoTogether";
+const SITE_ALTERNATE_NAMES = ["GoTogetherTrip", "Go Together", "GoTogether Trip", "gotogethertrip.com"] as const;
+const DEFAULT_TITLE = "GoTogether | Custom Trips, Travel Buddies & Group Adventures";
+const DEFAULT_DESCRIPTION =
+  "Plan a custom trip, find a compatible travel buddy, or explore organizer-led group adventures across India. Choose your destination, dates, and way to travel.";
+const DEFAULT_OG_IMAGE = "/hero_india_ladakh.png";
+const INSTAGRAM_URL = "https://www.instagram.com/gotogethertrip2026?stkn=NGFxbHU5eGh1bWJq&utm_source=ig_contact_invite";
+const WHATSAPP_COMMUNITY_URL = "https://chat.whatsapp.com/HWmEmqlCvNIBoHvNyfPETP";
+const CANONICAL_PRODUCTION_ORIGIN = "https://www.gotogethertrip.com";
 
 export const PRIVATE_ROUTE_PREFIXES = [
   "/admin",
@@ -27,9 +27,15 @@ export const PRIVATE_ROUTE_PREFIXES = [
   "/test",
   "/staging",
   "/internal",
+  "/stories",
+  "/team-chat",
+  "/chat",
+  "/buddy/interests",
+  "/verify-ticket",
+  "/register-business",
 ];
 
-export function getPublicAppUrl(): string {
+function getPublicAppUrl(): string {
   const configured = (process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || "").trim();
   const raw = ["null", "undefined"].includes(configured.toLowerCase()) ? "" : configured;
 
@@ -71,7 +77,7 @@ export function absoluteUrl(path = "/"): string {
   return `${getPublicAppUrl()}${normalizedPath}`;
 }
 
-export function cleanPath(path = "/"): string {
+function cleanPath(path = "/"): string {
   if (!path || path === "/") return "/";
   return `/${path.replace(/^\/+|\/+$/g, "")}`;
 }
@@ -95,6 +101,7 @@ type SeoOptions = {
   description?: string;
   path?: string;
   image?: string | null;
+  imageAlt?: string;
   index?: boolean;
   follow?: boolean;
   type?: "website" | "article";
@@ -105,6 +112,7 @@ export function buildMetadata({
   description = DEFAULT_DESCRIPTION,
   path = "/",
   image = DEFAULT_OG_IMAGE,
+  imageAlt = `${SITE_NAME} travel marketplace`,
   index = true,
   follow = index,
   type = "website",
@@ -125,6 +133,8 @@ export function buildMetadata({
       "trekking trips",
       "bike trips",
       "travel buddy",
+      "custom trips India",
+      "personalized group travel",
       "solo travel groups",
     ],
     authors: [{ name: SITE_NAME, url: getPublicAppUrl() }],
@@ -138,7 +148,17 @@ export function buildMetadata({
         : undefined,
     },
     alternates: { canonical, languages: { "en-IN": canonical } },
-    robots: { index, follow },
+    robots: {
+      index,
+      follow,
+      googleBot: {
+        index,
+        follow,
+        "max-video-preview": -1,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+      },
+    },
     openGraph: {
       type,
       siteName: SITE_NAME,
@@ -146,7 +166,7 @@ export function buildMetadata({
       title,
       description,
       url: canonical,
-      images: [{ url: imageUrl, width: 1200, height: 630, alt: `${SITE_NAME} travel marketplace` }],
+      images: [{ url: imageUrl, width: 1200, height: 630, alt: imageAlt }],
     },
     twitter: {
       card: "summary_large_image",
@@ -207,7 +227,13 @@ export function organizationJsonLd() {
       addressCountry: "IN",
     },
     areaServed: { "@type": "Country", name: "India" },
-    sameAs: [INSTAGRAM_URL, WHATSAPP_COMMUNITY_URL],
+    sameAs: [
+      INSTAGRAM_URL,
+      WHATSAPP_COMMUNITY_URL,
+      "https://www.linkedin.com/in/gotogether-trip-04919a429/",
+      "https://www.producthunt.com/@gotogether",
+      "https://kittylaunch.com/p/gotogethertrip",
+    ],
     contactPoint: [
       {
         "@type": "ContactPoint",
@@ -227,10 +253,5 @@ export function websiteJsonLd() {
     alternateName: [...SITE_ALTERNATE_NAMES],
     url: absoluteUrl("/"),
     inLanguage: "en-IN",
-    potentialAction: {
-      "@type": "SearchAction",
-      target: `${absoluteUrl("/trips")}?q={search_term_string}`,
-      "query-input": "required name=search_term_string",
-    },
   };
 }

@@ -1,8 +1,33 @@
+import { encryptStoredChatMessage } from '@/lib/chatServerEncryption';
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { query, queryOne, run } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
 import { sendBuddyTripEditedEmail, sendBuddyTripCancelledEmail } from '@/lib/email';
+import { isValidBuddyDuration } from '@/lib/buddyDuration';
+import { invalidateBuddyFeedCache } from '@/lib/buddyFeed';
+import { parseBuddyGroupTagInput, parseStoredBuddyGroupTags, type BuddyGroupTag } from '@/lib/buddyGroupTags';
+
+type EditableBuddyTrip = {
+  organizer_id: string;
+  title: string;
+  starting_location: string;
+  destination: string;
+  start_date: string;
+  duration_days: number;
+  duration_nights: number;
+  image_url: string | null;
+  traveller_type: 'solo' | 'couple' | 'group' | null;
+  tags: string | string[] | null;
+};
+
+type BuddyTripOwner = Pick<EditableBuddyTrip, 'organizer_id' | 'title'>;
+
+type TripParticipant = {
+  id: string;
+  email: string;
+  full_name: string;
+};
 
 export async function PATCH(
   request: Request,
@@ -16,10 +41,10 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await request.json();
-    const { starting_location, destination, start_date, trip_date, duration_days, duration_nights, image_url, traveller_type } = body;
+    const { starting_location, destination, start_date, trip_date, duration_days, duration_nights, image_url, traveller_type, group_tags } = body;
     const finalStartDate = start_date ?? trip_date;
 
-    const hasUpdate = [starting_location, destination, finalStartDate, duration_days, duration_nights, image_url, traveller_type]
+    const hasUpdate = [starting_location, destination, finalStartDate, duration_days, duration_nights, image_url, traveller_type, group_tags]
       .some((value) => value !== undefined);
     if (!hasUpdate) {
       return NextResponse.json({ error: 'At least one field must be provided' }, { status: 400 });
@@ -36,19 +61,27 @@ export async function PATCH(
     if (duration_days !== undefined && (!Number.isInteger(Number(duration_days)) || Number(duration_days) < 1 || Number(duration_days) > 365)) {
       return NextResponse.json({ error: 'Use a valid number of trip days.' }, { status: 400 });
     }
-    if (duration_nights !== undefined && (!Number.isInteger(Number(duration_nights)) || Number(duration_nights) < 0 || Number(duration_nights) > 365)) {
+    if (duration_nights !== undefined && (!Number.isInteger(Number(duration_nights)) || Number(duration_nights) < 1 || Number(duration_nights) > 366)) {
       return NextResponse.json({ error: 'Use a valid number of trip nights.' }, { status: 400 });
     }
     if (image_url !== undefined && image_url !== null && image_url !== '' &&
         (typeof image_url !== 'string' || image_url.length > 2000 || !/^https:\/\//i.test(image_url))) {
       return NextResponse.json({ error: 'Use a valid uploaded trip image.' }, { status: 400 });
     }
-    if (traveller_type !== undefined && traveller_type !== 'solo' && traveller_type !== 'couple') {
-      return NextResponse.json({ error: 'Choose whether you are travelling solo or as a couple.' }, { status: 400 });
+    if (traveller_type !== undefined && traveller_type !== 'solo' && traveller_type !== 'couple' && traveller_type !== 'group') {
+      return NextResponse.json({ error: 'Choose solo, couple, or group travel.' }, { status: 400 });
+    }
+    let requestedGroupTags: BuddyGroupTag[] | undefined;
+    if (group_tags !== undefined) {
+      const parsedGroupTags = parseBuddyGroupTagInput(group_tags);
+      if (parsedGroupTags === null) {
+        return NextResponse.json({ error: 'Choose up to five valid group interests.' }, { status: 400 });
+      }
+      requestedGroupTags = parsedGroupTags;
     }
 
     // Check if the trip exists and belongs to the user
-    const trip = await queryOne('SELECT organizer_id, title, starting_location, destination, start_date, duration_days, duration_nights, image_url, traveller_type FROM trips WHERE id = $1', [id]) as any;
+    const trip = await queryOne<EditableBuddyTrip>('SELECT organizer_id, title, starting_location, destination, start_date, duration_days, duration_nights, image_url, traveller_type, tags FROM trips WHERE id = $1', [id]);
     if (!trip) {
       return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
     }
@@ -65,30 +98,39 @@ export async function PATCH(
     const updatedDurationNights = duration_nights !== undefined ? Number(duration_nights) : trip.duration_nights;
     const updatedImageUrl = image_url !== undefined ? (image_url === '' ? null : image_url) : trip.image_url;
     const updatedTravellerType = traveller_type !== undefined ? traveller_type : (trip.traveller_type || 'solo');
+    const updatedGroupTags = updatedTravellerType === 'group'
+      ? (requestedGroupTags ?? parseStoredBuddyGroupTags(trip.tags))
+      : [];
+
+    if (!isValidBuddyDuration(updatedDurationDays, updatedDurationNights)) {
+      return NextResponse.json({ error: 'Nights must be one fewer or one more than days, and cannot be zero.' }, { status: 400 });
+    }
 
     // Update the trip dates, locations, and title
     const title = `Trip to ${updatedDestination}`;
     await run(`
       UPDATE trips 
-      SET starting_location = $1, destination = $2, start_date = $3, title = $4, duration_days = $5, duration_nights = $6, image_url = $7, traveller_type = $8
-      WHERE id = $9
-    `, [updatedStartingLocation, updatedDestination, updatedStartDate, title, updatedDurationDays, updatedDurationNights, updatedImageUrl, updatedTravellerType, id]);
+      SET starting_location = $1, destination = $2, start_date = $3, title = $4, duration_days = $5, duration_nights = $6, image_url = $7, traveller_type = $8, tags = $9
+      WHERE id = $10
+    `, [updatedStartingLocation, updatedDestination, updatedStartDate, title, updatedDurationDays, updatedDurationNights, updatedImageUrl, updatedTravellerType, JSON.stringify(updatedGroupTags), id]);
+    invalidateBuddyFeedCache();
 
     // Find all accepted participants
-    const participants = await query(`
+    const participants = await query<TripParticipant>(`
       SELECT u.id, u.email, u.full_name
       FROM trip_participants tp
       JOIN users u ON tp.user_id = u.id
       WHERE tp.trip_id = $1 AND tp.user_id != $2
-    `, [id, user.id]) as { id: string; email: string; full_name: string }[];
+    `, [id, user.id]);
 
     if (participants.length > 0) {
       // 1. Insert a system message into the chat room
       const systemMessage = `[SYSTEM] Trip details have been updated:\nDestination: ${updatedDestination}\nStart Date: ${updatedStartDate || 'Not specified'}\nStarting Location: ${updatedStartingLocation || 'Not specified'}\nDuration: ${updatedDurationDays} Days / ${updatedDurationNights} Nights`;
+      const systemMessageId = uuidv4();
       await run(`
-        INSERT INTO messages (id, trip_id, sender_id, message)
-        VALUES ($1, $2, $3, $4)
-      `, [uuidv4(), id, user.id, systemMessage]);
+        INSERT INTO messages (id, trip_id, sender_id, message, encryption_version)
+        VALUES ($1, $2, $3, $4, 2)
+      `, [systemMessageId, id, user.id, encryptStoredChatMessage(systemMessage, { id: systemMessageId, trip_id: id, sender_id: user.id })]);
 
       // 2. Send email to each participant (fire-and-forget)
       const newDetails = {
@@ -128,7 +170,7 @@ export async function DELETE(
     const { id } = await params;
 
     // Check if the trip exists and belongs to the user
-    const trip = await queryOne('SELECT organizer_id, title FROM trips WHERE id = $1', [id]) as any;
+    const trip = await queryOne<BuddyTripOwner>('SELECT organizer_id, title FROM trips WHERE id = $1', [id]);
     if (!trip) {
       return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
     }
@@ -139,22 +181,24 @@ export async function DELETE(
 
     // Soft-delete by setting status to 'deleted' and setting deleted_at timestamp
     await run("UPDATE trips SET status = 'deleted', deleted_at = NOW() WHERE id = $1", [id]);
+    invalidateBuddyFeedCache();
 
     // Find all accepted participants
-    const participants = await query(`
+    const participants = await query<TripParticipant>(`
       SELECT u.id, u.email, u.full_name
       FROM trip_participants tp
       JOIN users u ON tp.user_id = u.id
       WHERE tp.trip_id = $1 AND tp.user_id != $2
-    `, [id, user.id]) as { id: string; email: string; full_name: string }[];
+    `, [id, user.id]);
 
     if (participants.length > 0) {
       // 1. Insert a system message into the chat room
       const systemMessage = `[SYSTEM] This trip has been cancelled by the organizer.`;
+      const systemMessageId = uuidv4();
       await run(`
-        INSERT INTO messages (id, trip_id, sender_id, message)
-        VALUES ($1, $2, $3, $4)
-      `, [uuidv4(), id, user.id, systemMessage]);
+        INSERT INTO messages (id, trip_id, sender_id, message, encryption_version)
+        VALUES ($1, $2, $3, $4, 2)
+      `, [systemMessageId, id, user.id, encryptStoredChatMessage(systemMessage, { id: systemMessageId, trip_id: id, sender_id: user.id })]);
 
       // 2. Send cancellation email to each participant
       for (const participant of participants) {

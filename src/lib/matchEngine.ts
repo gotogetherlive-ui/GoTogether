@@ -3,7 +3,7 @@
 // All weights are configurable constants at the top.
 
 // ─── Weight Constants (must sum to 1.0) ──────────────────────────────
-export const WEIGHTS: Record<string, number> = {
+const WEIGHTS: Record<string, number> = {
   travel_style: 0.20,
   activity_preferences: 0.20,
   budget: 0.15,

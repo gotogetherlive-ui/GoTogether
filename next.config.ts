@@ -1,5 +1,18 @@
 import type { NextConfig } from "next";
 
+const PRIVATE_RESPONSE_PATHS = [
+  '/admin/:path*',
+  '/api/:path*',
+  '/auth/:path*',
+  '/dashboard/:path*',
+  '/chat/:path*',
+  '/buddy/interests/:path*',
+  '/team-chat/:path*',
+  '/bookings/:path*',
+  '/profile/:path*',
+  '/verify-ticket/:path*',
+];
+
 function serverActionAllowedOrigins(): string[] {
   const origins = new Set<string>([
     'gotogethertrip.com',
@@ -63,9 +76,12 @@ const nextConfig: NextConfig = {
         headers: [
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'X-Frame-Options', value: 'DENY' },
-          { key: 'X-XSS-Protection', value: '1; mode=block' },
+          { key: 'X-XSS-Protection', value: '0' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(self)' },
+          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(self), browsing-topics=(), usb=(), serial=(), bluetooth=()' },
+          { key: 'Cross-Origin-Opener-Policy', value: 'same-origin-allow-popups' },
+          { key: 'Cross-Origin-Resource-Policy', value: 'same-site' },
+          { key: 'Origin-Agent-Cluster', value: '?1' },
           { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
         ],
       },
@@ -74,8 +90,16 @@ const nextConfig: NextConfig = {
         source: '/api/(.*)',
         headers: [
           { key: 'Cache-Control', value: 'no-store, max-age=0' },
+          { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' },
         ],
       },
+      ...PRIVATE_RESPONSE_PATHS.filter((source) => !source.startsWith('/api/')).map((source) => ({
+        source,
+        headers: [
+          { key: 'Cache-Control', value: 'private, no-store, max-age=0' },
+          { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' },
+        ],
+      })),
       {
         // Cache uploaded/public images for 7 days with revalidation.
         source: '/uploads/(.*)',

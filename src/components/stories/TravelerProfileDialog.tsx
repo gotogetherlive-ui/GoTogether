@@ -43,12 +43,12 @@ export default function TravelerProfileDialog({ profile, roleBadge, onClose }: P
   ];
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-2xl animate-in scale-in duration-200">
+    <div className="gt-viewport-modal fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="gt-viewport-dialog relative w-full max-w-sm overflow-y-auto rounded-xl border border-slate-100 bg-white shadow-2xl animate-in scale-in duration-200">
         <button onClick={onClose} className="absolute right-4 top-4 z-20 rounded-full bg-black/40 p-2 text-white transition hover:bg-black/60" aria-label="Close profile"><X className="h-4 w-4" /></button>
         <div className="h-24 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
         <div className="relative z-10 -mt-12 flex flex-col items-center px-6 pb-6">
-          <div className="relative flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-indigo-50 text-3xl font-black text-slate-700 shadow-md">
+          <div className="relative flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-indigo-50 text-3xl font-semibold text-slate-700 shadow-md">
             {profile.avatar_url && !avatarFailed ? <Image src={profile.avatar_url} alt={profile.full_name} fill sizes="96px" className="object-cover" onError={() => setAvatarFailed(true)} /> : profile.full_name.charAt(0).toUpperCase()}
           </div>
           <div className="mt-3 flex items-center gap-1.5"><h3 className="text-xl font-bold text-slate-800">{profile.full_name}</h3>{roleBadge}</div>
@@ -61,14 +61,14 @@ export default function TravelerProfileDialog({ profile, roleBadge, onClose }: P
               [profile.traveler_rank ? `#${profile.traveler_rank}` : EMPTY_VALUE, "Rank"],
               [profile.total_likes, "Likes"],
               [formatCreditPoints(profile.credit_points), "Points"],
-            ].map(([value, label]) => <div key={label} className="text-center"><p className="text-base font-black text-slate-900">{value}</p><p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">{label}</p></div>)}
+            ].map(([value, label]) => <div key={label} className="text-center"><p className="text-base font-semibold text-slate-900">{value}</p><p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">{label}</p></div>)}
           </div>
 
           <div className="grid w-full grid-cols-2 gap-3 text-left">
             {details.map(({ label, value, Icon, color }) => (
               <div key={label} className="flex items-center gap-2.5 rounded-2xl bg-slate-50 p-3">
                 <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${color}`}><Icon className="h-4 w-4" /></span>
-                <span className="min-w-0"><span className="block text-[9px] font-extrabold uppercase tracking-wide text-slate-400">{label}</span><span className="block truncate text-xs font-bold text-slate-700">{value}</span></span>
+                <span className="min-w-0"><span className="block text-[9px] font-bold uppercase tracking-wide text-slate-400">{label}</span><span className="block truncate text-xs font-bold text-slate-700">{value}</span></span>
               </div>
             ))}
           </div>

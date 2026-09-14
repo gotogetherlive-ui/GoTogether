@@ -3,13 +3,13 @@ import Link from 'next/link';
 
 export default function NotFound() {
   return (
-    <main className='grid min-h-screen place-items-center bg-[radial-gradient(circle_at_top,_#fff7ed,_#f8fafc_48%)] px-6 py-24'>
+    <main className='grid min-h-screen place-items-center bg-slate-50 px-6 py-24'>
       <div className='w-full max-w-xl text-center'>
-        <div className='mx-auto mb-7 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-rose-500 text-white shadow-xl shadow-orange-500/20'>
+        <div className='mx-auto mb-7 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-xl shadow-orange-500/20'>
           <Compass className='h-8 w-8' aria-hidden='true' />
         </div>
         <p className='mb-3 text-sm font-bold uppercase tracking-[0.2em] text-orange-600'>404 · Route not found</p>
-        <h1 className='text-balance text-4xl font-bold tracking-tight text-slate-950 sm:text-5xl'>This journey isn&apos;t on the map</h1>
+        <h1 className='gt-page-title text-balance text-4xl font-bold tracking-tight text-slate-950 sm:text-5xl'>This journey isn&apos;t on the map</h1>
         <p className='mx-auto mt-5 max-w-md text-pretty text-lg leading-8 text-slate-600'>The page may have moved, or the link may be incomplete. Head home or browse available trips.</p>
         <div className='mt-9 flex flex-col justify-center gap-3 sm:flex-row'>
           <Link href='/' className='inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-slate-950 px-6 py-3 font-semibold text-white transition hover:bg-slate-800'>

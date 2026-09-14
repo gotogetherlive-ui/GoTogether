@@ -103,7 +103,7 @@ describe('Multi-Gateway Production Readiness Certification Suite', () => {
         }),
         new Headers()
       );
-      assert.strictEqual(parsed.eventType, 'PAYMENT_SUCCESS_WEBHOOK');
+      assert.strictEqual(parsed.eventType, 'payment.captured');
       assert.strictEqual(parsed.payment?.providerPaymentId, 'pay_cf_123');
       assert.strictEqual(parsed.payment?.amount, 15000); // 150 INR = 15000 paise
     });

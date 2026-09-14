@@ -286,7 +286,7 @@ export default function TripDetailsClient({ trip }: { trip: any }) {
   };
 
   return (
-    <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100 relative">
+    <div className="bg-white rounded-xl shadow-xl overflow-hidden border border-slate-100 relative">
       {/* Image Gallery / Slideshow */}
       <div className="relative h-80 w-full bg-slate-200">
         {imageList.length > 0 ? (
@@ -345,7 +345,7 @@ export default function TripDetailsClient({ trip }: { trip: any }) {
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex items-end p-8">
           <div>
-            <h1 className="text-3xl md:text-5xl font-extrabold text-white mb-2">{trip.title}</h1>
+            <h1 className="text-3xl md:text-5xl font-bold text-white mb-2">{trip.title}</h1>
             <div className="flex flex-wrap items-center gap-4 text-white/90">
               <span className="flex items-center gap-1.5 font-medium"><MapPin className="w-5 h-5 text-orange-400"/> {trip.destination}</span>
               <span className="flex items-center gap-1.5 font-medium"><Clock className="w-5 h-5 text-orange-400"/> {durationLabel}</span>
@@ -446,13 +446,13 @@ export default function TripDetailsClient({ trip }: { trip: any }) {
         </div>
 
         <div className="lg:col-span-1">
-          <div className="bg-white rounded-3xl shadow-xl border border-slate-100 p-6 sticky top-28">
+          <div className="bg-white rounded-xl shadow-xl border border-slate-100 p-6 sticky top-28">
             <h3 className="text-2xl font-bold text-slate-900 mb-2">Book Trip</h3>
 
             <div className="flex items-end gap-2 mb-6 pb-6 border-b border-slate-100">
               {trip.gotogether_price || trip.b2b_price ? (
                 <>
-                  <span className="text-3xl font-extrabold text-emerald-600">{trip.gotogether_price || trip.b2b_price}</span>
+                  <span className="text-3xl font-bold text-emerald-600">{trip.gotogether_price || trip.b2b_price}</span>
                   {trip.b2c_price && (
                     <span className="text-sm font-semibold text-slate-400 line-through mb-1">{trip.b2c_price}</span>
                   )}
@@ -460,7 +460,7 @@ export default function TripDetailsClient({ trip }: { trip: any }) {
                 </>
               ) : (
                 <>
-                  <span className="text-3xl font-extrabold text-emerald-600">{trip.b2c_price || 'Price TBD'}</span>
+                  <span className="text-3xl font-bold text-emerald-600">{trip.b2c_price || 'Price TBD'}</span>
                   <span className="text-xs font-medium text-slate-400 mb-1">per person</span>
                 </>
               )}
@@ -480,7 +480,7 @@ export default function TripDetailsClient({ trip }: { trip: any }) {
                   <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
                     <Calendar className="w-3.5 h-3.5 text-orange-500" /> Select Travel Date *
                   </label>
-                  <input
+                  <input aria-label={'Trip date'} name={'trip-date'}
                     required
                     type="date"
                     min={new Date().toISOString().split("T")[0]}
@@ -494,15 +494,15 @@ export default function TripDetailsClient({ trip }: { trip: any }) {
               <div className="grid grid-cols-3 gap-2">
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Adults (M)</label>
-                  <input type="number" min={0} value={form.male_count} onChange={e => handleCountChange('male_count', parseInt(e.target.value) || 0)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-center" />
+                  <input aria-label={'Male count'} name={'male-count'} type="number" min={0} value={form.male_count} onChange={e => handleCountChange('male_count', parseInt(e.target.value) || 0)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-center" />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Adults (F)</label>
-                  <input type="number" min={0} value={form.female_count} onChange={e => handleCountChange('female_count', parseInt(e.target.value) || 0)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-center" />
+                  <input aria-label={'Female count'} name={'female-count'} type="number" min={0} value={form.female_count} onChange={e => handleCountChange('female_count', parseInt(e.target.value) || 0)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-center" />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Children</label>
-                  <input type="number" min={0} value={form.child_count} onChange={e => handleCountChange('child_count', parseInt(e.target.value) || 0)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-center" />
+                  <input aria-label={'Child count'} name={'child-count'} type="number" min={0} value={form.child_count} onChange={e => handleCountChange('child_count', parseInt(e.target.value) || 0)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-center" />
                 </div>
               </div>
 
@@ -510,7 +510,7 @@ export default function TripDetailsClient({ trip }: { trip: any }) {
                 <div className="space-y-3 pt-3 border-t border-slate-100">
                   <label className="block text-sm font-semibold text-slate-700">Passenger Names *</label>
                   {form.names.map((name, idx) => (
-                    <input key={idx} required type="text" placeholder={`Passenger ${idx + 1} Name`} value={name} onChange={e => handleNameChange(idx, e.target.value)} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none text-sm" />
+                    <input aria-label={`Passenger ${idx + 1} name`} name={`passenger-${idx + 1}`} key={idx} required type="text" placeholder={`Passenger ${idx + 1} Name`} value={name} onChange={e => handleNameChange(idx, e.target.value)} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none text-sm" />
                   ))}
                 </div>
               )}
@@ -519,7 +519,7 @@ export default function TripDetailsClient({ trip }: { trip: any }) {
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1">Phone Number *</label>
                   <div className="flex gap-2">
-                    <select
+                    <select aria-label={'Country code'} name={'country-code'}
                       value={form.country_code}
                       onChange={(e) => setForm({ ...form, country_code: e.target.value })}
                       className="w-24 px-3 py-2.5 rounded-xl border border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none text-slate-900 transition-all text-sm bg-slate-50"
@@ -530,13 +530,13 @@ export default function TripDetailsClient({ trip }: { trip: any }) {
                       <option value="+61">+61 (AU)</option>
                       <option value="+971">+971 (AE)</option>
                     </select>
-                    <input required type="tel" value={form.phone_number} onChange={e => setForm({...form, phone_number: e.target.value.replace(/\D/g, '')})} placeholder="Primary contact" className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none text-sm" />
+                    <input aria-label={'Phone number'} name={'phone-number'} required type="tel" value={form.phone_number} onChange={e => setForm({...form, phone_number: e.target.value.replace(/\D/g, '')})} placeholder="Primary contact" className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none text-sm" />
                   </div>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1">Alternate Phone</label>
                   <div className="flex gap-2">
-                    <select
+                    <select aria-label={'Alternate country code'} name={'alternate-country-code'}
                       value={form.alternate_country_code}
                       onChange={(e) => setForm({ ...form, alternate_country_code: e.target.value })}
                       className="w-24 px-3 py-2.5 rounded-xl border border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none text-slate-900 transition-all text-sm bg-slate-50"
@@ -547,7 +547,7 @@ export default function TripDetailsClient({ trip }: { trip: any }) {
                       <option value="+61">+61 (AU)</option>
                       <option value="+971">+971 (AE)</option>
                     </select>
-                    <input type="tel" value={form.alternate_phone_number} onChange={e => setForm({...form, alternate_phone_number: e.target.value.replace(/\D/g, '')})} placeholder="Optional" className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none text-sm" />
+                    <input aria-label={'Alternate phone number'} name={'alternate-phone-number'} type="tel" value={form.alternate_phone_number} onChange={e => setForm({...form, alternate_phone_number: e.target.value.replace(/\D/g, '')})} placeholder="Optional" className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none text-sm" />
                   </div>
                 </div>
               </div>
@@ -561,14 +561,14 @@ export default function TripDetailsClient({ trip }: { trip: any }) {
       </div>
 
       {showSimulatedModal && simulatedData && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
-          <div className="bg-white rounded-[2rem] shadow-2xl border border-slate-100 max-w-md w-full overflow-hidden animate-[scaleUp_0.3s_ease-out]">
+        <div className="gt-viewport-modal fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
+          <div className="gt-viewport-dialog w-full max-w-md overflow-y-auto rounded-xl border border-slate-100 bg-white shadow-2xl animate-[scaleUp_0.3s_ease-out]">
             {/* Header */}
-            <div className="p-6 bg-gradient-to-r from-orange-500 to-rose-500 text-white text-center relative">
+            <div className="p-6 bg-slate-900 text-white text-center relative">
               <div className="absolute top-4 right-4 bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider">
                 Simulated Sandbox
               </div>
-              <h4 className="text-xl font-extrabold mb-1">
+              <h4 className="text-xl font-bold mb-1">
                 {simulatedData.provider || 'Gateway'} Payment
               </h4>
               <p className="text-xs text-white/80 font-medium">
@@ -588,7 +588,7 @@ export default function TripDetailsClient({ trip }: { trip: any }) {
               </div>
               <div className="flex justify-between items-center pb-3 border-b border-slate-100">
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Amount</span>
-                <span className="font-extrabold text-emerald-600 text-lg">{`INR ${(simulatedData.amount / 100).toFixed(2)}`}</span>
+                <span className="font-bold text-emerald-600 text-lg">{`INR ${(simulatedData.amount / 100).toFixed(2)}`}</span>
               </div>
               <div className="flex justify-between items-center pb-3 border-b border-slate-100">
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Passengers</span>

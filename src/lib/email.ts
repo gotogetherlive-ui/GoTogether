@@ -34,85 +34,6 @@ function baseTemplate(title: string, body: string) {
   `;
 }
 
-export async function sendBookingStatusEmail({
-  to,
-  userName,
-  tripTitle,
-  status,
-  reason,
-}: {
-  to: string;
-  userName: string;
-  tripTitle: string;
-  status: 'approved' | 'rejected';
-  reason?: string;
-}) {
-  const isApproved = status === 'approved';
-  const subject = isApproved
-    ? `Your booking for "${tripTitle}" is confirmed!`
-    : `Update on your booking for "${tripTitle}"`;
-
-  const body = `
-    <p style="color:#334155;font-size:15px;margin:0 0 8px;">Hi <strong>${e(userName)}</strong>,</p>
-    <p style="color:#64748b;font-size:14px;line-height:1.6;margin:0 0 20px;">
-      ${isApproved
-        ? `Great news! Your booking request for <strong>${e(tripTitle)}</strong> has been <strong style="color:#16a34a;">approved</strong>. Get ready for an amazing journey!`
-        : `We're sorry to inform you that your booking request for <strong>${e(tripTitle)}</strong> has been <strong style="color:#dc2626;">declined</strong>.`
-      }
-    </p>
-    ${reason ? `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:14px 18px;margin-bottom:20px;"><p style="color:#7f1d1d;font-size:13px;margin:0;"><strong>Reason:</strong> ${e(reason)}</p></div>` : ''}
-    ${isApproved
-      ? `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px 18px;"><p style="color:#14532d;font-size:13px;margin:0;">Head to your <strong>dashboard</strong> to view your booking details and download your confirmation.</p></div>`
-      : `<p style="color:#64748b;font-size:13px;">You can browse other available trips and try booking again.</p>`
-    }
-  `;
-
-  try {
-    await resend.emails.send({ from: FROM, to: [to], subject, html: baseTemplate(subject, body) });
-  } catch (err) {
-    console.error('Email send error (booking status):', err);
-  }
-}
-
-export async function sendBuddyRequestStatusEmail({
-  to,
-  userName,
-  organizerName,
-  tripTitle,
-  status,
-}: {
-  to: string;
-  userName: string;
-  organizerName: string;
-  tripTitle: string;
-  status: 'accepted' | 'rejected';
-}) {
-  const isAccepted = status === 'accepted';
-  const subject = isAccepted
-    ? `You've been accepted for "${tripTitle}"!`
-    : `Update on your buddy request for "${tripTitle}"`;
-
-  const body = `
-    <p style="color:#334155;font-size:15px;margin:0 0 8px;">Hi <strong>${userName}</strong>,</p>
-    <p style="color:#64748b;font-size:14px;line-height:1.6;margin:0 0 20px;">
-      ${isAccepted
-        ? `<strong>${organizerName}</strong> has <strong style="color:#16a34a;">accepted</strong> your request to join <strong>${tripTitle}</strong>. You now have access to the trip group chat!`
-        : `<strong>${organizerName}</strong> has decided not to proceed with your request for <strong>${tripTitle}</strong>. Don't give up — there are more trips to explore!`
-      }
-    </p>
-    ${isAccepted
-      ? `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px 18px;"><p style="color:#14532d;font-size:13px;margin:0;">Open your <strong>dashboard</strong> to start chatting with your travel companion.</p></div>`
-      : ''
-    }
-  `;
-
-  try {
-    await resend.emails.send({ from: FROM, to: [to], subject, html: baseTemplate(subject, body) });
-  } catch (err) {
-    console.error('Email send error (buddy request status):', err);
-  }
-}
-
 export async function sendNewBookingNotificationEmail({
   to,
   organizerName,
@@ -125,7 +46,7 @@ export async function sendNewBookingNotificationEmail({
   tripTitle: string;
   bookerName: string;
   passengerCount: number;
-}) {
+}, idempotencyKey?: string) {
   const subject = `New booking received for "${tripTitle}"`;
   const body = `
     <p style="color:#334155;font-size:15px;margin:0 0 8px;">Hi <strong>${organizerName}</strong>,</p>
@@ -137,40 +58,11 @@ export async function sendNewBookingNotificationEmail({
     </div>
   `;
 
-  try {
-    await resend.emails.send({ from: FROM, to: [to], subject, html: baseTemplate(subject, body) });
-  } catch (err) {
-    console.error('Email send error (new booking notification):', err);
-  }
-}
-
-export async function sendNewBuddyRequestEmail({
-  to,
-  organizerName,
-  requesterName,
-  tripTitle,
-}: {
-  to: string;
-  organizerName: string;
-  requesterName: string;
-  tripTitle: string;
-}) {
-  const subject = `${requesterName} wants to join your trip!`;
-  const body = `
-    <p style="color:#334155;font-size:15px;margin:0 0 8px;">Hi <strong>${organizerName}</strong>,</p>
-    <p style="color:#64748b;font-size:14px;line-height:1.6;margin:0 0 20px;">
-      <strong>${requesterName}</strong> has shown interest in joining your trip to <strong>${tripTitle}</strong>.
-    </p>
-    <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:14px 18px;">
-      <p style="color:#7c2d12;font-size:13px;margin:0;">Go to your <strong>Organizer Dashboard</strong> to review their profile and accept or decline their request.</p>
-    </div>
-  `;
-
-  try {
-    await resend.emails.send({ from: FROM, to: [to], subject, html: baseTemplate(subject, body) });
-  } catch (err) {
-    console.error('Email send error (new buddy request):', err);
-  }
+  const { error } = await resend.emails.send(
+    { from: FROM, to: [to], subject, html: baseTemplate(subject, body) },
+    idempotencyKey ? { idempotencyKey } : undefined,
+  );
+  if (error) throw new Error(error.message || 'Email delivery failed');
 }
 
 export async function sendBuddyTripEditedEmail({
@@ -319,7 +211,7 @@ export async function sendBookingConfirmedToOrganizer({
   passengerNames: string[];
   amountPaid: number;
   razorpayPaymentId: string;
-}) {
+}, idempotencyKey?: string) {
   const subject = `✅ New confirmed booking for "${tripTitle}" — ₹${amountPaid.toLocaleString('en-IN')}`;
 
   const formattedDate = (() => {
@@ -380,11 +272,11 @@ export async function sendBookingConfirmedToOrganizer({
     </div>
   `;
 
-  try {
-    await resend.emails.send({ from: FROM, to: [to], subject, html: baseTemplate(subject, body) });
-  } catch (err) {
-    console.error('Email send error (booking confirmed to organizer):', err);
-  }
+  const { error } = await resend.emails.send(
+    { from: FROM, to: [to], subject, html: baseTemplate(subject, body) },
+    idempotencyKey ? { idempotencyKey } : undefined,
+  );
+  if (error) throw new Error(error.message || 'Email delivery failed');
 }
 
 export async function sendBookingConfirmedToTraveler({
@@ -413,7 +305,7 @@ export async function sendBookingConfirmedToTraveler({
   organizerPhone: string | null;
   amountPaid: number;
   razorpayPaymentId: string;
-}) {
+}, idempotencyKey?: string) {
   const subject = `🎉 Booking Confirmed — ${tripTitle} | Ticket: ${ticketNumber}`;
 
   const formattedDate = (() => {
@@ -468,11 +360,11 @@ export async function sendBookingConfirmedToTraveler({
     </div>
   `;
 
-  try {
-    await resend.emails.send({ from: FROM, to: [to], subject, html: baseTemplate(subject, body) });
-  } catch (err) {
-    console.error('Email send error (booking confirmed to traveler):', err);
-  }
+  const { error } = await resend.emails.send(
+    { from: FROM, to: [to], subject, html: baseTemplate(subject, body) },
+    idempotencyKey ? { idempotencyKey } : undefined,
+  );
+  if (error) throw new Error(error.message || 'Email delivery failed');
 }
 
 export async function sendCustomTripTicketEmail({
@@ -598,6 +490,8 @@ export async function sendBookingCancelledToOrganizer({
 export async function sendAdminCampaignBatch({
   campaignId,
   campaignType,
+  theme,
+  layout,
   recipients,
   subject,
   message,
@@ -607,6 +501,8 @@ export async function sendAdminCampaignBatch({
 }: {
   campaignId: string;
   campaignType: AdminCampaignType;
+  theme?: import('./adminCampaignEmail').AdminCampaignTheme;
+  layout?: import('./adminCampaignEmail').AdminCampaignLayout;
   recipients: Array<{ email: string; full_name: string }>;
   subject: string;
   message: string;
@@ -626,6 +522,8 @@ export async function sendAdminCampaignBatch({
         subject,
         html: renderAdminCampaignEmail({
           campaignType,
+          theme,
+          layout,
           recipientName: greetingName,
           subject,
           message,
@@ -633,7 +531,7 @@ export async function sendAdminCampaignBatch({
           ctaUrl,
           logoUrl,
         }),
-        tags: [{ name: 'campaign_type', value: campaignType }],
+        tags: [{ name: 'campaign_type', value: campaignType }, { name: 'campaign_theme', value: theme || 'signature' }, { name: 'campaign_layout', value: layout || 'classic' }],
       };
     });
 

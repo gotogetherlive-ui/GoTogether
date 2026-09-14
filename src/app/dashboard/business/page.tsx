@@ -337,31 +337,30 @@ export default function BusinessDashboard() {
   }
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto pt-10 pb-20 px-6">
+    <div className="mx-auto max-w-7xl space-y-6 px-4 pb-20 pt-8 md:px-6">
       <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-900 transition-colors">
         <ArrowLeft className="w-4 h-4" /> Back to Profile
       </Link>
 
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-orange-500 via-rose-500 to-pink-500 p-8 md:p-10 text-white shadow-xl shadow-orange-500/20">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
-        <div className="relative z-10 flex items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-inner">
-            <Building2 className="w-8 h-8" />
+      <header className="gt-hero-panel rounded-2xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+        <div className="flex items-center gap-4">
+          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-orange-50 text-orange-700">
+            <Building2 className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">Business Dashboard</h1>
-            <p className="text-white/70 mt-1">Create and manage your premium trips</p>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-orange-700">Organizer workspace</p>
+            <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-950 md:text-4xl">Business dashboard</h1>
+            <p className="mt-1 text-slate-600">Publish departures, manage bookings, and monitor payments.</p>
           </div>
         </div>
-      </div>
+      </header>
 
       {providerAccount && (
-        <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="gt-panel flex flex-col items-start justify-between gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm md:flex-row md:items-center">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Payment Gateway:</span>
-              <strong className="text-sm text-slate-800 font-extrabold">{providerAccount.provider}</strong>
+              <strong className="text-sm text-slate-800 font-bold">{providerAccount.provider}</strong>
             </div>
             <div className="text-xs text-slate-500 font-semibold flex flex-wrap gap-4 mt-1">
               {providerAccount.last_verified_at && (
@@ -400,10 +399,9 @@ export default function BusinessDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Create Trip Form */}
         <div className="lg:col-span-2">
-          <form onSubmit={handleSubmit} className="bg-white rounded-3xl shadow-lg shadow-slate-200/50 border border-slate-100 overflow-hidden">
-            <div className="relative p-8 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-orange-50/30 overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-orange-100/50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" />
-              <div className="relative z-10">
+          <form onSubmit={handleSubmit} className="gt-panel overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-200 bg-slate-50 p-5 sm:p-6 md:p-8">
+              <div>
                 <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
                   <PlusCircle className="w-6 h-6 text-orange-500" /> Create a New Trip
                 </h2>
@@ -411,7 +409,7 @@ export default function BusinessDashboard() {
               </div>
             </div>
 
-            <div className="p-8 space-y-6">
+            <div className="space-y-6 p-5 sm:p-8">
               {/* Multi-Image Upload */}
               <div className="flex flex-col items-start mb-6">
                 <label className="block text-sm font-semibold text-slate-700 mb-2">Trip Images * <span className="text-slate-400 font-normal">({form.images.length}/5)</span></label>
@@ -447,23 +445,23 @@ export default function BusinessDashboard() {
                     <span className="text-sm font-medium">Click to upload images ({5 - form.images.length} remaining)</span>
                   </div>
                 )}
-                <input ref={imageInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleImageUpload} />
+                <input aria-label="Upload trip images" name="trip-images" ref={imageInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleImageUpload} />
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">Trip Title *</label>
-                <input required type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. Alpine Adventure & Ski" className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition-all font-medium" />
+                <input aria-label={'Title'} name={'title'} required type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. Alpine Adventure & Ski" className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition-all font-medium" />
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">Short Description *</label>
-                <textarea required rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Briefly describe the experience..." className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition-all resize-none" />
+                <textarea aria-label={'Description'} name={'description'} required rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Briefly describe the experience..." className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition-all resize-none" />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-1"><MapPin className="w-4 h-4 text-orange-500" /> Destination *</label>
-                  <input required type="text" value={form.destination} onChange={(e) => setForm({ ...form, destination: e.target.value })} placeholder="e.g. Manali, Himachal Pradesh" className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition-all font-medium" />
+                  <input aria-label={'Destination'} name={'destination'} required type="text" value={form.destination} onChange={(e) => setForm({ ...form, destination: e.target.value })} placeholder="e.g. Manali, Himachal Pradesh" className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition-all font-medium" />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-1"><Calendar className="w-4 h-4 text-orange-500" /> Does this trip have a fixed starting date?</label>
@@ -484,7 +482,7 @@ export default function BusinessDashboard() {
                     </button>
                   </div>
                   {hasStartDate && (
-                    <input required type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition-all font-medium" />
+                    <input aria-label={'Start date'} name={'start-date'} required type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition-all font-medium" />
                   )}
                   {!hasStartDate && (
                     <p className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5">
@@ -498,42 +496,42 @@ export default function BusinessDashboard() {
                 <div className="flex gap-4">
                   <div className="flex-1">
                     <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-1"><Calendar className="w-4 h-4 text-orange-500" /> Days *</label>
-                    <input required type="number" min={1} value={form.duration_days} onChange={(e) => setForm({ ...form, duration_days: e.target.value })} placeholder="Days" className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition-all" />
+                    <input aria-label={'Duration days'} name={'duration-days'} required type="number" min={1} value={form.duration_days} onChange={(e) => setForm({ ...form, duration_days: e.target.value })} placeholder="Days" className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition-all" />
                   </div>
                   <div className="flex-1">
                     <label className="block text-sm font-semibold text-slate-700 mb-2">Nights</label>
-                    <input type="number" min={0} value={form.duration_nights} onChange={(e) => setForm({ ...form, duration_nights: e.target.value })} placeholder="Nights" className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition-all" />
+                    <input aria-label={'Duration nights'} name={'duration-nights'} type="number" min={0} value={form.duration_nights} onChange={(e) => setForm({ ...form, duration_nights: e.target.value })} placeholder="Nights" className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition-all" />
                   </div>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">Tags (comma-separated)</label>
-                  <input type="text" value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} placeholder="e.g. WinterSports, Adventure, Skiing" className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition-all font-medium" />
+                  <input aria-label={'Tags'} name={'tags'} type="text" value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} placeholder="e.g. WinterSports, Adventure, Skiing" className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition-all font-medium" />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">Pickup / Starting Point *</label>
-                  <input required type="text" value={form.pickup_point} onChange={(e) => setForm({ ...form, pickup_point: e.target.value })} placeholder="e.g. ISBT Kashmere Gate, Delhi" className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition-all font-medium" />
+                  <input aria-label={'Pickup point'} name={'pickup-point'} required type="text" value={form.pickup_point} onChange={(e) => setForm({ ...form, pickup_point: e.target.value })} placeholder="e.g. ISBT Kashmere Gate, Delhi" className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition-all font-medium" />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">Drop / Ending Point *</label>
-                  <input required type="text" value={form.drop_point} onChange={(e) => setForm({ ...form, drop_point: e.target.value })} placeholder="e.g. Mall Road, Manali" className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition-all font-medium" />
+                  <input aria-label={'Drop point'} name={'drop-point'} required type="text" value={form.drop_point} onChange={(e) => setForm({ ...form, drop_point: e.target.value })} placeholder="e.g. Mall Road, Manali" className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition-all font-medium" />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">B2B Price *</label>
-                  <input required type="text" value={form.b2b_price} onChange={(e) => setForm({ ...form, b2b_price: e.target.value })} placeholder="e.g. INR 50,000" className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition-all font-medium" />
+                  <input aria-label={'B2b price'} name={'b2b-price'} required type="text" value={form.b2b_price} onChange={(e) => setForm({ ...form, b2b_price: e.target.value })} placeholder="e.g. INR 50,000" className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition-all font-medium" />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">B2C Price *</label>
-                  <input required type="text" value={form.b2c_price} onChange={(e) => setForm({ ...form, b2c_price: e.target.value })} placeholder="e.g. INR 65,000" className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition-all font-medium" />
+                  <input aria-label={'B2c price'} name={'b2c-price'} required type="text" value={form.b2c_price} onChange={(e) => setForm({ ...form, b2c_price: e.target.value })} placeholder="e.g. INR 65,000" className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition-all font-medium" />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">Max Seats <span className="text-slate-400 font-normal">(optional)</span></label>
-                  <input type="number" min={1} value={form.max_capacity} onChange={(e) => setForm({ ...form, max_capacity: e.target.value })} placeholder="e.g. 20" className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition-all font-medium" />
+                  <input aria-label={'Max capacity'} name={'max-capacity'} type="number" min={1} value={form.max_capacity} onChange={(e) => setForm({ ...form, max_capacity: e.target.value })} placeholder="e.g. 20" className="w-full px-5 py-3 rounded-xl border border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none transition-all font-medium" />
                 </div>
               </div>
 
@@ -559,11 +557,11 @@ export default function BusinessDashboard() {
                     <p className="text-xs text-rose-600 font-medium">{brochureSizeError}</p>
                   </div>
                 )}
-                <input ref={brochureInputRef} type="file" accept=".pdf,image/*" className="hidden" onChange={handleBrochureChange} />
+                <input aria-label="Upload trip brochure" name="trip-brochure" ref={brochureInputRef} type="file" accept=".pdf,image/*" className="hidden" onChange={handleBrochureChange} />
               </div>
 
               <div className="pt-4 border-t border-slate-100">
-                <button type="submit" disabled={submitting || !isFormValid} className="w-full bg-gradient-to-r from-orange-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-orange-500/25 hover:shadow-xl transition-all disabled:opacity-60 flex items-center justify-center gap-2">
+                <button type="submit" disabled={submitting || !isFormValid} className="gt-primary-action flex w-full items-center justify-center gap-2 rounded-xl py-3.5 font-bold disabled:opacity-60">
                   {submitting ? <><Loader2 className="w-5 h-5 animate-spin" /> Publishing...</> : "Publish Trip"}
                 </button>
               </div>
@@ -573,11 +571,11 @@ export default function BusinessDashboard() {
 
         {/* My Trips List */}
         <div>
-          <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 sticky top-28">
+          <div className="gt-panel sticky top-28 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2"><Building2 className="w-5 h-5 text-orange-500" /> Published Trips</h2>
             
             {/* Tabs for Active vs History */}
-            <div className="flex gap-2 mb-6 bg-slate-50 p-1 rounded-xl border border-slate-150">
+            <div className="mb-6 flex gap-2 rounded-xl border border-slate-200 bg-slate-100 p-1">
               <button
                 type="button"
                 onClick={() => { setShowHistory(false); setSelectedTripId(null); setBookings([]); }}
@@ -605,8 +603,8 @@ export default function BusinessDashboard() {
                     {/* Trip Row */}
                     <div
                       className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer ${selectedTripId === trip.id
-                          ? "border-orange-300 bg-orange-50 shadow-sm"
-                          : "border-slate-100 hover:bg-slate-50"
+                          ? "border-orange-300 bg-orange-50"
+                          : "border-slate-200 hover:bg-slate-50"
                         }`}
                       onClick={() => handleTripClick(trip.id)}
                     >
@@ -700,22 +698,22 @@ export default function BusinessDashboard() {
                                           <span>{pct}% ({completed}/{total})</span>
                                         </div>
                                         <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
-                                          <div className="h-full bg-gradient-to-r from-orange-500 to-rose-500 transition-all duration-500" style={{ width: `${pct}%` }} />
+                                          <div className="h-full bg-slate-900 transition-all duration-500" style={{ width: `${pct}%` }} />
                                         </div>
                                       </div>
 
                                       <div className="grid grid-cols-3 gap-2 text-center">
                                         <div className="bg-white/80 p-2 rounded-lg border border-slate-100/50">
                                           <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Refunded</p>
-                                          <p className="text-sm font-extrabold text-emerald-600">{completed}</p>
+                                          <p className="text-sm font-bold text-emerald-600">{completed}</p>
                                         </div>
                                         <div className="bg-white/80 p-2 rounded-lg border border-slate-100/50">
                                           <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Processing</p>
-                                          <p className="text-sm font-extrabold text-amber-600">{processing}</p>
+                                          <p className="text-sm font-bold text-amber-600">{processing}</p>
                                         </div>
                                         <div className="bg-white/80 p-2 rounded-lg border border-slate-100/50">
                                           <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Failed</p>
-                                          <p className="text-sm font-extrabold text-rose-600">{failed}</p>
+                                          <p className="text-sm font-bold text-rose-600">{failed}</p>
                                         </div>
                                       </div>
 
@@ -753,10 +751,10 @@ export default function BusinessDashboard() {
                               const names = parseNames(b.names);
                               const totalPeople = b.male_count + b.female_count + b.child_count;
                               return (
-                                <div key={b.id} className="bg-white rounded-xl border border-slate-100 p-3 shadow-sm hover:shadow-md transition-shadow">
+                                <div key={b.id} className="rounded-lg border border-slate-200 bg-white p-3 transition hover:border-slate-300">
                                   {/* Booker Info */}
                                   <div className="flex items-center gap-2.5 mb-2.5">
-                                    <div className="relative w-8 h-8 rounded-full bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center text-white font-bold text-xs overflow-hidden shrink-0">
+                                    <div className="relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md bg-slate-800 text-xs font-bold text-white">
                                       {b.user_avatar ? (
                                         <Image src={b.user_avatar} alt="" fill className="object-cover" sizes="32px" />
                                       ) : (
@@ -769,7 +767,7 @@ export default function BusinessDashboard() {
                                     </div>
                                     {b.booking_status ? (
                                       <div className="flex flex-col items-end gap-1 shrink-0">
-                                        <span className={`text-[9px] uppercase font-black px-2 py-0.5 rounded-full ${
+                                        <span className={`text-[9px] uppercase font-semibold px-2 py-0.5 rounded-full ${
                                           b.booking_status === 'confirmed' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200/50' :
                                           b.booking_status === 'pending_payment' ? 'bg-amber-100 text-amber-700 border border-amber-200/50 animate-pulse' :
                                           b.booking_status === 'expired' ? 'bg-slate-100 text-slate-500 border border-slate-200/50' :
@@ -859,10 +857,10 @@ export default function BusinessDashboard() {
 
       {/* Cancel Trip Modal */}
       {cancelModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl border border-slate-100 p-6 max-w-md w-full shadow-2xl space-y-4 animate-in zoom-in-95 duration-200">
+        <div className="gt-viewport-modal fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="gt-viewport-dialog w-full max-w-md space-y-4 overflow-y-auto rounded-xl border border-slate-100 bg-white p-6 shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between pb-3 border-b border-slate-150">
-              <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                 <AlertCircle className="w-5 h-5 text-rose-500" /> Cancel Business Trip
               </h3>
               <button 
@@ -877,7 +875,7 @@ export default function BusinessDashboard() {
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Reason Category</label>
-                <select 
+                <select aria-label="Cancellation reason" name="cancellation-reason"
                   value={cancelReasonType} 
                   onChange={(e) => setCancelReasonType(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-100 outline-none transition-all font-medium text-sm text-slate-800 bg-white"
@@ -892,7 +890,7 @@ export default function BusinessDashboard() {
 
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Detailed Cancellation Message</label>
-                <textarea 
+                <textarea aria-label="Detailed cancellation message" name="cancellation-message"
                   value={cancelReasonMessage} 
                   onChange={(e) => setCancelReasonMessage(e.target.value)}
                   placeholder="Explain why the trip is being cancelled. This will be sent to all registered travelers and shown in their dashboards."

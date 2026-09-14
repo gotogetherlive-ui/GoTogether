@@ -36,7 +36,7 @@ export default function GuidesPage() {
       />
       <Navbar />
       <main className="flex-1 pt-28 pb-20 px-6 md:px-12 max-w-6xl mx-auto w-full">
-        <h1 className="text-4xl md:text-6xl font-extrabold mb-5">Group Trip Guides</h1>
+        <h1 className="gt-page-title text-4xl md:text-6xl font-bold mb-5">Group Trip Guides</h1>
         <p className="text-lg text-slate-600 max-w-4xl mb-10">
           GoTogether guides answer practical travel questions first, then connect readers to relevant destination, category, city, trust, and public trip pages.
         </p>

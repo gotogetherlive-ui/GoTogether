@@ -102,7 +102,7 @@ function statusLabel(record: TicketRecord | null) {
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4">
-      <dt className="text-xs font-extrabold uppercase tracking-wider text-slate-400">{label}</dt>
+      <dt className="text-xs font-bold uppercase tracking-wider text-slate-400">{label}</dt>
       <dd className="mt-1 text-sm font-bold text-slate-900">{value || "Not available"}</dd>
     </div>
   );
@@ -175,17 +175,17 @@ export default async function VerifyTicketPage({ params }: TicketPageParams) {
     return (
       <main className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900">
         <div className="mx-auto max-w-3xl">
-          <div className="mb-6 flex items-center justify-between gap-4"><Link href="/" className="text-lg font-extrabold text-slate-950">GoTogether</Link><span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-500">Live ticket status</span></div>
-          <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+          <div className="mb-6 flex items-center justify-between gap-4"><Link href="/" className="text-lg font-bold text-slate-950">GoTogether</Link><span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-500">Live ticket status</span></div>
+          <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <div className={`${isValid ? "bg-emerald-600" : "bg-rose-600"} p-6 text-white`}>
-              <div className="flex items-start gap-4"><div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/15">{isValid ? <CheckCircle2 className="h-7 w-7" /> : <XCircle className="h-7 w-7" />}</div><div><p className="text-xs font-extrabold uppercase tracking-widest opacity-80">Custom Trip Ticket Verification</p><h1 className="mt-1 text-3xl font-extrabold tracking-tight">{label}</h1><p className="mt-2 font-mono text-sm font-semibold opacity-90">{normalizedTicket}</p></div></div>
+              <div className="flex items-start gap-4"><div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/15">{isValid ? <CheckCircle2 className="h-7 w-7" /> : <XCircle className="h-7 w-7" />}</div><div><p className="text-xs font-bold uppercase tracking-widest opacity-80">Custom Trip Ticket Verification</p><h1 className="mt-1 text-3xl font-bold tracking-tight">{label}</h1><p className="mt-2 font-mono text-sm font-semibold opacity-90">{normalizedTicket}</p></div></div>
             </div>
             <div className="space-y-6 p-6">
               <div className="grid gap-3 sm:grid-cols-2"><InfoRow label="Destination" value={customTicket.destination} /><InfoRow label="Travel Date" value={formatDate(customTicket.trip_date)} /><InfoRow label="Booking Status" value={customTicket.request_status} /><InfoRow label="Ticket Status" value={customTicket.ticket_status} /></div>
-              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
-                <h2 className="mb-4 flex items-center gap-2 text-sm font-extrabold uppercase tracking-wider text-slate-500"><Users className="h-4 w-4" /> Passenger Cross-verification</h2>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
+                <h2 className="mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-slate-500"><Users className="h-4 w-4" /> Passenger Cross-verification</h2>
                 <div className="grid gap-3 sm:grid-cols-2"><InfoRow label="Booker" value={customTicket.booker_name} /><InfoRow label="Contact" value={<span className="inline-flex items-center gap-1"><Phone className="h-3.5 w-3.5" />{customTicket.phone}</span>} /><InfoRow label="Total Passengers" value={travelers.length} /><InfoRow label="Check-in" value={customTicket.checked_in_at ? formatDate(customTicket.checked_in_at) : "Not checked in"} /></div>
-                <div className="mt-4 grid gap-2 sm:grid-cols-2">{travelers.map((name, index) => <div key={`${name}-${index}`} className="flex items-center gap-3 rounded-xl bg-white px-3 py-3 text-sm font-bold text-slate-800 ring-1 ring-slate-200"><span className="grid h-7 w-7 place-items-center rounded-full bg-emerald-100 text-xs font-black text-emerald-700">{index + 1}</span>{name}</div>)}</div>
+                <div className="mt-4 grid gap-2 sm:grid-cols-2">{travelers.map((name, index) => <div key={`${name}-${index}`} className="flex items-center gap-3 rounded-xl bg-white px-3 py-3 text-sm font-bold text-slate-800 ring-1 ring-slate-200"><span className="grid h-7 w-7 place-items-center rounded-full bg-emerald-100 text-xs font-semibold text-emerald-700">{index + 1}</span>{name}</div>)}</div>
               </div>
               <p className="text-center text-xs font-semibold text-slate-400">Live status checked from GoTogether. Match every passenger name before travel.</p>
             </div>
@@ -205,19 +205,19 @@ export default async function VerifyTicketPage({ params }: TicketPageParams) {
     <main className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900">
       <div className="mx-auto max-w-3xl">
         <div className="mb-6 flex items-center justify-between gap-4">
-          <Link href="/" className="text-lg font-extrabold text-slate-950">GoTogether</Link>
+          <Link href="/" className="text-lg font-bold text-slate-950">GoTogether</Link>
           <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-500">gotogethertrip.com</span>
         </div>
 
-        <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className={`${isEmerald ? "bg-emerald-600" : isAmber ? "bg-amber-500" : "bg-rose-600"} p-6 text-white`}>
             <div className="flex items-start gap-4">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/15">
                 {isEmerald ? <CheckCircle2 className="h-7 w-7" /> : isAmber ? <Clock className="h-7 w-7" /> : <XCircle className="h-7 w-7" />}
               </div>
               <div>
-                <p className="text-xs font-extrabold uppercase tracking-widest opacity-80">Ticket Verification</p>
-                <h1 className="mt-1 text-3xl font-extrabold tracking-tight">{state.label}</h1>
+                <p className="text-xs font-bold uppercase tracking-widest opacity-80">Ticket Verification</p>
+                <h1 className="mt-1 text-3xl font-bold tracking-tight">{state.label}</h1>
                 <p className="mt-2 text-sm font-semibold opacity-90">{normalizedTicket}</p>
               </div>
             </div>
@@ -236,8 +236,8 @@ export default async function VerifyTicketPage({ params }: TicketPageParams) {
                 <InfoRow label="Payment" value={`${ticket.payment_status || "unknown"}${ticket.amount ? ` - INR ${(ticket.amount / 100).toLocaleString("en-IN")}` : ""}`} />
               </div>
 
-              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
-                <h2 className="mb-4 flex items-center gap-2 text-sm font-extrabold uppercase tracking-wider text-slate-500"><CalendarDays className="h-4 w-4" /> Trip Details</h2>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
+                <h2 className="mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-slate-500"><CalendarDays className="h-4 w-4" /> Trip Details</h2>
                 <dl className="grid gap-3 sm:grid-cols-2">
                   <InfoRow label="Travel Date" value={formatDate(ticket.trip_date || ticket.start_date)} />
                   <InfoRow label="Duration" value={ticket.duration_days ? `${ticket.duration_days} day${ticket.duration_days > 1 ? "s" : ""}` : "Not available"} />
@@ -246,8 +246,8 @@ export default async function VerifyTicketPage({ params }: TicketPageParams) {
                 </dl>
               </div>
 
-              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
-                <h2 className="mb-4 flex items-center gap-2 text-sm font-extrabold uppercase tracking-wider text-slate-500"><Users className="h-4 w-4" /> Passenger Details</h2>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
+                <h2 className="mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-slate-500"><Users className="h-4 w-4" /> Passenger Details</h2>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <InfoRow label="Travelers" value={totalTravelers || "Not available"} />
                   <InfoRow label="Contact" value={<span className="inline-flex items-center gap-1"><Phone className="h-3.5 w-3.5" />{ticket.phone_number || "Not available"}</span>} />
@@ -259,8 +259,8 @@ export default async function VerifyTicketPage({ params }: TicketPageParams) {
                 )}
               </div>
 
-              <div className="rounded-3xl border border-slate-200 bg-white p-5">
-                <h2 className="mb-4 flex items-center gap-2 text-sm font-extrabold uppercase tracking-wider text-slate-500"><ReceiptText className="h-4 w-4" /> Organizer And Status</h2>
+              <div className="rounded-xl border border-slate-200 bg-white p-5">
+                <h2 className="mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-slate-500"><ReceiptText className="h-4 w-4" /> Organizer And Status</h2>
                 <dl className="grid gap-3 sm:grid-cols-2">
                   <InfoRow label="Organizer" value={ticket.organizer_name} />
                   <InfoRow label="Organizer Phone" value={ticket.organizer_phone} />

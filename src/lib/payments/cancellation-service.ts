@@ -35,7 +35,9 @@ export class BookingCancellationService {
     try {
       // 1. Transaction block for atomic db status locks, seat releases, outbox triggers
       const result = await transaction(async (client) => {
-        // Acquire lock on the booking row first to prevent race conditions
+        const tripRef = await client.query('SELECT trip_id FROM public.trip_bookings WHERE id = $1', [input.bookingId]);
+        if (tripRef.rows[0]) await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))', [tripRef.rows[0].trip_id]);
+        // Use the same trip lock as checkout/confirmation before locking the booking.
         const lock = await client.query(
           `SELECT id FROM public.trip_bookings WHERE id = $1 FOR UPDATE`,
           [input.bookingId]
@@ -57,8 +59,11 @@ export class BookingCancellationService {
            JOIN public.trips t ON b.trip_id = t.id
            JOIN public.users u ON b.user_id = u.id
            JOIN public.users org ON t.organizer_id = org.id
-           LEFT JOIN payments.orders po ON po.booking_id = b.id
-           LEFT JOIN payments.transactions pt ON pt.order_id = po.id AND pt.status = 'SUCCESS'
+           LEFT JOIN LATERAL (
+             SELECT tx.provider_payment_id FROM payments.orders po
+             JOIN payments.transactions tx ON tx.order_id = po.id AND tx.status = 'SUCCESS'
+             WHERE po.booking_id = b.id ORDER BY tx.paid_at DESC NULLS LAST, tx.created_at DESC LIMIT 1
+           ) pt ON TRUE
            WHERE b.id = $1`,
           [input.bookingId]
         ).then(res => res.rows[0]);

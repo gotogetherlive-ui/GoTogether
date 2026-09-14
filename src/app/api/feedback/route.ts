@@ -13,11 +13,21 @@ export async function POST(request: Request) {
     const limit = await rateLimit(`feedback:${user.id}`, 10, 60 * 60 * 1000);
     if (!limit.allowed) return NextResponse.json({ error: 'Too many feedback submissions' }, { status: 429 });
 
-    const body = await request.json();
+    let body: Record<string, unknown>;
+    try {
+      const parsed: unknown = await request.json();
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+      }
+      body = parsed as Record<string, unknown>;
+    } catch {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    }
     const { category, subject, description } = body;
+    const rating = Number(body.rating);
 
     // Validate
-    if (!category || !['technical', 'trip', 'gotogether'].includes(category)) {
+    if (typeof category !== 'string' || !['technical', 'trip', 'gotogether', 'love'].includes(category)) {
       return NextResponse.json({ error: 'Invalid category' }, { status: 400 });
     }
     if (!subject || typeof subject !== 'string' || subject.trim().length === 0) {
@@ -29,13 +39,16 @@ export async function POST(request: Request) {
     if (subject.length > 200 || description.length > 5000) {
       return NextResponse.json({ error: 'Feedback is too long' }, { status: 400 });
     }
+    if (category === 'love' && (!Number.isInteger(rating) || rating < 1 || rating > 5)) {
+      return NextResponse.json({ error: 'Select a rating from 1 to 5 stars' }, { status: 400 });
+    }
 
     const id = uuidv4();
     const now = new Date().toISOString();
     await run(`
-      INSERT INTO feedbacks (id, user_id, category, subject, description, created_at)
-      VALUES ($1, $2, $3, $4, $5, $6)
-    `, [id, user.id, category, subject.trim(), description.trim(), now]);
+      INSERT INTO feedbacks (id, user_id, category, subject, description, rating, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `, [id, user.id, category, subject.trim(), description.trim(), category === 'love' ? rating : null, now]);
 
     return NextResponse.json({ success: true, id });
   } catch (err) {

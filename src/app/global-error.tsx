@@ -15,22 +15,22 @@ export default function GlobalError({
 
   return (
     <html lang="en">
-      <body style={{ margin: 0, fontFamily: "system-ui, sans-serif", background: "#f8fafc" }}>
+      <body style={{ margin: 0, fontFamily: "system-ui, sans-serif", background: "#f8f7f3" }}>
         <main
           style={{
             minHeight: "100vh",
             display: "grid",
             placeItems: "center",
             padding: 24,
-            color: "#0f172a",
+            color: "#1c3328",
           }}
         >
           <div
             style={{
               width: "min(100%, 480px)",
               padding: 32,
-              border: "1px solid #e2e8f0",
-              borderRadius: 24,
+              border: "1px solid #dddfd7",
+              borderRadius: 12,
               background: "white",
               textAlign: "center",
             }}
@@ -46,9 +46,9 @@ export default function GlobalError({
               style={{
                 marginTop: 16,
                 border: 0,
-                borderRadius: 999,
+                borderRadius: 6,
                 padding: "12px 24px",
-                background: "#f97316",
+                background: "#1c3328",
                 color: "white",
                 fontWeight: 700,
                 cursor: "pointer",

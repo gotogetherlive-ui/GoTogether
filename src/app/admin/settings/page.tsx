@@ -163,7 +163,7 @@ export default function AdminSettingsPage() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-wrap justify-between items-center gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Settings</h1>
           <p className="text-sm text-slate-500 mt-1">Application controls and administrator access</p>
@@ -202,8 +202,9 @@ export default function AdminSettingsPage() {
           <div className="p-6 space-y-5">
             <label className="block">
               <span className="block text-sm font-semibold text-slate-900 mb-2">Headline</span>
-              <input
-                type="text"
+                <input
+                  name="trips-empty-title"
+                  type="text"
                 minLength={3}
                 maxLength={100}
                 value={settings.trips_empty_title}
@@ -214,8 +215,9 @@ export default function AdminSettingsPage() {
             </label>
             <label className="block">
               <span className="block text-sm font-semibold text-slate-900 mb-2">Message</span>
-              <textarea
-                rows={4}
+                <textarea
+                  name="trips-empty-message"
+                  rows={4}
                 minLength={10}
                 maxLength={400}
                 value={settings.trips_empty_message}
@@ -247,7 +249,7 @@ export default function AdminSettingsPage() {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3">
-              <input
+              <input aria-label={'New Admin Email'} name="new-admin-email"
                 type="email"
                 value={newAdminEmail}
                 onChange={(e) => setNewAdminEmail(e.target.value)}

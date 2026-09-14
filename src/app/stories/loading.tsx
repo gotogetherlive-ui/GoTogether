@@ -8,7 +8,7 @@ export default function StoriesLoading() {
 
       <div className="pt-28 pb-24 px-4 max-w-2xl mx-auto w-full space-y-8">
         {/* Hero Banner Skeleton */}
-        <div className="bg-slate-200 animate-pulse rounded-3xl h-44 w-full" />
+        <div className="bg-slate-200 animate-pulse rounded-xl h-44 w-full" />
 
         {/* Composer Skeleton */}
         <div className="bg-white border border-slate-200 rounded-2xl p-4 flex gap-3 animate-pulse">

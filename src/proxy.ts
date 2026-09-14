@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
-const ORIGIN_EXEMPT_PATHS = new Set(['/api/webhooks/razorpay', '/api/bookings/cashfree-return']);
+const ORIGIN_EXEMPT_PATHS = new Set(['/api/webhooks/razorpay', '/api/webhooks/whatsapp', '/api/bookings/cashfree-return']);
 const PAYMENT_SOURCES = [
   'https://checkout.razorpay.com',
   'https://api.razorpay.com',
@@ -102,6 +102,12 @@ function buildContentSecurityPolicy(nonce: string): string {
     'https://sdk.cashfree.com',
     'https://www.googletagmanager.com',
   ].join(' ');
+  // Next.js injects development styles and opens an HMR websocket at runtime.
+  // Keep production nonce-only while allowing those framework internals locally.
+  const styleSrc = isDev
+    ? "'self' 'unsafe-inline' https://fonts.googleapis.com"
+    : `'self' 'nonce-${nonce}' https://fonts.googleapis.com`;
+  const developmentConnections = isDev ? ' ws: wss:' : '';
 
   return [
     "default-src 'self'",
@@ -110,15 +116,16 @@ function buildContentSecurityPolicy(nonce: string): string {
     "frame-ancestors 'none'",
     `form-action 'self' ${PAYMENT_SOURCES}`,
     `script-src ${scriptSrc}`,
+    `script-src-elem ${scriptSrc}`,
     "script-src-attr 'none'",
-    `img-src 'self' data: blob: https://res.cloudinary.com https://*.cloudinary.com https://maps.gstatic.com https://lh3.googleusercontent.com https://images.unsplash.com ${PAYMENT_SOURCES}`,
-    `connect-src 'self' ${PAYMENT_SOURCES} https://maps.googleapis.com https://maps.gstatic.com https://api.bigdatacloud.net https://www.google-analytics.com https://*.google-analytics.com https://www.googletagmanager.com`,
+    `img-src 'self' data: blob: https://kittylaunch.com https://res.cloudinary.com https://*.cloudinary.com https://maps.gstatic.com https://lh3.googleusercontent.com https://images.unsplash.com https://*.google-analytics.com https://www.googletagmanager.com https://*.g.doubleclick.net https://*.google.com https://*.google.co.in ${PAYMENT_SOURCES}`,
+    `connect-src 'self'${developmentConnections} ${PAYMENT_SOURCES} https://maps.googleapis.com https://maps.gstatic.com https://api.bigdatacloud.net https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://*.analytics.google.com https://www.googletagmanager.com https://*.g.doubleclick.net https://*.google.com https://*.google.co.in`,
     `frame-src 'self' ${PAYMENT_SOURCES}`,
     `child-src 'self' ${PAYMENT_SOURCES}`,
     "worker-src 'self' blob:",
     "manifest-src 'self'",
-    "media-src 'self' https://res.cloudinary.com https://*.cloudinary.com",
-    `style-src 'self' 'nonce-${nonce}' https://fonts.googleapis.com`,
+    "media-src 'self' https://res.cloudinary.com https://*.cloudinary.com https://upload.wikimedia.org",
+    `style-src ${styleSrc}`,
     "style-src-attr 'unsafe-inline'",
     "font-src 'self' https://fonts.gstatic.com",
     ...(isDev ? [] : ['upgrade-insecure-requests']),
@@ -152,11 +159,6 @@ function checkUnsafeApiOrigin(request: NextRequest): NextResponse | null {
 
   try {
     const actualOrigin = new URL(origin).origin;
-    const forwardedRequestOrigin = getRequestOrigin(request);
-    if (forwardedRequestOrigin && actualOrigin === new URL(forwardedRequestOrigin).origin) {
-      return null;
-    }
-
     const trustedOrigins = getTrustedOrigins(request);
     if (!trustedOrigins.has(actualOrigin)) {
       return NextResponse.json({ error: 'Invalid request origin' }, { status: 403 });
@@ -180,7 +182,7 @@ export const config = {
   matcher: [
     '/api/:path*',
     {
-      source: '/((?!api|_next/static|_next/image|favicon.ico).*)',
+      source: '/((?!api|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|manifest.webmanifest|icon.svg|llms.txt|llms-full.txt|.*\\.[^/]+$).*)',
       missing: [
         { type: 'header', key: 'next-router-prefetch' },
         { type: 'header', key: 'purpose', value: 'prefetch' },

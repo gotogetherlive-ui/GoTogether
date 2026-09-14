@@ -86,7 +86,7 @@ function OtpInput({
   return (
     <div className="flex gap-2.5 justify-center" onPaste={handlePaste}>
       {Array.from({ length }, (_, i) => (
-        <input
+        <input aria-label={`Verification code digit ${i + 1}`} name={`otp-${i + 1}`}
           key={i}
           ref={(el) => { inputsRef.current[i] = el; }}
           type="text"
@@ -208,7 +208,7 @@ function OtpVerificationModal({
   }, [otp]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="gt-viewport-modal fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-slate-900/60 backdrop-blur-md animate-fade-in"
@@ -216,7 +216,7 @@ function OtpVerificationModal({
 
       {/* Modal */}
       <div
-        className="relative w-full max-w-md bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 overflow-hidden animate-slide-up"
+        className="gt-viewport-dialog relative w-full max-w-md overflow-y-auto rounded-2xl border border-white/20 bg-white/95 shadow-2xl backdrop-blur-xl animate-slide-up"
       >
         {/* Header gradient bar */}
         <div className="h-1.5 bg-gradient-to-r from-orange-400 via-rose-400 to-orange-500" />
@@ -242,7 +242,7 @@ function OtpVerificationModal({
 
           {/* Title */}
           <div className="text-center mb-6">
-            <h2 className="text-2xl font-extrabold text-slate-900 mb-2">
+            <h2 className="text-2xl font-bold text-slate-900 mb-2">
               Check your email
             </h2>
             <p className="text-slate-500 text-sm">
@@ -281,7 +281,7 @@ function OtpVerificationModal({
           <AnimatedButton
             onClick={handleVerify}
             disabled={isVerifying || otp.replace(/\s/g, "").length !== 6}
-            className="w-full bg-gradient-to-r from-orange-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl shadow-lg hover:shadow-orange-500/30 text-sm flex items-center justify-center gap-2"
+            className="w-full bg-slate-900 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl shadow-lg hover:shadow-orange-500/30 text-sm flex items-center justify-center gap-2"
           >
             {isVerifying ? (
               <>
@@ -353,7 +353,7 @@ function LoginContent() {
   useEffect(() => {
     const authError = searchParams.get("error");
     if (authError) {
-      setError("Google sign-in failed. Please try again.");
+      setError(authError === "account_deleted" ? "This account has been deleted. Contact support for help." : "Google sign-in failed. Please try again.");
     }
   }, [searchParams]);
 
@@ -450,44 +450,23 @@ function LoginContent() {
         />
       )}
 
-      {/* Left Panel - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden flex-col justify-between p-12">
-        {/* Decorative Circles */}
-        <div className="absolute top-[-100px] right-[-100px] w-[400px] h-[400px] rounded-full bg-orange-500/10 blur-3xl" />
-        <div className="absolute bottom-[-150px] left-[-100px] w-[500px] h-[500px] rounded-full bg-rose-500/10 blur-3xl" />
-
-        <Link href="/" className="flex items-center gap-2 text-white relative z-10">
-          <Compass className="w-8 h-8 text-orange-500" />
-          <span className="text-2xl font-bold tracking-tight">GoTogether</span>
-        </Link>
-
-        <div className="relative z-10">
-          <h2 className="text-4xl font-extrabold text-white leading-tight mb-4">
-            Your next adventure<br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-rose-400">
-              starts here.
-            </span>
-          </h2>
-          <p className="text-slate-400 text-lg max-w-md">
-            Join thousands of verified travelers and organizers. Explore the world, together.
-          </p>
-        </div>
-
-        <p className="text-slate-600 text-sm relative z-10">
-          © {new Date().getFullYear()} GoTogether
-        </p>
+      <div className="hidden lg:flex lg:w-[48%] relative overflow-hidden flex-col justify-between p-12 bg-slate-900">
+        <div className="absolute inset-0 bg-[url('/hero_india_kerala.png')] bg-cover bg-center" />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/20 to-slate-950/40" />
+        <Link href="/" className="flex items-center gap-3 text-white relative z-10"><Compass className="h-7 w-7" /><span className="text-2xl font-semibold tracking-tight">GoTogether</span></Link>
+        <div className="relative z-10 pb-10"><p className="mb-5 text-xs uppercase tracking-[.2em] text-white/75">Your journey starts with a hello</p><h2 className="font-serif text-5xl font-normal leading-[1.12] text-white">A new place.<br />A familiar feeling.</h2><p className="mt-6 max-w-sm text-base leading-7 text-white/80">Find trips, meet fellow travelers, and keep every plan in one place.</p><p className="mt-12 text-xs text-white/60">The backwaters of Kerala, India</p></div>
       </div>
 
       {/* Right Panel - Form */}
-      <div className="flex-1 flex items-center justify-center p-6 md:p-12 bg-slate-50/50">
-        <div className="w-full max-w-md bg-white rounded-[2.5rem] shadow-xl hover:shadow-[0_20px_50px_rgba(0,0,0,0.06)] border border-slate-100/80 p-8 md:p-10 transform transition-all animate-slide-up">
+      <div className="flex-1 flex items-center justify-center p-6 md:p-12 bg-white">
+        <div className="w-full max-w-md bg-white py-8 md:py-10">
           {/* Mobile Logo */}
           <Link href="/" className="flex items-center gap-2 text-slate-900 lg:hidden mb-8">
-            <Compass className="w-8 h-8 text-orange-500 animate-spin-slow" />
-            <span className="text-2xl font-extrabold tracking-tight">GoTogether</span>
+            <Compass className="w-8 h-8 text-orange-500" />
+            <span className="text-2xl font-bold tracking-tight">GoTogether</span>
           </Link>
 
-          <h1 className="text-3xl font-extrabold text-slate-900 mb-2 tracking-tight">
+          <h1 className="gt-page-title text-3xl font-bold text-slate-900 mb-2 tracking-tight">
             {isSignUp ? "Create account" : "Welcome back"}
           </h1>
           <p className="text-slate-500 text-sm mb-8 font-medium">
@@ -526,7 +505,7 @@ function LoginContent() {
               <div className="w-full border-t border-slate-200" />
             </div>
             <div className="relative flex justify-center text-[10px]">
-              <span className="px-4 bg-white text-slate-400 font-extrabold uppercase tracking-widest">
+              <span className="px-4 bg-white text-slate-400 font-bold uppercase tracking-widest">
                 or continue with email
               </span>
             </div>
@@ -536,7 +515,7 @@ function LoginContent() {
             {isSignUp && (
               <>
                 <div className="space-y-1.5">
-                  <label htmlFor="fullName" className="block text-xs font-extrabold text-slate-500 uppercase tracking-wider">
+                  <label htmlFor="fullName" className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
                     Full Name
                   </label>
                   <input
@@ -552,7 +531,7 @@ function LoginContent() {
             )}
 
             <div className="space-y-1.5">
-              <label htmlFor="email" className="block text-xs font-extrabold text-slate-500 uppercase tracking-wider">
+              <label htmlFor="email" className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
                 Email Address
               </label>
               <input
@@ -566,7 +545,7 @@ function LoginContent() {
             </div>
 
             <div className="space-y-1.5">
-              <label htmlFor="password" className="block text-xs font-extrabold text-slate-500 uppercase tracking-wider">
+              <label htmlFor="password" className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
                 Password
               </label>
               <div className="relative">
@@ -596,7 +575,7 @@ function LoginContent() {
             <button
               type="submit"
               disabled={isPending || isSendingOtp}
-              className="w-full mt-4 bg-gradient-to-r from-orange-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 text-white font-bold py-4 rounded-2xl shadow-lg hover:shadow-xl hover:shadow-orange-500/25 hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-60 disabled:cursor-not-allowed text-sm flex items-center justify-center gap-2"
+              className="w-full mt-4 bg-slate-900 hover:bg-slate-700 text-white font-bold py-4 rounded-2xl shadow-lg hover:shadow-xl hover:shadow-orange-500/25  active:translate-y-0 transition-all disabled:opacity-60 disabled:cursor-not-allowed text-sm flex items-center justify-center gap-2"
             >
               {isPending || isSendingOtp ? (
                 <>

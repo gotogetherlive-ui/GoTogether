@@ -32,7 +32,7 @@ function addPageHeader(doc: JsPdfDocument, title: string, version: string) {
   doc.line(MARGIN_MM, 27, PAGE_WIDTH_MM - MARGIN_MM, 27);
 }
 
-export async function createOrganizerAgreementPdf(data: SignedOrganizerAgreementPdfData) {
+async function createOrganizerAgreementPdf(data: SignedOrganizerAgreementPdfData) {
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ unit: "mm", format: "a4", compress: true });
   const bottomLimit = PAGE_HEIGHT_MM - 20;

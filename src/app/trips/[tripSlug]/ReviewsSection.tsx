@@ -118,7 +118,7 @@ export default function ReviewsSection({
         <form onSubmit={handleSubmit} className="bg-slate-50 rounded-2xl border border-slate-200 p-5 space-y-4">
           <p className="text-sm font-semibold text-slate-700">Leave a review for the organizer</p>
           <StarRating value={rating} onChange={setRating} />
-          <textarea
+          <textarea aria-label={'Review Comment'} name="review-comment"
             rows={3}
             placeholder="Share your experience (optional)..."
             value={comment}
@@ -149,7 +149,7 @@ export default function ReviewsSection({
           {reviews.map((r) => (
             <div key={r.id} className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
               <div className="flex items-center gap-3 mb-3">
-                <div className="relative w-9 h-9 rounded-full overflow-hidden bg-gradient-to-br from-orange-400 to-rose-500 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                <div className="relative w-9 h-9 rounded-full overflow-hidden bg-slate-900 flex items-center justify-center text-white font-bold text-sm shrink-0">
                   {r.reviewer_avatar ? (
                     <Image src={r.reviewer_avatar} alt="" fill className="object-cover" sizes="36px" />
                   ) : (

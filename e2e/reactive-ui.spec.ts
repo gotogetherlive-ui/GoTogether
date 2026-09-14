@@ -156,7 +156,7 @@ test("global navigation works with touch-sized mobile controls and Escape", asyn
 test("feedback dialog is labelled, focused, and dismissible with Escape", async ({ page }) => {
   await loginFixture(page, "alpha" );
   await page.goto("/" );
-  await page.getByRole("button", { name: "Feedback", exact: true }).click();
+  await page.getByRole("button", { name: "Send Feedback", exact: true }).click();
 
   const dialog = page.getByRole("dialog", { name: "Send Feedback" });
   await expect(dialog).toBeVisible();

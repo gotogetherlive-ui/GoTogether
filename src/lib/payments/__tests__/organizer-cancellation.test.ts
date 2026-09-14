@@ -1,6 +1,6 @@
 import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert';
-import { run, queryOne } from '@/lib/db';
+import { run, queryOne, getPoolInstance } from '@/lib/db';
 import { PAYMENT_PROVIDER, BOOKING_STATUS } from '../domain';
 import {
   createBookingPaymentOrder,
@@ -107,6 +107,7 @@ describe('GoTogether Organizer Trip Cancellation & Refund Suite', () => {
     const adapter = getPaymentProviderAdapter(PAYMENT_PROVIDER.RAZORPAY);
     adapter.createOrder = originalCreateOrder;
     adapter.refundPayment = originalRefundPayment;
+    await getPoolInstance().end();
   });
 
   test('Flow B: Organizer Trip Cancellation and Refund Execution Workflow', async () => {

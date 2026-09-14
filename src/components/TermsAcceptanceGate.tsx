@@ -159,7 +159,7 @@ const privacySections = [
 function LegalSection({ title, body }: { title: string; body: string[] }) {
   return (
     <section className="space-y-2 border-b border-slate-200 pb-4 last:border-b-0 last:pb-0">
-      <h3 className="text-sm font-extrabold text-slate-900">{title}</h3>
+      <h3 className="text-sm font-bold text-slate-900">{title}</h3>
       {body.map((paragraph) => (
         <p key={paragraph} className="text-xs leading-relaxed text-slate-600">
           {paragraph}
@@ -198,8 +198,8 @@ export default function TermsAcceptanceGate() {
   };
 
   return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm">
-      <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-3xl border border-white/20 bg-white shadow-2xl">
+    <div className="gt-viewport-modal fixed inset-0 z-[1000] flex items-center justify-center bg-slate-950/70 backdrop-blur-sm">
+      <div className="gt-viewport-dialog flex w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-white/20 bg-white shadow-2xl">
         <div className="h-1.5 shrink-0 bg-gradient-to-r from-orange-500 via-rose-500 to-orange-500" />
         <div className="shrink-0 p-5 pb-3 sm:p-7 sm:pb-4">
           <div className="flex items-center gap-3">
@@ -207,7 +207,7 @@ export default function TermsAcceptanceGate() {
               <FileText className="h-6 w-6" />
             </div>
             <div>
-              <h2 className="text-xl font-extrabold text-slate-900">Review and Accept GoTogether Terms</h2>
+              <h2 className="text-xl font-bold text-slate-900">Review and Accept GoTogether Terms</h2>
               <p className="text-sm text-slate-500">Read the document below before continuing.</p>
             </div>
           </div>
@@ -216,7 +216,7 @@ export default function TermsAcceptanceGate() {
         <div className="mx-5 min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:mx-7 sm:p-5">
           <article className="min-w-0 space-y-5 break-words">
             <header className="space-y-1">
-              <h3 className="text-base font-extrabold text-slate-950">Terms of Service</h3>
+              <h3 className="text-base font-bold text-slate-950">Terms of Service</h3>
               <p className="text-xs font-semibold text-slate-500">Last updated: July 6, 2026</p>
             </header>
             {termsSections.map((section) => (
@@ -224,7 +224,7 @@ export default function TermsAcceptanceGate() {
             ))}
 
             <header className="space-y-1 border-t border-slate-300 pt-5">
-              <h3 className="text-base font-extrabold text-slate-950">Privacy Policy</h3>
+              <h3 className="text-base font-bold text-slate-950">Privacy Policy</h3>
               <p className="text-xs font-semibold text-slate-500">Last updated: July 6, 2026</p>
             </header>
             {privacySections.map((section) => (
@@ -235,8 +235,9 @@ export default function TermsAcceptanceGate() {
 
         <div className="shrink-0 p-5 pt-4 sm:p-7 sm:pt-5">
           <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-orange-100 bg-orange-50/70 p-4 text-sm text-slate-700">
-            <input
-              type="checkbox"
+                  <input
+                    name="accept-terms"
+                    type="checkbox"
               checked={accepted}
               onChange={(e) => setAccepted(e.target.checked)}
               className="mt-1"
@@ -250,7 +251,7 @@ export default function TermsAcceptanceGate() {
             type="button"
             onClick={handleAccept}
             disabled={!accepted || submitting}
-            className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-orange-500 px-5 py-3.5 text-sm font-extrabold text-white shadow-lg shadow-orange-500/20 transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:bg-slate-400 disabled:shadow-none"
+            className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-orange-500 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-orange-500/20 transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:bg-slate-400 disabled:shadow-none"
           >
             {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
             Accept and Continue

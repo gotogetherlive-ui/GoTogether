@@ -200,7 +200,7 @@ export default function AdminTripsPage() {
   return (
     <div>
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Trip Moderation</h1>
           <p className="text-sm text-slate-500 mt-1">Review and manage premium business trips</p>
@@ -298,10 +298,14 @@ export default function AdminTripsPage() {
                       {trip.organizer_role}
                     </span>
                   </div>
+                  <p className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
+                    <Calendar aria-hidden="true" className="h-3.5 w-3.5" />
+                    Created: <time dateTime={trip.created_at}>{new Date(trip.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })} IST</time>
+                  </p>
                   {/* Booking Count Badge */}
                   {trip.booking_count > 0 && (
                     <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-violet-100 text-violet-700 border border-violet-200">
-                      <Users className="w-3.5 h-3.5" /> {trip.booking_count}
+                      <Users className="w-3.5 h-3.5" /> {trip.booking_count} bookings
                     </span>
                   )}
                 </div>
@@ -323,14 +327,14 @@ export default function AdminTripsPage() {
                     <>
                       <button
                         onClick={() => handleStatus(trip.id, 'live')}
-                        className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all duration-200 hover:scale-110"
+                        className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all duration-200 "
                         title="Approve"
                       >
                         <Check className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleStatus(trip.id, 'rejected')}
-                        className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-all duration-200 hover:scale-110"
+                        className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-all duration-200 "
                         title="Reject"
                       >
                         <X className="w-4 h-4" />
@@ -339,7 +343,7 @@ export default function AdminTripsPage() {
                   )}
                   <button
                     onClick={() => handleFeature(trip.id, trip.is_featured)}
-                    className={`p-2 rounded-lg transition-all duration-200 hover:scale-110 ${
+                    className={`p-2 rounded-lg transition-all duration-200  ${
                       trip.is_featured ? 'text-orange-600 hover:bg-orange-50' : 'text-slate-400 hover:bg-slate-50'
                     }`}
                     title="Toggle Pin to Top"
@@ -348,7 +352,7 @@ export default function AdminTripsPage() {
                   </button>
                   <button
                     onClick={() => handleDelete(trip.id)}
-                    className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-all duration-200 hover:scale-110"
+                    className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-all duration-200 "
                     title="Delete Trip"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -365,7 +369,7 @@ export default function AdminTripsPage() {
                     {/* Trip Details */}
                     <div className="space-y-3">
                       <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                        <div className="w-5 h-5 rounded bg-gradient-to-br from-orange-500 to-rose-500 flex items-center justify-center">
+                        <div className="w-5 h-5 rounded bg-slate-900 flex items-center justify-center">
                           <Info className="w-3 h-3 text-white" />
                         </div>
                         Trip Details
@@ -381,7 +385,7 @@ export default function AdminTripsPage() {
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-xs text-slate-500">Created</span>
-                          <span className="text-xs text-slate-600">{new Date(trip.created_at).toLocaleDateString()}</span>
+                          <span className="text-xs text-slate-600">{new Date(trip.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })} IST</span>
                         </div>
                       </div>
                     </div>
@@ -389,7 +393,7 @@ export default function AdminTripsPage() {
                     {/* Route Info */}
                     <div className="space-y-3">
                       <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                        <div className="w-5 h-5 rounded bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+                        <div className="w-5 h-5 rounded bg-slate-800 flex items-center justify-center">
                           <ArrowRight className="w-3 h-3 text-white" />
                         </div>
                         Route
@@ -614,7 +618,7 @@ export default function AdminTripsPage() {
                                   <div className="space-y-1">
                                     <div className="flex items-center gap-2">
                                       <span className="text-slate-400 font-semibold uppercase tracking-wider text-[9px]">Booking Status:</span>
-                                      <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase ${
+                                      <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase ${
                                         b.booking_status === 'confirmed' ? 'bg-emerald-100 text-emerald-700' :
                                         b.booking_status === 'trip_cancelled' ? 'bg-rose-100 text-rose-700 animate-pulse' :
                                         'bg-slate-100 text-slate-600'
@@ -622,7 +626,7 @@ export default function AdminTripsPage() {
                                     </div>
                                     <div className="flex items-center gap-2">
                                       <span className="text-slate-400 font-semibold uppercase tracking-wider text-[9px]">Payment Status:</span>
-                                      <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase ${
+                                      <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase ${
                                         b.payment_status === 'refunded' ? 'bg-emerald-100 text-emerald-700' :
                                         b.payment_status === 'refund_failed' ? 'bg-rose-100 text-rose-700 animate-pulse' :
                                         b.payment_status === 'refund_pending' ? 'bg-amber-100 text-amber-700 animate-pulse' :

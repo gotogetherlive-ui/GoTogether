@@ -44,9 +44,11 @@ export async function POST(
 
     // Begin transaction to ensure data integrity
     await transaction(async (client) => {
+      await client.query('SELECT id FROM trips WHERE id = $1 FOR UPDATE', [tripRequest.trip_id]);
       // Update request status
       const newStatus = action === 'accept' ? 'accepted' : 'rejected';
-      await client.query('UPDATE trip_requests SET status = $1, notification_seen = $2 WHERE id = $3', [newStatus, action === 'accept' ? 0 : 1, requestId]);
+      const changed = await client.query("UPDATE trip_requests SET status = $1, notification_seen = $2 WHERE id = $3 AND status = 'pending' RETURNING id", [newStatus, action === 'accept' ? 0 : 1, requestId]);
+      if (changed.rowCount !== 1) throw new Error('REQUEST_ALREADY_PROCESSED');
 
       if (action === 'accept') {
         // Check if participant already exists to prevent duplicates
@@ -78,6 +80,7 @@ export async function POST(
 
     return NextResponse.json({ success: true, message: `Request ${action}ed successfully` });
   } catch (err) {
+    if (err instanceof Error && err.message === 'REQUEST_ALREADY_PROCESSED') return NextResponse.json({ error: 'Request is already processed' }, { status: 409 });
     console.error('Process request error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

@@ -40,7 +40,7 @@ async function startPgListener() {
         try {
           const data = JSON.parse(msg.payload);
           if (data.type === 'user' && data.id) {
-            notificationEvents.emit(`notification:${data.id}`);
+            notificationEvents.emit(`notification:${data.id}`, data.messageId);
           } else if (data.type === 'admin') {
             notificationEvents.emit('notification:admin');
           } else if (data.type === 'stories') {
@@ -84,12 +84,12 @@ export async function ensureNotificationListener() {
   await startPgListener();
 }
 
-export async function notifyUser(userId: string) {
+export async function notifyUser(userId: string, messageId?: string) {
   try {
-    await run(`SELECT pg_notify($1, $2)`, [PG_CHANNEL, JSON.stringify({ type: 'user', id: userId })]);
+    await run(`SELECT pg_notify($1, $2)`, [PG_CHANNEL, JSON.stringify({ type: 'user', id: userId, messageId })]);
   } catch (err) {
     console.error('[PG NOTIFY] Failed to notify user:', err);
-    notificationEvents.emit(`notification:${userId}`);
+    notificationEvents.emit(`notification:${userId}`, messageId);
   }
 }
 

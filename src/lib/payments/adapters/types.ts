@@ -54,6 +54,8 @@ export interface ParsedWebhookPayment {
 }
 
 export interface RefundPaymentInput {
+  providerOrderId?: string;
+  idempotencyKey?: string;
   providerPaymentId: string;
   amount: number;
   notes: Record<string, string>;
@@ -61,7 +63,18 @@ export interface RefundPaymentInput {
   mode: PaymentMode;
 }
 
+export interface CapturedProviderPayment {
+  providerOrderId: string;
+  providerPaymentId: string;
+  amount: number;
+  currency: string;
+  method: string | null;
+  rawPayment: unknown;
+}
+
 export interface PaymentProviderAdapter {
+  fetchSuccessfulPayment?(providerOrderId: string, providerAccount?: ProviderAccount | null): Promise<CapturedProviderPayment | null>;
+
   provider: PaymentProvider;
   createOrder(input: CreateProviderOrderInput): Promise<ProviderOrderResult>;
   verifyCheckoutPayment(input: VerifyCheckoutPaymentInput): boolean;

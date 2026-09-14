@@ -75,6 +75,7 @@ export async function PUT(request: Request) {
           profession = $5,
           fooding_habit = $6,
           avatar_url = $7,
+          phone_verified = CASE WHEN phone_number IS DISTINCT FROM $8 THEN 0 ELSE phone_verified END,
           phone_number = $8,
           razorpay_account_id = CASE WHEN $9::text IS NULL THEN razorpay_account_id ELSE $9 END
       WHERE id = $10

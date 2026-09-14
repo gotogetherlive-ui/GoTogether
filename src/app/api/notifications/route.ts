@@ -59,7 +59,9 @@ export async function GET() {
 
     if (isAdmin) {
       const settings = await getAppSettings();
-      const pendingAppsRow = await queryOne(`SELECT COUNT(id) as count FROM business_applications WHERE status = 'pending' AND notification_seen = 0`) as any;
+      const pendingAppsRow = await queryOne(`SELECT
+        (SELECT COUNT(id) FROM business_applications WHERE status = 'pending' AND notification_seen = 0) +
+        (SELECT COUNT(id) FROM business_introductions WHERE status = 'pending' AND notification_seen = 0) AS count`) as any;
       adminPendingApps = pendingAppsRow?.count || 0;
 
       // Only count feedback notifications if feedback_alerts is enabled
@@ -94,7 +96,12 @@ export async function GET() {
     `, [userId]) as any;
     newBookings = newBookingsRow?.count || 0;
 
+    const moderationCounts = await queryOne<{ removed: number; reports: number }>(`SELECT
+      (SELECT COUNT(*)::int FROM trip_requests r JOIN trips t ON t.id = r.trip_id WHERE r.requester_id = $1 AND r.removed_at IS NOT NULL AND r.notification_seen = 0 AND t.status <> 'deleted' AND t.deleted_at IS NULL) AS removed,
+      CASE WHEN $2::boolean THEN (SELECT COUNT(*)::int FROM reports WHERE status = 'pending' AND notification_seen = 0) ELSE 0 END AS reports`, [userId, isAdmin]);
     return NextResponse.json({
+      removedTrips: moderationCounts?.removed || 0,
+      adminTravelerReports: moderationCounts?.reports || 0,
       unreadMessages: Number(unreadMessagesData?.count || 0),
       pendingRequests: Number(pendingRequestsData?.count || 0),
       newAcceptances: Number(newAcceptancesData?.count || 0),
@@ -122,9 +129,18 @@ export async function POST(req: Request) {
 
     const body = await req.json();
     const { type } = body;
-    const adminOnlyTypes = new Set(['adminPendingApps', 'adminPendingFeedbacks', 'adminNewBookings', 'adminNewSupport']);
+    const adminOnlyTypes = new Set(['adminPendingApps', 'adminPendingFeedbacks', 'adminNewBookings', 'adminNewSupport', 'adminTravelerReports']);
     if (adminOnlyTypes.has(type) && !(await isAdminUser(user))) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    if (type === 'removedTrips') {
+      await run('UPDATE trip_requests SET notification_seen = 1 WHERE requester_id = $1 AND removed_at IS NOT NULL', [user.id]);
+      return NextResponse.json({ success: true });
+    }
+    if (type === 'adminTravelerReports') {
+      await run("UPDATE reports SET notification_seen = 1 WHERE status = 'pending'");
+      return NextResponse.json({ success: true });
     }
 
     if (type === 'acceptances') {
@@ -152,6 +168,7 @@ export async function POST(req: Request) {
 
     if (type === 'adminPendingApps') {
       await run(`UPDATE business_applications SET notification_seen = 1 WHERE status = 'pending' AND notification_seen = 0`);
+      await run(`UPDATE business_introductions SET notification_seen = 1 WHERE status = 'pending' AND notification_seen = 0`);
       return NextResponse.json({ success: true });
     }
 

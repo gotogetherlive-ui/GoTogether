@@ -618,34 +618,34 @@ export default function UserDashboard() {
   }
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pt-8 pb-20 px-4">
+    <div className="mx-auto max-w-6xl space-y-6 px-4 pb-20 pt-8 md:px-6">
       {/* Back Link */}
       <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-orange-500 transition-colors group">
         <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> Back to Profile
       </Link>
 
       {/* Hero Header */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-orange-500 via-rose-500 to-pink-500 p-8 md:p-10 text-white shadow-xl shadow-orange-500/20">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-        <div className="relative z-10">
+      <header className="gt-hero-panel rounded-2xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+        <div>
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
             <div>
-              <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">My Bookings</h1>
-              <p className="text-white/70 mt-1">Track your applications and bookings</p>
+              <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-orange-700">Traveler workspace</p>
+              <h1 className="text-3xl font-bold tracking-tight text-slate-950 md:text-4xl">Bookings &amp; applications</h1>
+              <p className="mt-2 text-slate-600">Track requests, payments, tickets, and completed trips.</p>
             </div>
-            <div className="flex p-1 bg-white/15 backdrop-blur-sm rounded-2xl border border-white/20">
+            <div className="flex w-full rounded-xl border border-slate-200 bg-slate-100 p-1 md:w-auto">
               <button
                 onClick={() => setActiveTab('buddy')}
-                className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
-                  activeTab === 'buddy' ? 'bg-white text-orange-600 shadow-lg' : 'text-white/80 hover:text-white hover:bg-white/10'
+                className={`flex-1 rounded-lg px-3 py-2.5 text-xs font-bold transition-all sm:px-5 sm:text-sm ${
+                  activeTab === 'buddy' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 Buddy Trips
               </button>
               <button
                 onClick={() => setActiveTab('premium')}
-                className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
-                  activeTab === 'premium' ? 'bg-white text-orange-600 shadow-lg' : 'text-white/80 hover:text-white hover:bg-white/10'
+                className={`flex-1 rounded-lg px-3 py-2.5 text-xs font-bold transition-all sm:px-5 sm:text-sm ${
+                  activeTab === 'premium' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 Curated Adventures
@@ -653,22 +653,21 @@ export default function UserDashboard() {
             </div>
           </div>
         </div>
-      </div>
+      </header>
 
       {activeTab === 'buddy' && (
         <div className="animate-in fade-in slide-in-from-bottom-2">
           {requests.length === 0 ? (
-            <div className="bg-white p-12 rounded-3xl shadow-sm border border-slate-100 text-center relative overflow-hidden">
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-64 bg-gradient-to-br from-orange-100 to-rose-100 rounded-full blur-3xl opacity-60 -translate-y-1/2" />
-              <div className="relative z-10">
-                <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-orange-100 to-rose-100 flex items-center justify-center mx-auto mb-6">
-                  <Heart className="w-10 h-10 text-orange-400" />
+            <div className="relative overflow-hidden rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center sm:p-12">
+              <div>
+                <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-xl bg-orange-50">
+                  <Heart className="w-7 h-7 text-orange-600" />
                 </div>
                 <h3 className="text-2xl font-bold text-slate-900 mb-2">No buddy applications</h3>
                 <p className="text-slate-500 mb-8 max-w-sm mx-auto">Find a buddy trip and show interest to get started!</p>
                 <button 
                   onClick={() => router.push('/buddy')}
-                  className="bg-gradient-to-r from-orange-500 to-rose-500 text-white px-8 py-3.5 rounded-2xl font-bold shadow-lg shadow-orange-500/25 hover:shadow-xl hover:-translate-y-0.5 transition-all"
+                  className="gt-primary-action rounded-xl px-6 py-3 font-bold transition"
                 >
                   Find Buddy Trips
                 </button>
@@ -677,7 +676,7 @@ export default function UserDashboard() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {requests.map(req => (
-                <div key={req.request_id} className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden flex flex-col group">
+                <div key={req.request_id} className="gt-panel gt-card-lift group flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                   <div className="p-6 flex-1">
                     <div className="flex justify-between items-start mb-4">
                       <h3 className="text-xl font-bold text-slate-900 line-clamp-2">{req.title}</h3>
@@ -744,21 +743,21 @@ export default function UserDashboard() {
         <div className="animate-in fade-in slide-in-from-bottom-2">
           <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-xl font-extrabold text-slate-900">{premiumView === 'history' ? 'Trip History' : 'Active Bookings'}</h2>
+              <h2 className="text-xl font-bold text-slate-900">{premiumView === 'history' ? 'Trip History' : 'Active Bookings'}</h2>
               <p className="text-sm text-slate-500">{premiumView === 'history' ? 'Completed and cancelled trips are stored here.' : 'Upcoming and in-progress bookings stay here.'}</p>
             </div>
-            <div className="inline-flex rounded-2xl border border-slate-200 bg-white p-1 shadow-sm">
+            <div className="inline-flex rounded-xl border border-slate-200 bg-slate-100 p-1">
               <button
                 type="button"
                 onClick={() => setPremiumView('active')}
-                className={`rounded-xl px-4 py-2 text-xs font-extrabold transition-all ${premiumView === 'active' ? 'bg-orange-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
+                className={`rounded-lg px-4 py-2 text-xs font-bold transition ${premiumView === 'active' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
               >
                 Active ({activeBookings.length})
               </button>
               <button
                 type="button"
                 onClick={() => setPremiumView('history')}
-                className={`rounded-xl px-4 py-2 text-xs font-extrabold transition-all ${premiumView === 'history' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
+                className={`rounded-lg px-4 py-2 text-xs font-bold transition ${premiumView === 'history' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
               >
                 Trip History ({historyBookings.length})
               </button>
@@ -766,17 +765,16 @@ export default function UserDashboard() {
           </div>
 
           {displayedBookings.length === 0 ? (
-            <div className="bg-white p-12 rounded-3xl shadow-sm border border-slate-100 text-center relative overflow-hidden">
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-64 bg-gradient-to-br from-orange-100 to-rose-100 rounded-full blur-3xl opacity-60 -translate-y-1/2" />
-              <div className="relative z-10">
-                <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-orange-100 to-rose-100 flex items-center justify-center mx-auto mb-6">
-                  <Calendar className="w-10 h-10 text-orange-400" />
+            <div className="relative overflow-hidden rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center sm:p-12">
+              <div>
+                <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-xl bg-orange-50">
+                  <Calendar className="w-7 h-7 text-orange-600" />
                 </div>
                 <h3 className="text-2xl font-bold text-slate-900 mb-2">{premiumView === 'history' ? 'No trip history yet' : 'No active bookings'}</h3>
                 <p className="text-slate-500 mb-8 max-w-sm mx-auto">{premiumView === 'history' ? 'Completed and cancelled trips will appear here automatically.' : 'Explore our premium curated adventures and book your next trip!'}</p>
                 <button 
                   onClick={() => router.push('/trips')}
-                  className="bg-gradient-to-r from-orange-500 to-rose-500 text-white px-8 py-3.5 rounded-2xl font-bold shadow-lg shadow-orange-500/25 hover:shadow-xl hover:-translate-y-0.5 transition-all"
+                  className="gt-primary-action rounded-xl px-6 py-3 font-bold transition"
                 >
                   Browse Adventures
                 </button>
@@ -799,7 +797,7 @@ export default function UserDashboard() {
                 const hasCapturedPayment = !!book.razorpay_payment_id || ['paid', 'refunded', 'refund_pending', 'refund_failed'].includes(book.payment_status);
                 
                 return (
-                  <div key={book.booking_id} className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden flex flex-col group">
+                  <div key={book.booking_id} className="gt-panel gt-card-lift group flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                     {book.image_url && (
                       <div className="h-32 w-full relative">
                         <Image src={book.image_url} alt="" fill sizes="(max-width: 768px) 100vw, 50vw" className="object-cover" />
@@ -808,31 +806,31 @@ export default function UserDashboard() {
                           <h3 className="text-lg font-bold text-white line-clamp-1">{book.title}</h3>
                           <div className="shrink-0">
                             {isTripCancelled ? (
-                              <span className="flex items-center gap-1.5 px-2.5 py-0.5 bg-rose-500 text-white text-[10px] uppercase tracking-wider font-extrabold rounded-full shadow-sm animate-pulse">
+                              <span className="flex items-center gap-1.5 px-2.5 py-0.5 bg-rose-500 text-white text-[10px] uppercase tracking-wider font-bold rounded-full shadow-sm animate-pulse">
                                 Trip Cancelled
                               </span>
                             ) : isCancelled ? (
-                              <span className="flex items-center gap-1.5 px-2.5 py-0.5 bg-slate-400 text-slate-900 text-[10px] uppercase tracking-wider font-extrabold rounded-full shadow-sm">
+                              <span className="flex items-center gap-1.5 px-2.5 py-0.5 bg-slate-400 text-slate-900 text-[10px] uppercase tracking-wider font-bold rounded-full shadow-sm">
                                 Cancelled
                               </span>
                             ) : isExpired ? (
-                              <span className="flex items-center gap-1.5 px-2.5 py-0.5 bg-slate-500 text-white text-[10px] uppercase tracking-wider font-extrabold rounded-full shadow-sm">
+                              <span className="flex items-center gap-1.5 px-2.5 py-0.5 bg-slate-500 text-white text-[10px] uppercase tracking-wider font-bold rounded-full shadow-sm">
                                 Expired
                               </span>
                             ) : isPendingPayment ? (
-                              <span className="flex items-center gap-1.5 px-2.5 py-0.5 bg-amber-400 text-amber-900 text-[10px] uppercase tracking-wider font-extrabold rounded-full shadow-sm animate-pulse">
+                              <span className="flex items-center gap-1.5 px-2.5 py-0.5 bg-amber-400 text-amber-900 text-[10px] uppercase tracking-wider font-bold rounded-full shadow-sm animate-pulse">
                                 Awaiting Payment
                               </span>
                             ) : isLegacyPending ? (
-                              <span className="flex items-center gap-1.5 px-2.5 py-0.5 bg-yellow-400 text-yellow-900 text-[10px] uppercase tracking-wider font-extrabold rounded-full shadow-sm">
+                              <span className="flex items-center gap-1.5 px-2.5 py-0.5 bg-yellow-400 text-yellow-900 text-[10px] uppercase tracking-wider font-bold rounded-full shadow-sm">
                                 Pending Review
                               </span>
                             ) : isConfirmed ? (
-                              <span className="flex items-center gap-1.5 px-2.5 py-0.5 bg-emerald-400 text-emerald-900 text-[10px] uppercase tracking-wider font-extrabold rounded-full shadow-sm">
+                              <span className="flex items-center gap-1.5 px-2.5 py-0.5 bg-emerald-400 text-emerald-900 text-[10px] uppercase tracking-wider font-bold rounded-full shadow-sm">
                                 Confirmed
                               </span>
                             ) : (
-                              <span className="flex items-center gap-1.5 px-2.5 py-0.5 bg-rose-400 text-rose-900 text-[10px] uppercase tracking-wider font-extrabold rounded-full shadow-sm">
+                              <span className="flex items-center gap-1.5 px-2.5 py-0.5 bg-rose-400 text-rose-900 text-[10px] uppercase tracking-wider font-bold rounded-full shadow-sm">
                                 Rejected
                               </span>
                             )}
@@ -845,7 +843,7 @@ export default function UserDashboard() {
                       {!book.image_url && (
                         <div className="flex justify-between items-start mb-4">
                           <h3 className="text-lg font-bold text-slate-900 line-clamp-2">{book.title}</h3>
-                          <span className={`px-2 py-0.5 text-[10px] uppercase font-extrabold rounded-full ${
+                          <span className={`px-2 py-0.5 text-[10px] uppercase font-bold rounded-full ${
                             isTripCancelled ? 'bg-rose-100 text-rose-700 animate-pulse' :
                             isCancelled ? 'bg-slate-100 text-slate-600' :
                             isExpired ? 'bg-slate-200 text-slate-700' :
@@ -925,7 +923,7 @@ export default function UserDashboard() {
                         <div className="mt-3 pt-3 border-t border-slate-100 text-xs space-y-1 bg-slate-50 p-2.5 rounded-xl border border-slate-200/50">
                           <div className="flex justify-between font-bold text-slate-700">
                             <span>Cancellation Status:</span>
-                            <span className="text-rose-600 font-extrabold capitalize">
+                            <span className="text-rose-600 font-bold capitalize">
                               {!hasCapturedPayment ? 'no payment' : isTripCancelled ? (book.refund_status === 'success' ? 'refunded' : (book.refund_status || 'processing')) : (book.refund_status || 'no_refund')}
                             </span>
                           </div>

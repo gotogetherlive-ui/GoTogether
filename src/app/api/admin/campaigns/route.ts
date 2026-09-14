@@ -4,8 +4,11 @@ import { getSession } from "@/lib/auth";
 import { isAdminUser } from "@/lib/admin";
 import { query } from "@/lib/db";
 import { sendAdminCampaignBatch, type AdminCampaignType } from "@/lib/email";
+import type { AdminCampaignLayout, AdminCampaignTheme } from "@/lib/adminCampaignEmail";
 
-const CAMPAIGN_TYPES = new Set<AdminCampaignType>(["retention", "notification", "offer"]);
+const CAMPAIGN_TYPES = new Set<AdminCampaignType>(["retention", "notification", "offer", "feedback", "rating"]);
+const CAMPAIGN_THEMES = new Set<AdminCampaignTheme>(["signature", "himalayan", "coastal", "midnight", "postcard"]);
+const CAMPAIGN_LAYOUTS = new Set<AdminCampaignLayout>(["classic", "panorama", "editorial", "journey", "minimal"]);
 
 export async function POST(request: Request) {
   try {
@@ -16,6 +19,8 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const campaignType = String(body.campaignType || "") as AdminCampaignType;
+    const theme = String(body.theme || "signature") as AdminCampaignTheme;
+    const layout = String(body.layout || "classic") as AdminCampaignLayout;
     const audience = String(body.audience || "");
     const targetUserId = String(body.targetUserId || "").trim();
     const subject = String(body.subject || "").trim();
@@ -26,6 +31,12 @@ export async function POST(request: Request) {
 
     if (!CAMPAIGN_TYPES.has(campaignType)) {
       return NextResponse.json({ error: "Select a valid campaign type." }, { status: 400 });
+    }
+    if (!CAMPAIGN_THEMES.has(theme)) {
+      return NextResponse.json({ error: "Select a valid email theme." }, { status: 400 });
+    }
+    if (!CAMPAIGN_LAYOUTS.has(layout)) {
+      return NextResponse.json({ error: "Select a valid email layout." }, { status: 400 });
     }
     if (audience !== "all" && audience !== "specific") {
       return NextResponse.json({ error: "Select a campaign audience." }, { status: 400 });
@@ -65,6 +76,8 @@ export async function POST(request: Request) {
     const sent = await sendAdminCampaignBatch({
       campaignId,
       campaignType,
+      theme,
+      layout,
       recipients,
       subject,
       message,

@@ -10,7 +10,7 @@
  */
 
 /** Ensure a timestamp string from SQLite is treated as UTC by appending 'Z' if missing */
-export function parseUTCDate(dateStr: string): Date {
+function parseUTCDate(dateStr: string): Date {
   if (!dateStr) return new Date();
   // If it already has timezone info (Z, +, -), parse directly
   if (/[Z+\-]\d{0,2}:?\d{0,2}$/.test(dateStr.trim())) {
@@ -30,29 +30,4 @@ export function formatISTDate(dateStr: string, options?: Intl.DateTimeFormatOpti
     year: 'numeric',
     ...options,
   });
-}
-
-/** Format a DB timestamp as IST time string (e.g. "07:06 pm") */
-export function formatISTTime(dateStr: string): string {
-  const date = parseUTCDate(dateStr);
-  return date.toLocaleTimeString('en-IN', {
-    timeZone: 'Asia/Kolkata',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-/** Format a DB timestamp as IST date+time string (e.g. "12 May 2026, 7:06 pm") */
-export function formatISTDateTime(dateStr: string): string {
-  const date = parseUTCDate(dateStr);
-  return date.toLocaleString('en-IN', {
-    timeZone: 'Asia/Kolkata',
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  });
-}
-
-/** Get today's date string in YYYY-MM-DD format in IST */
-export function getTodayIST(): string {
-  return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 }

@@ -71,7 +71,11 @@ export async function GET(request: Request) {
     }
 
     // Upsert user in our database
-    let user = await queryOne('SELECT id, google_id FROM users WHERE google_id = $1 OR LOWER(email) = LOWER($2)', [googleUser.id, googleUser.email]) as { id: string; google_id: string | null } | undefined
+    let user = await queryOne('SELECT id, google_id, deleted_at FROM users WHERE google_id = $1 OR LOWER(email) = LOWER($2)', [googleUser.id, googleUser.email]) as { id: string; google_id: string | null; deleted_at?: string | null } | undefined
+
+    if (user?.deleted_at) {
+      return NextResponse.redirect(`${origin}/login?error=account_deleted`)
+    }
 
     if (user) {
       if (user.google_id && user.google_id !== googleUser.id) {

@@ -40,17 +40,7 @@ export async function POST(
       [bookingId]
     );
 
-    // Reset any FAILED refund entries back to PENDING for re-processing
-    await run(
-      `UPDATE payments.refunds SET status = 'PENDING', provider_refund_id = NULL, updated_at = NOW()
-       WHERE transaction_id IN (
-         SELECT t.transaction_id FROM payments.transactions t
-         JOIN payments.orders o ON o.id = t.order_id
-         WHERE o.booking_id = $1
-       ) AND status IN ('FAILED', 'PENDING')`,
-      [bookingId]
-    );
-
+    // The refund service owns retry identity and preserves ambiguous attempts.
     // Call payment orchestrator to process refund
     const refundRes = await PaymentOrchestrator.refundBooking(bookingId, "Admin Manual Retry");
     

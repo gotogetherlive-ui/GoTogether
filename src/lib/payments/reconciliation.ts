@@ -1,8 +1,9 @@
-import { query, queryOne, run } from "@/lib/db";
+import { query, run } from "@/lib/db";
 import { PAYMENT_MODE, PAYMENT_STATUS } from "./domain";
 import { PaymentOrchestrator } from "./orchestrator";
 import { getPaymentProviderAdapter } from "./adapters/registry";
 import { findProviderAccountById, markPaymentEventProcessed } from "./repository";
+import type { ParsedWebhookPayment } from "./adapters/types";
 import { processOutboxEvents } from "./outbox";
 
 export async function reconcilePayments() {
@@ -18,8 +19,8 @@ export async function reconcilePayments() {
 
   // 1. Reprocess stuck webhook events
   try {
-    const stuckEvents = await query<{ id: string; provider: string; provider_event_id: string }>(
-      `SELECT e.id, e.provider, e.provider_event_id
+    const stuckEvents = await query<{ id: string; provider: string; provider_event_id: string; verified_payload: ParsedWebhookPayment | null }>(
+      `SELECT e.id, e.provider, e.provider_event_id, e.verified_payload
        FROM payments.payment_events e
        WHERE e.processed_at IS NULL
          AND e.created_at < NOW() - INTERVAL '2 minutes'
@@ -28,20 +29,15 @@ export async function reconcilePayments() {
 
     for (const event of stuckEvents) {
       try {
-        const webhookLog = await queryOne<{ payload: any }>(
-          `SELECT payload FROM payments.webhook_logs
-           WHERE provider = $1 AND provider_event_id = $2
-           ORDER BY created_at DESC LIMIT 1`,
-          [event.provider, event.provider_event_id]
-        );
-
-        if (webhookLog?.payload) {
-          const parsed = getPaymentProviderAdapter(event.provider as any).parseWebhook(
-            JSON.stringify(webhookLog.payload),
-            new Headers()
-          );
-
-          if (parsed.payment) {
+        // Only the immutable, signature-verified event may authorize recovery.
+        // Legacy events without one must recover through the gateway API below.
+        const parsed = event.verified_payload;
+        if (parsed) {
+          if ((parsed.eventType === 'refund.processed' || parsed.eventType === 'refund.failed') && parsed.refund) {
+            const result = await PaymentOrchestrator.confirmRefund({ providerRefundId: parsed.refund.providerRefundId,
+              status: parsed.eventType === 'refund.processed' ? 'processed' : 'failed', raw: parsed.refund.raw });
+            if (result.ok) { await markPaymentEventProcessed(event.id); summary.webhookEventsReprocessed++; }
+          } else if (parsed.eventType === 'payment.captured' && parsed.payment) {
             const result = await PaymentOrchestrator.confirmPayment({
               provider: event.provider as any,
               providerOrderId: parsed.payment.providerOrderId,
@@ -79,7 +75,7 @@ export async function reconcilePayments() {
        FROM payments.orders
        WHERE status IN ('CREATED', 'PENDING', 'PROCESSING')
          AND created_at < NOW() - INTERVAL '5 minutes'
-         AND expires_at > NOW()
+       ORDER BY created_at ASC
        LIMIT 10`
     );
 
@@ -98,16 +94,10 @@ export async function reconcilePayments() {
           if (res) {
             if (res.status === PAYMENT_STATUS.SUCCESS) {
               // Confirm the payment
-              const providerPaymentId = (res.raw as any).payments?.items?.[0]?.id || `sync_${order.provider_order_id}`;
-              await PaymentOrchestrator.confirmPayment({
-                provider: order.provider as any,
-                providerOrderId: order.provider_order_id,
-                providerPaymentId,
-                amount: (res.raw as any).amount || 0,
-                currency: (res.raw as any).currency || "INR",
-                method: (res.raw as any).payments?.items?.[0]?.method || "synced",
-                rawPayment: res.raw,
-              });
+              const payment = await adapter.fetchSuccessfulPayment?.(order.provider_order_id, providerAccount);
+              if (!payment) throw new Error('Captured payment details are not available from gateway');
+              const confirmed = await PaymentOrchestrator.confirmPayment({ provider: order.provider as any, ...payment });
+              if (!confirmed.ok) throw new Error(confirmed.error);
               summary.ordersSynced++;
             } else if (res.status === PAYMENT_STATUS.FAILED) {
               await run(

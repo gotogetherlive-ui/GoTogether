@@ -7,6 +7,7 @@ export const dynamic = 'force-dynamic';
 
 async function getNotificationCounts(userId: string, isAdmin: boolean, isBusiness: boolean) {
   const counts = await queryOne<{
+    removed_trips: number; admin_traveler_reports: number;
     unread_messages: number; first_unread_trip_id: string | null;
     pending_requests: number; new_acceptances: number; first_accepted_trip_id: string | null;
     new_bookings: number; new_trips: number; booking_updates: number;
@@ -14,6 +15,8 @@ async function getNotificationCounts(userId: string, isAdmin: boolean, isBusines
     admin_new_bookings: number; admin_new_support: number;
   }>(`
     SELECT
+      (SELECT COUNT(*)::int FROM trip_requests r JOIN trips t ON t.id = r.trip_id WHERE r.requester_id = $1 AND r.removed_at IS NOT NULL AND r.notification_seen = 0 AND t.status <> 'deleted' AND t.deleted_at IS NULL) AS removed_trips,
+      CASE WHEN $3::boolean THEN (SELECT COUNT(*)::int FROM reports WHERE status = 'pending' AND notification_seen = 0) ELSE 0 END AS admin_traveler_reports,
       (SELECT COUNT(m.id)::int FROM messages m
         JOIN trips t ON t.id = m.trip_id
         JOIN trip_participants tp ON tp.trip_id = t.id AND tp.user_id = $1
@@ -47,6 +50,7 @@ async function getNotificationCounts(userId: string, isAdmin: boolean, isBusines
         WHERE tb.user_id = $1 AND t.status <> 'deleted' AND t.deleted_at IS NULL
           AND tb.user_notification_seen = 0) AS booking_updates,
       CASE WHEN $3::boolean THEN (SELECT COUNT(id)::int FROM business_applications
+        WHERE status = 'pending' AND notification_seen = 0) + (SELECT COUNT(id)::int FROM business_introductions
         WHERE status = 'pending' AND notification_seen = 0) ELSE 0 END AS admin_pending_apps,
       CASE WHEN $3::boolean THEN (SELECT COUNT(id)::int FROM feedbacks
         WHERE status = 'pending' AND notification_seen = 0) ELSE 0 END AS admin_pending_feedbacks,
@@ -58,6 +62,8 @@ async function getNotificationCounts(userId: string, isAdmin: boolean, isBusines
   `, [userId, isBusiness, isAdmin]);
 
   return {
+    removedTrips: counts?.removed_trips || 0,
+    adminTravelerReports: counts?.admin_traveler_reports || 0,
     unreadMessages: counts?.unread_messages || 0,
     firstUnreadTripId: counts?.first_unread_trip_id ?? null,
     pendingRequests: counts?.pending_requests || 0,
@@ -75,7 +81,7 @@ async function getNotificationCounts(userId: string, isAdmin: boolean, isBusines
   };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const user = await getSession();
   if (!user) {
     return new Response('Unauthorized', { status: 401 });
@@ -102,7 +108,16 @@ export async function GET() {
       getNotificationCounts(user.id, isAdmin, isBusiness).then(send).catch(console.error);
 
       // Listener callback for changes
-      const onNotificationChange = () => {
+      const onNotificationChange = (messageId?: string) => {
+        if (typeof messageId === 'string') {
+          queryOne(`SELECT m.id, m.trip_id, u.full_name AS sender_name, t.title AS trip_title
+            FROM messages m JOIN users u ON u.id = m.sender_id JOIN trips t ON t.id = m.trip_id
+            WHERE m.id = $1 AND m.sender_id <> $2 AND t.status = 'live' AND t.deleted_at IS NULL
+              AND (t.organizer_id = $2 OR EXISTS (SELECT 1 FROM trip_participants p WHERE p.trip_id = t.id AND p.user_id = $2))`, [messageId, user.id])
+            .then(message => {
+              if (message && !closed) controller.enqueue(encoder.encode(`event: chat-message\ndata: ${JSON.stringify({ id: message.id, trip_id: message.trip_id, sender_name: message.sender_name, trip_title: message.trip_title, preview: 'Encrypted message received' })}\n\n`));
+            }).catch(console.error);
+        }
         try {
           getNotificationCounts(user.id, isAdmin, isBusiness).then(send).catch((err) => {
             console.error('[SSE] Failed to fetch notification counts:', err);
@@ -135,6 +150,7 @@ export async function GET() {
         if (closed) return;
         closed = true;
         clearInterval(pingInterval);
+        request.signal.removeEventListener("abort", cleanupListeners);
         notificationEvents.off(`notification:${user.id}`, onNotificationChange);
         if (isAdmin) {
           notificationEvents.off('notification:admin', onNotificationChange);
@@ -143,6 +159,8 @@ export async function GET() {
           controller.close();
         } catch { /* already closed */ }
       };
+      request.signal.addEventListener("abort", cleanupListeners, { once: true });
+      if (request.signal.aborted) cleanupListeners();
     },
     cancel() {
       cleanupListeners();

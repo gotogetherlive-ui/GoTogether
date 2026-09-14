@@ -11,7 +11,7 @@ export async function GET() {
     }
 
     const feedbacks = await query(`
-      SELECT f.id, f.category, f.subject, f.description, f.status, f.created_at,
+      SELECT f.id, f.category, f.subject, f.description, f.rating, f.status, f.created_at,
              u.full_name as user_name, u.email as user_email, u.phone_number as user_phone
       FROM feedbacks f
       JOIN users u ON f.user_id = u.id

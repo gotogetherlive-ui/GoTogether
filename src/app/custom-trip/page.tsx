@@ -14,7 +14,7 @@ export const metadata: Metadata = buildMetadata({
 
 export default function CustomTripPage() {
   return (
-    <div className="min-h-screen bg-[#f7f8fb] text-slate-950">
+    <div className="min-h-screen bg-slate-50 text-slate-950">
       <JsonLd data={breadcrumbJsonLd([{ name: "Home", path: "/" }, { name: "Custom Trip", path: "/custom-trip" }])} />
       <JsonLd data={{
         "@context": "https://schema.org",

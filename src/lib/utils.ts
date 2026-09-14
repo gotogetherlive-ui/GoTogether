@@ -6,13 +6,3 @@ export function parseNames(namesStr: string | null | undefined): string[] {
     return [];
   }
 }
-
-export function parseJSONArray<T>(jsonStr: string | null | undefined): T[] {
-  if (!jsonStr) return [];
-  try {
-    const parsed = JSON.parse(jsonStr);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}

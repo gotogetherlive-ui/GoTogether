@@ -3,11 +3,11 @@ export default function TripDetailLoading() {
     <div className="min-h-screen bg-slate-50">
       {/* Progress bar */}
       <div className="fixed top-0 left-0 right-0 z-[100] h-1 bg-slate-100">
-        <div className="h-full bg-gradient-to-r from-orange-400 to-rose-400 rounded-r-full animate-loading-bar" />
+        <div className="h-full bg-slate-900 rounded-r-full animate-loading-bar" />
       </div>
 
       <div className="pt-20 pb-24 px-6 md:px-12 max-w-7xl mx-auto w-full">
-        <div className="bg-white rounded-3xl overflow-hidden shadow-xl border border-slate-100">
+        <div className="bg-white rounded-xl overflow-hidden shadow-xl border border-slate-100">
           {/* Hero image skeleton */}
           <div className="h-80 w-full bg-slate-200 animate-pulse relative">
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent flex items-end p-8">
@@ -55,7 +55,7 @@ export default function TripDetailLoading() {
 
             {/* Right: Booking sidebar */}
             <div className="lg:col-span-5 xl:col-span-4">
-              <div className="bg-white rounded-3xl shadow-xl border border-slate-100 p-6 space-y-4">
+              <div className="bg-white rounded-xl shadow-xl border border-slate-100 p-6 space-y-4">
                 <div className="h-7 w-32 bg-slate-200 rounded-lg animate-pulse" />
                 <div className="flex items-end gap-2 pb-6 border-b border-slate-100">
                   <div className="h-8 w-24 bg-emerald-100 rounded-lg animate-pulse" />

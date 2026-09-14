@@ -1,11 +1,16 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import dynamic from "next/dynamic";
 import { MapPin, Search, Calendar, Briefcase, Camera, Loader2, Heart, CheckCircle, Utensils, UserRound, Users, Sparkles, Wallet, Globe, Compass, X, SlidersHorizontal, RotateCcw } from "lucide-react";
 import Image from "next/image";
+import MobileCardStack from "@/components/MobileCardStack";
+import CompatibilityDetails from "@/components/CompatibilityDetails";
 import type { BreakdownItem, BudgetProfile, CompatibilityProfile } from "@/lib/matchEngine";
+import { buddyNightOptions, isValidBuddyDuration, normalizedBuddyNights } from "@/lib/buddyDuration";
+import { BUDDY_GROUP_TAG_OPTIONS, MAX_BUDDY_GROUP_TAGS, buddyGroupTagLabel, type BuddyGroupTag } from "@/lib/buddyGroupTags";
 
 type CompatibilityFormProfile = Omit<CompatibilityProfile, "activity_preferences" | "languages"> & {
   activity_preferences: string[];
@@ -39,16 +44,18 @@ interface Trip {
   trip_date: string;
   duration_days: number;
   duration_nights: number;
-  traveller_type: "solo" | "couple";
+  traveller_type: "solo" | "couple" | "group";
+  group_tags: BuddyGroupTag[];
   image_url: string | null;
   organizer_id: string;
   organizer_name: string;
-  organizer_gender: string;
-  organizer_fooding_habit: string;
-  organizer_profession: string;
-  organizer_age: number;
+  organizer_gender: string | null;
+  organizer_fooding_habit: string | null;
+  organizer_profession: string | null;
+  organizer_age: number | null;
   organizer_avatar: string | null;
   user_request_status: string | null;
+  removal_reason?: string | null;
   registration_closed: number;
   match_score: number;
   accepted_count: number;
@@ -60,21 +67,82 @@ interface Trip {
   organizer_languages?: string[] | null;
 }
 
+type BuddyTripForm = {
+  destination: string;
+  starting_location: string;
+  trip_date: string;
+  duration_days: string;
+  duration_nights: string;
+  traveller_type: "" | "solo" | "couple" | "group";
+  group_tags: BuddyGroupTag[];
+  image_url: string;
+};
+
+function GroupTagPicker({ selected, onChange }: { selected: BuddyGroupTag[]; onChange: (tags: BuddyGroupTag[]) => void }) {
+  const toggleTag = (tag: BuddyGroupTag) => {
+    if (selected.includes(tag)) {
+      onChange(selected.filter((item) => item !== tag));
+      return;
+    }
+    if (selected.length < MAX_BUDDY_GROUP_TAGS) onChange([...selected, tag]);
+  };
+
+  return (
+    <div className="mt-5 border-t border-slate-100 pt-5">
+      <div className="mb-3 flex items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-semibold text-slate-900">What kind of group?</p>
+          <p className="mt-1 text-xs text-slate-500">Optional · choose up to {MAX_BUDDY_GROUP_TAGS}</p>
+        </div>
+        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">{selected.length}/{MAX_BUDDY_GROUP_TAGS}</span>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {BUDDY_GROUP_TAG_OPTIONS.map((option) => {
+          const active = selected.includes(option.value);
+          const disabled = !active && selected.length >= MAX_BUDDY_GROUP_TAGS;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              aria-pressed={active}
+              disabled={disabled}
+              onClick={() => toggleTag(option.value)}
+              className={`rounded-full border px-3 py-2 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500/30 ${active ? "border-orange-300 bg-orange-50 text-orange-800" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"}`}
+            >
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function BuddyClient({
   isAuthenticated,
   hasCompletedProfile,
+  initialData,
+  mode = "discover",
 }: {
+  mode?: "discover" | "interests";
   isAuthenticated: boolean;
   hasCompletedProfile: boolean;
+  initialData: {
+    trips: Trip[];
+    currentUserId: string;
+    hasCompatibilityProfile: boolean;
+    compatibilityProfile: CompatibilityProfile | null;
+    budget: BudgetProfile | null;
+  };
 }) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"search" | "create">("search");
-  const [trips, setTrips] = useState<Trip[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [trips, setTrips] = useState<Trip[]>(initialData.trips);
+  const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<{ text: string, type: "success" | "error" } | null>(null);
   const messageRef = useRef<HTMLDivElement>(null);
-  const [currentUserId, setCurrentUserId] = useState<string>("");
+  const [currentUserId, setCurrentUserId] = useState<string>(initialData.currentUserId);
 
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState("");
@@ -84,37 +152,45 @@ export default function BuddyClient({
   const [filterTravellerType, setFilterTravellerType] = useState("");
 
   // Create Form State
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<BuddyTripForm>({
     destination: "",
     starting_location: "",
     trip_date: "",
     duration_days: "",
     duration_nights: "",
     traveller_type: "",
+    group_tags: [],
     image_url: "",
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Edit / Delete State
   const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
-  const [editForm, setEditForm] = useState({
+  const [editForm, setEditForm] = useState<BuddyTripForm>({
     starting_location: "",
     destination: "",
     trip_date: "",
     duration_days: "",
     duration_nights: "",
     traveller_type: "",
+    group_tags: [],
     image_url: "",
   });
   const editFileInputRef = useRef<HTMLInputElement>(null);
+  const createNightOptions = useMemo(() => buddyNightOptions(form.duration_days), [form.duration_days]);
+  const editNightOptions = useMemo(() => buddyNightOptions(editForm.duration_days), [editForm.duration_days]);
 
   const [selectedMatchTrip, setSelectedMatchTrip] = useState<Trip | null>(null);
-  const [userProfile, setUserProfile] = useState<CompatibilityFormProfile | null>(null);
-  const [userBudget, setUserBudget] = useState<BudgetProfile | null>(null);
-  const [hasCompatibilityProfile, setHasCompatibilityProfile] = useState(false);
+  const [userProfile, setUserProfile] = useState<CompatibilityFormProfile | null>(() => initialData.compatibilityProfile ? {
+    ...initialData.compatibilityProfile,
+    activity_preferences: parseStringList(initialData.compatibilityProfile.activity_preferences),
+    languages: parseStringList(initialData.compatibilityProfile.languages),
+  } : null);
+  const [userBudget, setUserBudget] = useState<BudgetProfile | null>(initialData.budget);
+  const [hasCompatibilityProfile, setHasCompatibilityProfile] = useState(initialData.hasCompatibilityProfile);
   const [showWizard, setShowWizard] = useState(false);
   const [showBudgetEditor, setShowBudgetEditor] = useState(false);
-  const [loadingProfile, setLoadingProfile] = useState(isAuthenticated);
+  const [loadingProfile, setLoadingProfile] = useState(false);
 
   const fetchCompatibilityStatus = useCallback(async () => {
     try {
@@ -138,8 +214,9 @@ export default function BuddyClient({
   const fetchTrips = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/buddy");
+      const res = await fetch(mode === "interests" ? "/api/buddy?view=interests" : "/api/buddy");
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not refresh travel plans.");
       if (data.trips) {
         setTrips(data.trips);
         setCurrentUserId(data.currentUserId || "");
@@ -149,19 +226,11 @@ export default function BuddyClient({
       }
     } catch (err) {
       console.error("Failed to fetch trips", err);
+      setMessage({ type: "error", text: err instanceof Error ? err.message : "Could not refresh travel plans. Please try again." });
     } finally {
       setLoading(false);
     }
-  }, []);
-  useEffect(() => {
-    const initialLoad = window.setTimeout(() => {
-      void fetchTrips();
-      if (isAuthenticated) void fetchCompatibilityStatus();
-      else setLoadingProfile(false);
-    }, 0);
-    return () => window.clearTimeout(initialLoad);
-  }, [fetchTrips, fetchCompatibilityStatus, isAuthenticated]);
-
+  }, [mode]);
   const handleWizardComplete = () => {
     setShowWizard(false);
     fetchCompatibilityStatus();
@@ -181,8 +250,9 @@ export default function BuddyClient({
       destination: trip.destination || "",
       trip_date: trip.trip_date || "",
       duration_days: trip.duration_days?.toString() || "",
-      duration_nights: trip.duration_nights?.toString() || "",
+      duration_nights: normalizedBuddyNights(trip.duration_days, trip.duration_nights).toString(),
       traveller_type: trip.traveller_type || "solo",
+      group_tags: trip.group_tags || [],
       image_url: trip.image_url || "",
     });
   };
@@ -203,6 +273,10 @@ export default function BuddyClient({
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingTrip) return;
+    if (!isValidBuddyDuration(editForm.duration_days, editForm.duration_nights)) {
+      alert("Nights must be one fewer or one more than days, and cannot be zero.");
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await fetch(`/api/buddy/${editingTrip.id}`, {
@@ -265,6 +339,10 @@ export default function BuddyClient({
 
   const handleCreateSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!isValidBuddyDuration(form.duration_days, form.duration_nights)) {
+      setMessage({ text: "Nights must be one fewer or one more than days, and cannot be zero.", type: "error" });
+      return;
+    }
     setSubmitting(true);
     setMessage(null);
 
@@ -278,7 +356,7 @@ export default function BuddyClient({
       const data = await res.json();
       if (data.success) {
         setMessage({ text: "Trip plan created successfully!", type: "success" });
-        setForm({ destination: "", starting_location: "", trip_date: "", duration_days: "", duration_nights: "", traveller_type: "", image_url: "" });
+        setForm({ destination: "", starting_location: "", trip_date: "", duration_days: "", duration_nights: "", traveller_type: "", group_tags: [], image_url: "" });
         // Refresh the feed and keep the saved-budget confirmation visible.
         fetchTrips();
         setActiveTab("search");
@@ -350,9 +428,10 @@ export default function BuddyClient({
       const matchesGender = !filterGender || trip.organizer_gender === filterGender;
       const matchesTravellerType = !filterTravellerType || trip.traveller_type === filterTravellerType;
       const isPast = Boolean(trip.trip_date && new Date(trip.trip_date).getTime() < today);
-      return (!isPast || trip.organizer_id === currentUserId) && matchesSearch && matchesDate && matchesDuration && matchesGender && matchesTravellerType;
+      const hasInterest = trip.user_request_status === "pending" || trip.user_request_status === "accepted" || trip.user_request_status === "removed";
+      return (mode === "interests" ? hasInterest : !hasInterest) && (mode === "interests" || !isPast || trip.organizer_id === currentUserId) && (mode === "interests" || (matchesSearch && matchesDate && matchesDuration && matchesGender && matchesTravellerType));
     });
-  }, [trips, searchQuery, filterDate, filterDuration, filterGender, filterTravellerType, currentUserId]);
+  }, [trips, searchQuery, filterDate, filterDuration, filterGender, filterTravellerType, currentUserId, mode]);
   const hasActiveFilters = Boolean(searchQuery || filterDate || filterDuration || filterGender || filterTravellerType);
   const clearFilters = () => {
     setSearchQuery("");
@@ -373,7 +452,7 @@ export default function BuddyClient({
   }
 
   // â”€â”€â”€ Mandatory Onboarding Screen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  if (isAuthenticated && !hasCompletedProfile) {
+  if (mode === "discover" && isAuthenticated && !hasCompletedProfile) {
     return (
       <main className="flex-1 pt-28 pb-20 px-4 md:px-8 max-w-6xl mx-auto w-full flex flex-col items-center justify-center min-h-[70vh]">
         <div className="max-w-xl rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
@@ -385,7 +464,7 @@ export default function BuddyClient({
     );
   }
 
-  if (isAuthenticated && !hasCompatibilityProfile) {
+  if (mode === "discover" && isAuthenticated && !hasCompatibilityProfile) {
     return (
       <main className="flex-1 pt-28 pb-20 px-4 md:px-8 max-w-6xl mx-auto w-full flex flex-col items-center justify-center min-h-[70vh]">
         <div className="max-w-2xl rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm md:p-10">
@@ -445,18 +524,18 @@ export default function BuddyClient({
       <header className="mb-8 border-b border-slate-200 pb-6 md:flex md:items-end md:justify-between md:gap-8">
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-orange-600">GoTogether community</p>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-950 md:text-4xl">
-            Find a travel buddy
+          <h1 className="gt-page-title text-3xl font-bold tracking-tight text-slate-950 md:text-4xl">
+            {mode === "interests" ? "My buddy interests" : "Find a travel buddy"}
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 md:text-base">
-            Browse verified travel plans by destination, date, traveller type, and compatibility.
+            {mode === "interests" ? "Keep track of the plans you have shown interest in and the requests that have been accepted." : "Browse verified travel plans by destination, date, traveller type, and compatibility."}
           </p>
         </div>
           <div className="mt-5 shrink-0 md:mt-0">
-            <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
+            <div className="flex flex-wrap gap-1 rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
               <button
-                onClick={() => setActiveTab("search")}
-                className={`rounded-md px-5 py-2.5 text-sm font-semibold transition ${activeTab === "search"
+                onClick={() => mode === "interests" ? router.push("/buddy") : setActiveTab("search")}
+                className={`rounded-md px-5 py-2.5 text-sm font-semibold transition ${activeTab === "search" && mode === "discover"
                     ? "bg-slate-900 text-white"
                     : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                   }`}
@@ -472,6 +551,7 @@ export default function BuddyClient({
               >
                 <Camera className="w-4 h-4 inline mr-1.5 -mt-0.5" /> Create Plan
               </button>
+              <Link href="/buddy/interests" aria-current={mode === "interests" ? "page" : undefined} className={`rounded-sm border-2 border-red-600 px-4 py-2 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 ${mode === "interests" ? "bg-red-600 text-white" : "bg-red-50 text-red-700 hover:bg-red-100"}`}><Heart aria-hidden="true" className="mr-1.5 inline h-4 w-4" />My interests</Link>
             </div>
           </div>
       </header>
@@ -479,15 +559,17 @@ export default function BuddyClient({
       {!isAuthenticated && (
         <div className="mb-8 flex flex-col items-center justify-between gap-4 rounded-lg border border-orange-200 bg-orange-50 p-4 text-center md:flex-row md:text-left">
           <div>
-            <p className="font-extrabold text-slate-900">Preview Find Buddy trips</p>
+            <p className="font-bold text-slate-900">Preview Find Buddy trips</p>
             <p className="text-sm text-slate-600">Sign in and complete your travel preferences to create a plan, see match scores, or show interest.</p>
           </div>
           <button onClick={() => router.push("/login?next=/buddy")} className="shrink-0 rounded-lg bg-orange-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-orange-700">Sign in to continue</button>
         </div>
       )}
 
+      {mode === "interests" && <div className="mb-5 flex items-center justify-between gap-3"><p className="text-sm text-slate-600">Pending, accepted, and removed requests</p><button type="button" disabled={loading} onClick={() => void fetchTrips()} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 disabled:opacity-50"><RotateCcw aria-hidden="true" className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />Refresh requests</button></div>}
+
       {/* Compatibility DNA Status Bar */}
-      {hasCompatibilityProfile && activeTab === "search" && (
+      {mode === "discover" && hasCompatibilityProfile && activeTab === "search" && (
         <div className="mb-8 flex flex-col items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm md:flex-row">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-orange-50 text-orange-500 flex items-center justify-center shrink-0">
@@ -530,7 +612,7 @@ export default function BuddyClient({
               </div>
             )}
             <div className="min-w-0 flex-1">
-              <p className={`font-extrabold ${message.type === "success" ? "text-emerald-900" : "text-rose-800"}`}>
+              <p className={`font-bold ${message.type === "success" ? "text-emerald-900" : "text-rose-800"}`}>
                 {message.text}
               </p>
               {message.type === "success" && (
@@ -569,7 +651,7 @@ export default function BuddyClient({
 
       {activeTab === "search" && (
         <div className="space-y-6 transform transition-all animate-slide-up">
-          <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:p-5" aria-label="Find buddy filters">
+          {mode === "discover" && <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:p-5" aria-label="Find buddy filters">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <SlidersHorizontal className="h-4 w-4 text-slate-500" />
@@ -587,39 +669,39 @@ export default function BuddyClient({
 
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[minmax(240px,1.7fr)_repeat(4,minmax(130px,1fr))]">
               <label className="relative block">
-                <span className="mb-1.5 block text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Route or destination</span>
-                <input type="text" placeholder="Try Goa, Manali or Delhi" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="premium-input-icon peer" />
+                <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Route or destination</span>
+                <input name="buddy-search" type="text" placeholder="Try Goa, Manali or Delhi" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="premium-input-icon peer" />
                 <Search className="absolute left-4 bottom-[15px] h-4 w-4 text-orange-500 pointer-events-none" />
               </label>
               <label className="block">
-                <span className="mb-1.5 block text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Departure date</span>
-                <input type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} className="premium-select w-full" title="Filter by trip date" />
+                <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Departure date</span>
+                <input name="buddy-date-filter" type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} className="premium-select w-full" title="Filter by trip date" />
               </label>
               <label className="block">
-                <span className="mb-1.5 block text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Duration</span>
-                <select value={filterDuration} onChange={(e) => setFilterDuration(e.target.value)} className="premium-select w-full">
+                <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Duration</span>
+                <select name="buddy-duration-filter" value={filterDuration} onChange={(e) => setFilterDuration(e.target.value)} className="premium-select w-full">
                   <option value="">Any duration</option><option value="1-3">1-3 Days</option><option value="4-7">4-7 Days</option><option value="8+">8+ Days</option>
                 </select>
               </label>
               <label className="block">
-                <span className="mb-1.5 block text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Buddy gender</span>
-                <select value={filterGender} onChange={(e) => setFilterGender(e.target.value)} className="premium-select w-full">
+                <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Buddy gender</span>
+                <select name="buddy-gender-filter" value={filterGender} onChange={(e) => setFilterGender(e.target.value)} className="premium-select w-full">
                   <option value="">Any gender</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option>
                 </select>
               </label>
               <label className="block">
-                <span className="mb-1.5 block text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Travel party</span>
-                <select value={filterTravellerType} onChange={(e) => setFilterTravellerType(e.target.value)} className="premium-select w-full" aria-label="Filter by traveller type">
-                  <option value="">Any type</option><option value="solo">Solo Traveller</option><option value="couple">Couple Travelling</option>
+                <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Travel party</span>
+                <select name="buddy-traveller-type-filter" value={filterTravellerType} onChange={(e) => setFilterTravellerType(e.target.value)} className="premium-select w-full" aria-label="Filter by traveller type">
+                  <option value="">Any type</option><option value="solo">Solo Traveller</option><option value="couple">Couple Travelling</option><option value="group">Group Travel</option>
                 </select>
               </label>
             </div>
-          </section>
+          </section>}
 
           {!loading && trips.length > 0 && (
             <div className="flex items-center justify-between px-1">
               <p className="text-sm font-bold text-slate-800"><span className="text-orange-600">{filteredTrips.length}</span> {filteredTrips.length === 1 ? "travel plan" : "travel plans"} found</p>
-              <p className="hidden text-xs font-medium text-slate-400 sm:block">Sorted by compatibility</p>
+              <p className="hidden text-xs font-medium text-slate-400 sm:block">{mode === "interests" ? "Upcoming first, then accepted and recent requests" : "Sorted by compatibility"}</p>
             </div>
           )}
 
@@ -634,121 +716,110 @@ export default function BuddyClient({
                 <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-lg bg-slate-100">
                   <MapPin className="h-6 w-6 text-slate-500" />
                 </div>
-                <h3 className="mb-2 text-xl font-semibold text-slate-900">{trips.length === 0 ? "No travel plans yet" : "No exact matches"}</h3>
-                <p className="mx-auto mb-6 max-w-sm text-sm text-slate-500">{trips.length === 0 ? "Be the first to create a trip plan and find your travel companion." : "Try clearing a filter or changing your destination to discover more buddies."}</p>
+                <h3 className="mb-2 text-xl font-semibold text-slate-900">{mode === "interests" ? "No matching interests yet" : trips.length === 0 ? "No travel plans yet" : "No exact matches"}</h3>
+                <p className="mx-auto mb-6 max-w-sm text-sm text-slate-500">{mode === "interests" ? "Plans appear here after you show interest. Pending and accepted requests are kept together on this page." : trips.length === 0 ? "Be the first to create a trip plan and find your travel companion." : "Try clearing a filter or changing your destination to discover more buddies."}</p>
                 <button
-                  onClick={trips.length === 0 ? openCreatePlan : clearFilters}
+                  onClick={mode === "interests" ? (hasActiveFilters ? clearFilters : () => router.push("/buddy")) : trips.length === 0 ? openCreatePlan : clearFilters}
                   className="rounded-lg bg-orange-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-orange-700"
                 >
-                  {trips.length === 0 ? "Create a Plan" : "Clear Filters"}
+                  {mode === "interests" ? (hasActiveFilters ? "Clear Filters" : "Discover travel buddies") : trips.length === 0 ? "Create a Plan" : "Clear Filters"}
                 </button>
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <MobileCardStack label="Travel buddy cards" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredTrips
                 .map((trip) => {
                   const isPast = trip.trip_date ? new Date(trip.trip_date) < new Date(new Date().setHours(0, 0, 0, 0)) : false;
                   const isClosed = trip.registration_closed === 1;
+                  const isGroup = trip.traveller_type === "group";
                   return (
-                    <article key={trip.id} className="flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
-                      <div className="relative h-48 overflow-hidden bg-slate-200">
+                    <article key={trip.id} className="group/buddy flex h-full min-w-0 flex-col overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-[0_6px_24px_-12px_rgba(15,23,42,0.2)] transition-shadow duration-300 hover:shadow-[0_16px_36px_-16px_rgba(15,23,42,0.3)]">
+                      <div className="relative h-56 overflow-hidden bg-[#173c35]">
                         {trip.image_url ? (
-                          <Image src={trip.image_url} alt={`${trip.title} trip image in ${trip.destination}`} fill className="object-cover" sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" />
+                          <Image src={trip.image_url} alt={`${trip.title} trip image in ${trip.destination}`} fill className="object-cover transition-transform duration-700 motion-safe:group-hover/buddy:scale-105" sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" />
                         ) : (
-                          <div className="flex h-full w-full items-center justify-center bg-slate-200">
-                            <MapPin className="h-12 w-12 text-slate-400" />
+                          <div aria-hidden="true" className="absolute inset-0 overflow-hidden bg-gradient-to-br from-[#366b58] via-[#173c35] to-slate-900">
+                            <div className="absolute -right-10 -top-14 h-64 w-64 rounded-full border border-white/15" />
+                            <div className="absolute -right-2 -top-6 h-48 w-48 rounded-full border border-white/15" />
+                            <Compass className="absolute right-8 top-16 h-24 w-24 -rotate-12 text-white/15" />
                           </div>
                         )}
-                        {/* Gradient overlay */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/5 to-transparent" />
-
-                        <div className="absolute top-3 left-3 flex flex-col gap-1.5">
-                          <span className="flex items-center gap-1.5 rounded-md bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-900 shadow-sm">
-                            <MapPin className="h-3 w-3 text-orange-600" /> {trip.destination}
-                          </span>
-                          {trip.starting_location && (
-                            <span className="flex items-center gap-1.5 rounded-md bg-slate-900/85 px-2.5 py-1.5 text-[11px] font-medium text-white">
-                              From {trip.starting_location}
-                            </span>
-                          )}
-                        </div>
-                        <div className="absolute top-3 right-3 flex flex-col items-end gap-1.5">
-                          <span className="flex items-center gap-1.5 rounded-md bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-900 shadow-sm">
-                            <Calendar className="w-3 h-3 text-orange-500" />
-                            {trip.duration_days}D / {trip.duration_nights}N
-                          </span>
-                          <span className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[11px] font-semibold shadow-sm ${trip.traveller_type === "couple"
-                              ? "border-rose-200 bg-rose-50 text-rose-700"
-                              : "border-sky-200 bg-sky-50 text-sky-700"
-                            }`}>
-                            {trip.traveller_type === "couple" ? <Heart className="w-3 h-3" /> : <UserRound className="w-3 h-3" />}
-                            {trip.traveller_type === "couple" ? "Couple Travelling" : "Solo Traveller"}
+                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/10 to-slate-950/25" />
+                        <div className="absolute inset-x-4 top-4 flex flex-wrap items-start justify-between gap-2">
+                          <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-semibold shadow-sm ${isGroup ? "border-amber-300 bg-amber-100 text-amber-900" : trip.traveller_type === "couple" ? "border-rose-300 bg-rose-100 text-rose-800" : "border-sky-300 bg-sky-100 text-sky-800"}`}>
+                            {isGroup ? <Users aria-hidden="true" className="h-3.5 w-3.5" /> : trip.traveller_type === "couple" ? <Heart aria-hidden="true" className="h-3.5 w-3.5" /> : <UserRound aria-hidden="true" className="h-3.5 w-3.5" />}
+                            {isGroup ? "Group adventure" : trip.traveller_type === "couple" ? "Couple travelling" : "Solo traveller"}
                           </span>
                           {currentUserId && trip.organizer_id !== currentUserId && hasCompatibilityProfile && (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); setSelectedMatchTrip(trip); }}
-                              className="flex shrink-0 cursor-pointer items-center gap-1 rounded-md border border-white/40 bg-slate-900/85 px-2.5 py-1.5 text-[11px] font-semibold text-white transition hover:bg-slate-900"
-                              title="View match details"
-                            >
-                              <Sparkles className="h-3.5 w-3.5" />
-                              {trip.match_score}% match
+                            <button onClick={(e) => { e.stopPropagation(); setSelectedMatchTrip(trip); }} className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/50 bg-[#173c35] px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-emerald-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" title="View compatibility details">
+                              <Sparkles aria-hidden="true" className="h-3.5 w-3.5 text-emerald-200" />{trip.match_score}% match
                             </button>
                           )}
                         </div>
-                        {/* Bottom info overlay */}
-                        <div className="absolute bottom-3 left-3 right-3">
-                          <h3 className="mb-1 line-clamp-1 text-lg font-semibold text-white">{trip.title}</h3>
-                          {trip.trip_date && (
-                            <span className="text-white/80 text-xs font-medium flex items-center gap-1">
-                              <Calendar className="w-3 h-3" />
-                              {new Date(trip.trip_date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', month: 'short', day: 'numeric', year: 'numeric' })}
-                            </span>
-                          )}
+                        <div className="absolute inset-x-5 bottom-5">
+                          <p className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-orange-200"><MapPin aria-hidden="true" className="h-3.5 w-3.5" />Next stop</p>
+                          <h3 className="line-clamp-2 break-words font-serif text-3xl leading-tight tracking-tight text-white">{trip.destination}</h3>
+                          {trip.starting_location && <p className="mt-2 line-clamp-1 text-xs text-white/80">From {trip.starting_location}</p>}
                         </div>
                       </div>
 
-                      <div className="p-5 flex-1 flex flex-col">
+                      <div className="flex flex-1 flex-col p-5 sm:p-6">
+                        <p className="mb-4 line-clamp-2 text-base font-semibold leading-6 text-slate-900">{trip.title}</p>
+                        <div className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-slate-100 pb-4 text-xs font-medium text-slate-600">
+                          {trip.trip_date && <span className="inline-flex items-center gap-1.5"><Calendar aria-hidden="true" className="h-4 w-4 text-orange-700" />{new Date(trip.trip_date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', month: 'short', day: 'numeric', year: 'numeric' })}</span>}
+                          <span className="inline-flex items-center gap-1.5"><Compass aria-hidden="true" className="h-4 w-4 text-orange-700" />{trip.duration_days} days / {normalizedBuddyNights(trip.duration_days, trip.duration_nights)} nights</span>
+                        </div>
+                        {isGroup && trip.group_tags.length > 0 && (
+                          <div className="mb-4 flex flex-wrap gap-1.5" aria-label="Group interests">
+                            {trip.group_tags.map((tag) => (
+                              <span key={tag} className="rounded-full border border-orange-100 bg-orange-50 px-2.5 py-1 text-[11px] font-semibold text-orange-800">
+                                {buddyGroupTagLabel(tag)}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                         {/* Organizer Details & Compatibility Badges */}
-                        <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                        <div className="mb-5">
                           <div className="flex items-center gap-3 mb-3">
-                            <div className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-800 font-semibold text-white">
+                            <div className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-orange-100 font-semibold text-orange-800 ring-4 ring-orange-50">
                               {trip.organizer_avatar && trip.organizer_avatar !== "null" ? (
                                 <Image
                                   src={trip.organizer_avatar}
                                   alt={`${trip.organizer_name} profile image`}
                                   fill
                                   className="object-cover"
-                                  sizes="44px"
+                                  sizes="48px"
                                   onError={() => setTrips(prev => prev.map(t => t.id === trip.id ? { ...t, organizer_avatar: null } : t))}
                                 />
                               ) : (
                                 trip.organizer_name?.charAt(0)?.toUpperCase() || "U"
                               )}
                             </div>
-                            <div>
-                              <p className="text-sm font-semibold text-slate-900">{trip.organizer_name}</p>
-                              <p className="text-xs text-slate-500">{trip.organizer_age} yrs / {trip.organizer_gender}</p>
+                            <div className="min-w-0">
+                              <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Your travel companion</p>
+                              <p className="truncate text-sm font-semibold text-slate-900">{trip.organizer_name}</p>
+                              <p className="mt-0.5 text-xs capitalize text-slate-500">{[trip.organizer_age ? `${trip.organizer_age} yrs` : null, trip.organizer_gender].filter(Boolean).join(" / ") || "Meet someone new"}</p>
                             </div>
                           </div>
 
                           <div className="grid grid-cols-2 gap-2">
-                            <div className="flex items-center gap-1.5 text-[11px] text-slate-600 bg-white/80 px-2 py-1.5 rounded-lg border border-slate-100" title="Diet preference">
+                            <div className="flex items-center gap-1.5 text-[11px] text-slate-600 bg-slate-50 px-2.5 py-2 rounded-lg border border-slate-100" title="Diet preference">
                               <Utensils className="w-3.5 h-3.5 text-orange-400 shrink-0" />
                               <span className="truncate">{trip.organizer_food_pref || trip.organizer_fooding_habit || "Any Diet"}</span>
                             </div>
-                            <div className="flex items-center gap-1.5 text-[11px] text-slate-600 bg-white/80 px-2 py-1.5 rounded-lg border border-slate-100" title="Profession">
+                            <div className="flex items-center gap-1.5 text-[11px] text-slate-600 bg-slate-50 px-2.5 py-2 rounded-lg border border-slate-100" title="Profession">
                               <Briefcase className="w-3.5 h-3.5 text-rose-400 shrink-0" />
                               <span className="truncate capitalize">{trip.organizer_profession || "Not specified"}</span>
                             </div>
                             {trip.organizer_travel_style && (
-                              <div className="flex items-center gap-1.5 text-[11px] text-slate-600 bg-white/80 px-2 py-1.5 rounded-lg border border-slate-100" title="Travel Style">
+                              <div className="flex items-center gap-1.5 text-[11px] text-slate-600 bg-slate-50 px-2.5 py-2 rounded-lg border border-slate-100" title="Travel Style">
                                 <Compass className="w-3.5 h-3.5 text-sky-400 shrink-0" />
                                 <span className="truncate">{trip.organizer_travel_style}</span>
                               </div>
                             )}
                             {trip.organizer_languages && (
-                              <div className="flex items-center gap-1.5 text-[11px] text-slate-600 bg-white/80 px-2 py-1.5 rounded-lg border border-slate-100" title="Languages Spoken">
+                              <div className="flex items-center gap-1.5 text-[11px] text-slate-600 bg-slate-50 px-2.5 py-2 rounded-lg border border-slate-100" title="Languages Spoken">
                                 <Globe className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                                 <span className="truncate">{trip.organizer_languages.slice(0, 2).join(', ') || 'Not specified'}</span>
                               </div>
@@ -795,6 +866,8 @@ export default function BuddyClient({
                               Edit Plan
                             </button>
                           </div>
+                        ) : trip.user_request_status === 'removed' ? (
+                          <div role="status" className="mt-auto rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"><p className="font-semibold">Removed by organizer</p><p className="mt-1 text-xs leading-5">You no longer have access to this trip chat.</p>{trip.removal_reason && <p className="mt-2 whitespace-pre-wrap break-words text-xs leading-5">Reason: {trip.removal_reason}</p>}</div>
                         ) : isPast ? (
                           <button disabled className="mt-auto w-full bg-slate-50 text-slate-400 font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 cursor-not-allowed ring-1 ring-slate-200 text-sm">
                             Trip Completed
@@ -821,7 +894,7 @@ export default function BuddyClient({
                         ) : (
                           <button
                             onClick={() => handleShowInterest(trip.id)}
-                            className="mt-auto flex w-full items-center justify-center gap-2 rounded-lg bg-orange-600 py-3.5 text-sm font-semibold text-white transition hover:bg-orange-700"
+                            className="mt-auto flex w-full items-center justify-center gap-2 rounded-xl bg-orange-600 py-3.5 text-sm font-semibold text-white shadow-sm shadow-orange-600/20 transition hover:bg-orange-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600"
                           >
                             <Heart className="w-4 h-4" /> Show Interest
                           </button>
@@ -830,8 +903,27 @@ export default function BuddyClient({
                     </article>
                   )
                 })}
-            </div>
+            </MobileCardStack>
           )}
+          <section aria-labelledby="buddy-faq-title" className="mt-12 rounded-2xl border border-slate-200 bg-white p-5 sm:p-8">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-700">A little help before you go</p>
+            <h2 id="buddy-faq-title" className="mt-3 font-serif text-2xl text-slate-900 sm:text-3xl">Find Buddy, explained.</h2>
+            <p className="mb-6 mt-2 text-sm leading-6 text-slate-600">Your questions about finding people, making plans, and getting started.</p>
+            <div className="divide-y divide-slate-200">
+              {[
+                { question: 'What is My interests?', answer: 'My interests keeps the trip plans you have shown interest in, including pending and accepted requests. These cards move out of the main discovery list so you can keep exploring new plans. Open My interests and use Refresh requests to check for updates.' },
+                { question: 'What does the match percentage mean?', answer: 'The match percentage compares your Travel DNA preferences with the organizer’s, including travel style, activities, budget, food preferences, and other habits. A higher percentage means more closely aligned preferences. Tap the match badge for a detailed comparison; it is a guide to compatibility, not a guarantee of a perfect trip.' },
+                { question: 'How do I create a trip plan?', answer: 'Sign in, complete your personal profile and Travel DNA, then select Create Plan. Add your destination, starting location, travel date, duration, and traveller type, then submit the form. Other travelers can discover your plan and show interest.' },
+                { question: 'What happens when I show interest?', answer: 'The organizer receives your request, and the plan moves to My interests with an Interest Shown status. If the organizer accepts, the card updates and you can use Go to Chat to connect about the trip.' },
+                { question: 'How do I browse cards on mobile?', answer: 'Swipe left or right, or tap Pass, to see the next plan. Previous takes you back one card, and Restart lets you explore the current results again. Passing a card does not send a request or notify its organizer.' },
+              ].map(item => (
+                <details key={item.question} className="group py-4">
+                  <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-4 rounded-sm text-sm font-semibold text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-orange-600 [&::-webkit-details-marker]:hidden">{item.question}<span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-orange-50 text-lg text-orange-700"><span className="group-open:hidden">+</span><span className="hidden group-open:inline">−</span></span></summary>
+                  <p className="mt-3 max-w-3xl pr-4 text-sm leading-7 text-slate-600">{item.answer}</p>
+                </details>
+              ))}
+            </div>
+          </section>
         </div>
       )}
 
@@ -853,9 +945,9 @@ export default function BuddyClient({
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative">
                 <div className="relative z-10">
-                  <label className="block text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-2">Starting Location *</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Starting Location *</label>
                   <div className="relative">
-                    <input
+                    <input aria-label={'Starting Location'} name="starting-location"
                       type="text"
                       required
                       value={form.starting_location}
@@ -867,9 +959,9 @@ export default function BuddyClient({
                   </div>
                 </div>
                 <div className="relative z-10">
-                  <label className="block text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-2">Destination Place *</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Destination Place *</label>
                   <div className="relative">
-                    <input
+                    <input aria-label={'Destination'} name="destination"
                       type="text"
                       required
                       value={form.destination}
@@ -891,8 +983,8 @@ export default function BuddyClient({
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 <div>
-                  <label className="block text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-2">Trip Date *</label>
-                  <input
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Trip Date *</label>
+                  <input aria-label={'Trip Date'} name="trip-date"
                     type="date"
                     required
                     value={form.trip_date}
@@ -901,28 +993,40 @@ export default function BuddyClient({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-2">Days *</label>
-                  <input
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Days *</label>
+                  <input aria-label={'Duration Days'} name="duration-days"
                     type="number"
                     min="1"
                     required
                     value={form.duration_days}
-                    onChange={(e) => setForm({ ...form, duration_days: e.target.value })}
+                    onChange={(e) => {
+                      const durationDays = e.target.value;
+                      const options = buddyNightOptions(durationDays);
+                      setForm((current) => ({
+                        ...current,
+                        duration_days: durationDays,
+                        duration_nights: options.includes(Number(current.duration_nights))
+                          ? current.duration_nights
+                          : options[0]?.toString() ?? "",
+                      }));
+                    }}
                     placeholder="e.g. 5"
                     className="premium-input"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-2">Nights *</label>
-                  <input
-                    type="number"
-                    min="0"
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nights *</label>
+                  <select aria-label={'Duration Nights'} name="duration-nights"
                     required
                     value={form.duration_nights}
                     onChange={(e) => setForm({ ...form, duration_nights: e.target.value })}
-                    placeholder="e.g. 4"
                     className="premium-input"
-                  />
+                    disabled={!createNightOptions.length}
+                  >
+                    <option value="">Select nights</option>
+                    {createNightOptions.map((nights) => <option key={nights} value={nights}>{nights} night{nights === 1 ? "" : "s"}</option>)}
+                  </select>
+                  <p className="mt-1.5 text-xs text-slate-400">One fewer or one more than the trip days.</p>
                 </div>
               </div>
             </div>
@@ -934,7 +1038,7 @@ export default function BuddyClient({
               </h3>
               <p className="mb-4 text-sm text-slate-500">This adds a tag to your plan so buddies can identify your travel group.</p>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <label className={`cursor-pointer rounded-lg border p-4 transition ${form.traveller_type === "solo"
                     ? "border-slate-900 bg-slate-50"
                     : "border-slate-200 bg-white hover:border-slate-400"
@@ -945,7 +1049,7 @@ export default function BuddyClient({
                     value="solo"
                     required
                     checked={form.traveller_type === "solo"}
-                    onChange={() => setForm({ ...form, traveller_type: "solo" })}
+                    onChange={() => setForm({ ...form, traveller_type: "solo", group_tags: [] })}
                     className="sr-only"
                   />
                   <span className="flex items-center gap-3">
@@ -966,7 +1070,7 @@ export default function BuddyClient({
                     value="couple"
                     required
                     checked={form.traveller_type === "couple"}
-                    onChange={() => setForm({ ...form, traveller_type: "couple" })}
+                    onChange={() => setForm({ ...form, traveller_type: "couple", group_tags: [] })}
                     className="sr-only"
                   />
                   <span className="flex items-center gap-3">
@@ -977,7 +1081,29 @@ export default function BuddyClient({
                     </span>
                   </span>
                 </label>
+                <label className={`cursor-pointer rounded-lg border p-4 transition ${form.traveller_type === "group"
+                    ? "border-slate-900 bg-slate-50"
+                    : "border-slate-200 bg-white hover:border-slate-400"
+                  }`}>
+                  <input
+                    type="radio"
+                    name="traveller_type"
+                    value="group"
+                    required
+                    checked={form.traveller_type === "group"}
+                    onChange={() => setForm({ ...form, traveller_type: "group" })}
+                    className="sr-only"
+                  />
+                  <span className="flex items-center gap-3">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-50 text-amber-700"><Users className="h-5 w-5" /></span>
+                    <span>
+                      <span className="block font-bold text-slate-900">Group Travel</span>
+                      <span className="block text-xs text-slate-500">We are finding more people</span>
+                    </span>
+                  </span>
+                </label>
               </div>
+              {form.traveller_type === "group" && <GroupTagPicker selected={form.group_tags} onChange={(group_tags) => setForm({ ...form, group_tags })} />}
             </div>
 
             {/* Step 4: Media Upload */}
@@ -1010,6 +1136,8 @@ export default function BuddyClient({
                   </div>
                 )}
                 <input
+                  name="cover-image"
+                  aria-label="Upload trip cover image"
                   ref={fileInputRef}
                   type="file"
                   accept="image/*"
@@ -1022,7 +1150,7 @@ export default function BuddyClient({
             <div className="pt-4 border-t border-slate-100">
               <button
                 type="submit"
-                disabled={submitting || !form.destination || !form.starting_location || !form.trip_date || !form.duration_days || !form.traveller_type}
+                disabled={submitting || !form.destination || !form.starting_location || !form.trip_date || !isValidBuddyDuration(form.duration_days, form.duration_nights) || !form.traveller_type}
                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-orange-600 py-3.5 text-sm font-semibold text-white transition hover:bg-orange-700 disabled:opacity-50"
               >
                 {submitting ? (
@@ -1039,8 +1167,8 @@ export default function BuddyClient({
       )}
 
       {editingTrip && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
-          <div className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
+        <div className="gt-viewport-modal fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60">
+          <div className="gt-viewport-dialog flex w-full max-w-lg flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
             <div className="shrink-0 border-b border-slate-200 px-6 py-5">
               <h2 className="text-xl font-bold text-slate-950">Edit trip plan</h2>
             </div>
@@ -1051,9 +1179,9 @@ export default function BuddyClient({
                   <div className="absolute left-9 top-14 bottom-14 w-0.5 border-l-2 border-dashed border-slate-300 pointer-events-none" />
                   
                   <div className="relative z-10">
-                    <label className="block text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-2">Starting Location</label>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Starting Location</label>
                     <div className="relative">
-                      <input
+                      <input aria-label={'Edit Starting Location'} name="edit-starting-location"
                         type="text"
                         value={editForm.starting_location}
                         onChange={(e) => setEditForm({ ...editForm, starting_location: e.target.value })}
@@ -1065,9 +1193,9 @@ export default function BuddyClient({
                   </div>
 
                   <div className="relative z-10">
-                    <label className="block text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-2">Destination Place</label>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Destination Place</label>
                     <div className="relative">
-                      <input
+                      <input aria-label={'Edit Destination'} name="edit-destination"
                         type="text"
                         value={editForm.destination}
                         onChange={(e) => setEditForm({ ...editForm, destination: e.target.value })}
@@ -1081,8 +1209,8 @@ export default function BuddyClient({
 
                 <div className="space-y-5 rounded-lg border border-slate-200 bg-white p-5">
                   <div>
-                    <label className="block text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-2">Trip Date</label>
-                    <input
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Trip Date</label>
+                    <input aria-label={'Edit Trip Date'} name="edit-trip-date"
                       type="date"
                       value={editForm.trip_date}
                       onChange={(e) => setEditForm({ ...editForm, trip_date: e.target.value })}
@@ -1092,40 +1220,52 @@ export default function BuddyClient({
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-2">Days</label>
-                      <input
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Days</label>
+                      <input aria-label={'Edit Duration Days'} name="edit-duration-days"
                         type="number"
                         min="1"
                         value={editForm.duration_days}
-                        onChange={(e) => setEditForm({ ...editForm, duration_days: e.target.value })}
+                        onChange={(e) => {
+                          const durationDays = e.target.value;
+                          const options = buddyNightOptions(durationDays);
+                          setEditForm((current) => ({
+                            ...current,
+                            duration_days: durationDays,
+                            duration_nights: options.includes(Number(current.duration_nights))
+                              ? current.duration_nights
+                              : options[0]?.toString() ?? "",
+                          }));
+                        }}
                         placeholder="e.g. 5"
                         className="premium-input"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-2">Nights</label>
-                      <input
-                        type="number"
-                        min="0"
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nights</label>
+                      <select aria-label={'Edit Duration Nights'} name="edit-duration-nights"
                         value={editForm.duration_nights}
                         onChange={(e) => setEditForm({ ...editForm, duration_nights: e.target.value })}
-                        placeholder="e.g. 4"
                         className="premium-input"
-                      />
+                        disabled={!editNightOptions.length}
+                      >
+                        <option value="">Select nights</option>
+                        {editNightOptions.map((nights) => <option key={nights} value={nights}>{nights} night{nights === 1 ? "" : "s"}</option>)}
+                      </select>
+                      <p className="mt-1.5 text-xs text-slate-400">Cannot be zero.</p>
                     </div>
                   </div>
                 </div>
 
                 <div className="rounded-lg border border-slate-200 bg-white p-5">
-                  <label className="block text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-3">Who is travelling?</label>
-                  <div className="grid grid-cols-2 gap-3">
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Who is travelling?</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <label className={`cursor-pointer rounded-lg border p-3 text-center transition ${editForm.traveller_type === "solo" ? "border-slate-900 bg-slate-50 text-slate-900" : "border-slate-200 text-slate-600"}`}>
                       <input
                         type="radio"
                         name="edit_traveller_type"
                         value="solo"
                         checked={editForm.traveller_type === "solo"}
-                        onChange={() => setEditForm({ ...editForm, traveller_type: "solo" })}
+                        onChange={() => setEditForm({ ...editForm, traveller_type: "solo", group_tags: [] })}
                         className="sr-only"
                       />
                       <UserRound className="mx-auto mb-1 h-5 w-5" />
@@ -1137,17 +1277,30 @@ export default function BuddyClient({
                         name="edit_traveller_type"
                         value="couple"
                         checked={editForm.traveller_type === "couple"}
-                        onChange={() => setEditForm({ ...editForm, traveller_type: "couple" })}
+                        onChange={() => setEditForm({ ...editForm, traveller_type: "couple", group_tags: [] })}
                         className="sr-only"
                       />
                       <Heart className="mx-auto mb-1 h-5 w-5" />
                       <span className="text-xs font-bold">Couple Travelling</span>
                     </label>
+                    <label className={`cursor-pointer rounded-lg border p-3 text-center transition ${editForm.traveller_type === "group" ? "border-slate-900 bg-slate-50 text-slate-900" : "border-slate-200 text-slate-600"}`}>
+                      <input
+                        type="radio"
+                        name="edit_traveller_type"
+                        value="group"
+                        checked={editForm.traveller_type === "group"}
+                        onChange={() => setEditForm({ ...editForm, traveller_type: "group" })}
+                        className="sr-only"
+                      />
+                      <Users className="mx-auto mb-1 h-5 w-5" />
+                      <span className="text-xs font-bold">Group Travel</span>
+                    </label>
                   </div>
+                  {editForm.traveller_type === "group" && <GroupTagPicker selected={editForm.group_tags} onChange={(group_tags) => setEditForm({ ...editForm, group_tags })} />}
                 </div>
 
                 <div className="space-y-4 rounded-lg border border-slate-200 bg-white p-5">
-                  <label className="block text-xs font-extrabold text-slate-500 uppercase tracking-wider">Cover Image (Optional)</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Cover Image (Optional)</label>
                   <div
                     className={`relative flex h-40 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-lg border border-dashed transition ${editForm.image_url ? 'border-orange-500 bg-orange-50/30' : 'border-slate-300 bg-slate-50 hover:border-orange-500'
                       }`}
@@ -1172,6 +1325,8 @@ export default function BuddyClient({
                       </div>
                     )}
                     <input
+                      name="edit-cover-image"
+                      aria-label="Upload edited trip cover image"
                       ref={editFileInputRef}
                       type="file"
                       accept="image/*"
@@ -1214,152 +1369,8 @@ export default function BuddyClient({
         </div>
       )}
 
-      {/* Enhanced Compatibility Modal */}
       {selectedMatchTrip && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
-          <div className="relative flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-slate-200 bg-white p-7 shadow-xl">
-            
-            {/* Close Button */}
-            <button 
-              onClick={() => setSelectedMatchTrip(null)}
-              className="absolute top-6 right-6 w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition flex items-center justify-center font-bold text-lg cursor-pointer"
-            >
-              <X className="w-4 h-4" />
-            </button>
-
-            <div className="flex flex-col items-center text-center pb-4 border-b border-slate-100 shrink-0">
-              <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
-                <Users className="h-5 w-5" />
-              </div>
-              <h3 className="text-xl font-bold leading-tight text-slate-900">Compatibility details</h3>
-              <p className="text-xs text-slate-400 mt-1">Between you and {selectedMatchTrip.organizer_name}</p>
-            </div>
-
-            {/* Scrollable content area */}
-            <div className="flex-1 overflow-y-auto my-5 py-2 pr-1 space-y-6 custom-scrollbar">
-              
-              {/* Circular Progress Indicator */}
-              <div className="flex flex-col items-center justify-center">
-                <div className="relative w-32 h-32 flex items-center justify-center">
-                  <svg className="w-full h-full transform -rotate-90">
-                    <circle cx="64" cy="64" r="56" stroke="#f1f5f9" strokeWidth="10" fill="transparent" />
-                    <circle 
-                      cx="64" 
-                      cy="64" 
-                      r="56" 
-                      stroke="url(#matchGrad)" 
-                      strokeWidth="10" 
-                      fill="transparent" 
-                      strokeDasharray={352}
-                      strokeDashoffset={352 - (352 * selectedMatchTrip.match_score) / 100}
-                      strokeLinecap="round"
-                      className="transition-all duration-1000 ease-out"
-                    />
-                    <defs>
-                      <linearGradient id="matchGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stopColor="#f97316" />
-                        <stop offset="100%" stopColor="#ec4899" />
-                      </linearGradient>
-                    </defs>
-                  </svg>
-                  <div className="absolute text-center">
-                    <span className="text-3xl font-extrabold text-slate-950">{selectedMatchTrip.match_score}%</span>
-                    <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Match</span>
-                  </div>
-                </div>
-                
-                {/* Personalized vibe text */}
-                  <p className="mt-4 max-w-sm text-center text-sm leading-relaxed text-slate-600">
-                  {selectedMatchTrip.match_score >= 80 ? (
-                    `You and ${selectedMatchTrip.organizer_name} have closely aligned travel preferences.`
-                  ) : selectedMatchTrip.match_score >= 50 ? (
-                    `You share several travel preferences with ${selectedMatchTrip.organizer_name}. Review the details before requesting to join.`
-                  ) : (
-                    `Your travel preferences differ in several areas. Review the details before deciding.`
-                  )}
-                </p>
-              </div>
-
-              {/* Match Breakdown list */}
-              <div className="space-y-4 rounded-lg border border-slate-200 bg-slate-50 p-5">
-                <h4 className="border-b border-slate-200 pb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Match breakdown</h4>
-                {selectedMatchTrip.match_breakdown && selectedMatchTrip.match_breakdown.length > 0 ? (
-                  selectedMatchTrip.match_breakdown.map((item) => (
-                    <div key={item.dimension} className="space-y-1.5 pb-3 last:pb-0 border-b border-slate-200/40 last:border-0">
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="font-bold text-slate-800">{item.label}</span>
-                        <span className={`font-bold text-[11px] ${item.score >= 70 ? 'text-emerald-600' : 'text-slate-500'}`}>
-                          {item.score}% Compatibility
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center text-[10px] text-slate-400 font-medium">
-                        <span>You: <strong className="text-slate-600 capitalize">{item.userAValue || 'Not set'}</strong></span>
-                        <span>Them: <strong className="text-slate-600 capitalize">{item.userBValue || 'Not set'}</strong></span>
-                      </div>
-                      {/* Progress bar */}
-                      <div className="relative h-1.5 bg-slate-200/60 rounded-full overflow-hidden">
-                        <div 
-                          className={`absolute h-full rounded-full transition-all duration-500 ${
-                            item.score >= 80 ? 'bg-emerald-500' : 
-                            item.score >= 50 ? 'bg-amber-400' : 
-                            'bg-slate-400'
-                          }`}
-                          style={{ width: `${item.score}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-xs text-slate-400 text-center py-2">No breakdown data available.</p>
-                )}
-              </div>
-
-              {/* Shared Activities & Languages Badges */}
-              {((selectedMatchTrip.common_activities && selectedMatchTrip.common_activities.length > 0) || 
-                (selectedMatchTrip.common_languages && selectedMatchTrip.common_languages.length > 0)) && (
-                <div className="space-y-4 rounded-lg border border-slate-200 bg-white p-5">
-                  {selectedMatchTrip.common_activities && selectedMatchTrip.common_activities.length > 0 && (
-                    <div>
-                      <h4 className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Shared interests</h4>
-                      <div className="flex flex-wrap gap-1.5">
-                        {selectedMatchTrip.common_activities.map((act: string) => (
-                          <span key={act} className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
-                            {act}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {selectedMatchTrip.common_languages && selectedMatchTrip.common_languages.length > 0 && (
-                    <div>
-                      <h4 className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Shared languages</h4>
-                      <div className="flex flex-wrap gap-1.5">
-                        {selectedMatchTrip.common_languages.map((lang: string) => (
-                          <span key={lang} className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
-                            {lang}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Sticky request button */}
-            <div className="pt-4 border-t border-slate-100 shrink-0">
-              <button 
-                onClick={() => {
-                  handleShowInterest(selectedMatchTrip.id);
-                  setSelectedMatchTrip(null);
-                }}
-                className="w-full cursor-pointer rounded-lg bg-orange-600 py-3.5 text-sm font-semibold text-white transition hover:bg-orange-700"
-              >
-                Send Request to Join Trip
-              </button>
-            </div>
-          </div>
-        </div>
+        <CompatibilityDetails trip={selectedMatchTrip} onClose={() => setSelectedMatchTrip(null)} onRequest={() => { handleShowInterest(selectedMatchTrip.id); setSelectedMatchTrip(null); }} onChat={() => router.push(`/chat/${selectedMatchTrip.id}`)} />
       )}
 
       {/* Compatibility Wizard Modal */}

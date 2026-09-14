@@ -59,7 +59,7 @@ export class PaymentOrchestrator {
   static async confirmRefund(input: { providerRefundId: string; status: 'processed' | 'failed'; raw: unknown }) {
     return transaction(async (client) => {
       const refund = await client.query(
-        `SELECT r.refund_id, o.booking_id, tb.booking_status, tb.trip_id, trip.status AS trip_status
+        `SELECT r.refund_id, r.status AS refund_status, o.booking_id, tb.booking_status, tb.trip_id, trip.status AS trip_status
          FROM payments.refunds r
          JOIN payments.transactions pt ON r.transaction_id = pt.transaction_id
          JOIN payments.orders o ON pt.order_id = o.id
@@ -70,6 +70,8 @@ export class PaymentOrchestrator {
       ).then(res => res.rows[0]);
 
       if (!refund) return { ok: false, error: "Refund not found" };
+      // Successful refunds are terminal; delayed failure events cannot reverse them.
+      if (refund.refund_status === "SUCCESS") return { ok: true };
 
       const nextStatus = input.status === "processed" ? "SUCCESS" : "FAILED";
       const cancellationStatus = input.status === "processed" ? "success" : "failed";

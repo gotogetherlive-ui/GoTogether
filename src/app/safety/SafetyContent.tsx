@@ -27,12 +27,12 @@ export default function SafetyContent() {
           </div>
           <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest">Trust &amp; Safety</span>
         </div>
-        <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 mb-3 tracking-tight">Safety Guidelines</h1>
+        <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-3 tracking-tight">Safety Guidelines</h1>
         <p className="text-slate-500 text-sm md:text-base mb-3">Your safety is our absolute priority. Please read these platform guidelines carefully.</p>
         <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-12">Last updated: July 6, 2026</p>
 
         {/* Safety Promise Block */}
-        <div className="relative bg-slate-900 text-white rounded-[2.5rem] p-8 md:p-10 mb-12 overflow-hidden shadow-xl border border-slate-800">
+        <div className="relative bg-slate-900 text-white rounded-xl p-8 md:p-10 mb-12 overflow-hidden shadow-xl border border-slate-800">
           <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
           <div className="absolute bottom-0 left-0 w-64 h-64 bg-teal-500/10 rounded-full blur-3xl pointer-events-none"></div>
           <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center gap-6">
@@ -99,7 +99,7 @@ export default function SafetyContent() {
           </S>
 
           {/* Warning Callout */}
-          <div className="bg-rose-50/50 border border-rose-100 rounded-3xl p-8 flex flex-col sm:flex-row gap-6 relative overflow-hidden shadow-sm">
+          <div className="bg-rose-50/50 border border-rose-100 rounded-xl p-8 flex flex-col sm:flex-row gap-6 relative overflow-hidden shadow-sm">
             <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/5 rounded-full blur-2xl pointer-events-none"></div>
             <div className="w-14 h-14 rounded-2xl bg-rose-100 border border-rose-200 flex items-center justify-center text-rose-600 flex-shrink-0 shadow-sm">
               <AlertTriangle className="w-7 h-7" />
@@ -151,7 +151,7 @@ export default function SafetyContent() {
           </S>
 
           {/* Need Help — Contact Support Only */}
-          <div className="bg-slate-950 rounded-[2.5rem] p-10 text-center relative overflow-hidden border border-slate-900 shadow-2xl">
+          <div className="bg-slate-950 rounded-xl p-10 text-center relative overflow-hidden border border-slate-900 shadow-2xl">
             <div className="absolute -top-20 -right-20 w-64 h-64 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 rounded-full blur-3xl pointer-events-none" />
             <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-gradient-to-tr from-teal-500/10 to-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
             
@@ -160,7 +160,7 @@ export default function SafetyContent() {
                 <Headset className="w-8 h-8 text-white" />
               </div>
               <div className="space-y-2">
-                <h2 className="text-3xl font-extrabold text-white tracking-tight">Still have questions?</h2>
+                <h2 className="text-3xl font-bold text-white tracking-tight">Still have questions?</h2>
                 <p className="text-slate-400 text-sm md:text-base max-w-md mx-auto">
                   Our dedicated trust &amp; safety agents are online 24/7 to resolve disputes, review report flags, and guide your journey.
                 </p>
@@ -194,7 +194,7 @@ function S({
   children: React.ReactNode 
 }) {
   return (
-    <section className="bg-white rounded-3xl p-8 border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.01)] hover:shadow-[0_12px_45px_rgba(0,0,0,0.02)] transition-all duration-300 relative overflow-hidden">
+    <section className="bg-white rounded-xl p-8 border border-slate-100 shadow-[0_4px_25px_rgba(0,0,0,0.01)] hover:shadow-[0_12px_45px_rgba(0,0,0,0.02)] transition-all duration-300 relative overflow-hidden">
       <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-500/40"></div>
       <h2 className="text-xl font-bold text-slate-900 mb-5 tracking-tight flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600">

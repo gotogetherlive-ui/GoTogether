@@ -407,10 +407,6 @@ const rootGuides: DestinationGuide[] = [
 
 destinationGuides.push(...rootGuides);
 
-export function destinationGuideByPath(path: string) {
-  return destinationGuides.find((guide) => guide.path === path);
-}
-
 export function destinationGuideByDestinationSlug(slug: string) {
   return destinationGuides.find((guide) => guide.destinationSlug === slug);
 }

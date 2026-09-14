@@ -10,7 +10,6 @@ export async function GET() {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    const normalizedProfilePhone = (user.phone_number || '').replace(/\D/g, '');
 
     // Fetch trips the user has requested to join
     const requestsPromise = query(`
@@ -102,26 +101,13 @@ export async function GET() {
         ORDER BY tc_latest.started_at DESC NULLS LAST
         LIMIT 1
       ) tc ON TRUE
-      WHERE (
-        b.user_id = $1
-        OR (
-          $2 <> ''
-          AND t.organizer_id <> $1
-          AND b.booking_status IN ('pending_payment', 'payment_processing')
-          AND b.expires_at IS NOT NULL
-          AND b.expires_at > NOW()
-          AND (
-            regexp_replace(COALESCE(b.phone_number, ''), '[^0-9]', '', 'g') = $2
-            OR regexp_replace(COALESCE(b.alternate_phone_number, ''), '[^0-9]', '', 'g') = $2
-          )
-        )
-      )
+      WHERE b.user_id = $1
         AND NOT (
           b.booking_status IN ('pending_payment', 'payment_processing')
           AND (b.expires_at IS NULL OR b.expires_at < NOW())
         )
       ORDER BY b.created_at DESC
-    `, [user.id, normalizedProfilePhone]);
+    `, [user.id]);
 
     const [requests, bookings] = await Promise.all([requestsPromise, bookingsPromise]);
 

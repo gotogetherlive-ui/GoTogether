@@ -55,15 +55,9 @@ async function handleCashfreeReturn(request: Request) {
     const status = await adapter.fetchOrderStatus?.(order.provider_order_id || orderId, providerAccount);
 
     if (status?.status === PAYMENT_STATUS.SUCCESS) {
-      const result = await confirmPaymentFromWebhook({
-        provider: PAYMENT_PROVIDER.CASHFREE,
-        providerOrderId: order.provider_order_id || orderId,
-        providerPaymentId: order.provider_order_id || orderId,
-        amount: Number(order.amount),
-        currency: order.currency,
-        method: 'cashfree_return',
-        rawPayment: status.raw,
-      });
+      const payment = await adapter.fetchSuccessfulPayment?.(order.provider_order_id || orderId, providerAccount);
+      if (!payment) return dashboardRedirect(request, 'confirmation_pending');
+      const result = await confirmPaymentFromWebhook({ provider: PAYMENT_PROVIDER.CASHFREE, ...payment });
 
       if (result.ok) return dashboardRedirect(request, 'success');
       console.error('[CASHFREE RETURN] Confirmation failed:', result.error);

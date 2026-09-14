@@ -3,8 +3,11 @@
 import { useState, useEffect, useRef } from "react";
 import { Bell, MessageCircle, UserPlus, CheckCircle, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { subscribeNotificationEvent } from "@/lib/notificationStream";
 
 interface Counts {
+  removedTrips: number;
+  adminTravelerReports: number;
   unreadMessages: number;
   firstUnreadTripId: string | null;
   pendingRequests: number;
@@ -22,6 +25,7 @@ interface Counts {
 }
 
 const DEFAULT_COUNTS: Counts = {
+  removedTrips: 0, adminTravelerReports: 0,
   unreadMessages: 0, firstUnreadTripId: null,
   pendingRequests: 0,
   newAcceptances: 0, firstAcceptedTripId: null,
@@ -37,6 +41,7 @@ export default function NotificationBell({ className = "text-slate-600" }: { cla
   const router = useRouter();
 
   const totalUnread =
+    Number(counts.removedTrips || 0) +
     Number(counts.unreadMessages || 0) +
     Number(counts.pendingRequests || 0) +
     Number(counts.newAcceptances || 0) +
@@ -46,7 +51,7 @@ export default function NotificationBell({ className = "text-slate-600" }: { cla
       ? Number(counts.adminPendingApps || 0) +
         Number(counts.adminPendingFeedbacks || 0) +
         Number(counts.adminNewBookings || 0) +
-        Number(counts.adminNewSupport || 0)
+        Number(counts.adminNewSupport || 0) + Number(counts.adminTravelerReports || 0)
       : 0);
 
   // ── REST fallback ────────────────────────────────────────────
@@ -62,56 +67,17 @@ export default function NotificationBell({ className = "text-slate-600" }: { cla
 
   // ── SSE with exponential-backoff reconnect ───────────────────
   useEffect(() => {
-    let es: EventSource | null = null;
-    let retryTimeout: ReturnType<typeof setTimeout> | null = null;
-    let retryDelay = 3000;
-    let destroyed = false;
-
-    const connect = () => {
-      if (destroyed) return;
-      es = new EventSource("/api/notifications/sse");
-      es.onmessage = (e) => {
-        retryDelay = 3000;
-        try {
-          const data = JSON.parse(e.data);
-          setCounts((prev) => ({ ...prev, ...data }));
-        } catch { /* ignore */ }
-      };
-      es.onerror = () => {
-        es?.close();
-        es = null;
-        if (!destroyed) {
-          retryTimeout = setTimeout(() => {
-            retryDelay = Math.min(retryDelay * 2, 60000);
-            connect();
-          }, retryDelay);
-        }
-      };
-    };
-
-    if (typeof window !== "undefined" && !!window.EventSource) {
-      connect();
-      const handleVisibility = () => {
-        if (document.hidden) {
-          es?.close(); es = null;
-          if (retryTimeout) { clearTimeout(retryTimeout); retryTimeout = null; }
-        } else {
-          retryDelay = 3000;
-          connect();
-        }
-      };
-      document.addEventListener("visibilitychange", handleVisibility);
-      return () => {
-        destroyed = true;
-        es?.close();
-        if (retryTimeout) clearTimeout(retryTimeout);
-        document.removeEventListener("visibilitychange", handleVisibility);
-      };
-    } else {
-      fetchCounts();
-      const interval = setInterval(fetchCounts, 30000);
-      return () => clearInterval(interval);
-    }
+    const unsubscribe = subscribeNotificationEvent('message', event => {
+      try {
+        const data = JSON.parse(event.data);
+        setCounts(previous => ({ ...previous, ...data }));
+      } catch { /* Ignore malformed events. */ }
+    });
+    void fetchCounts();
+    const interval = setInterval(() => {
+      if (!document.hidden) void fetchCounts();
+    }, 30000);
+    return () => { unsubscribe(); clearInterval(interval); };
   }, []);
 
   // ── Close on outside click ───────────────────────────────────
@@ -129,6 +95,7 @@ export default function NotificationBell({ className = "text-slate-600" }: { cla
   // Optimistically zero the relevant count in state so the badge
   // updates immediately, then persist via the API in the background.
   const clearKey: Record<string, keyof Counts> = {
+    removedTrips: "removedTrips", adminTravelerReports: "adminTravelerReports",
     pendingRequests: "pendingRequests",
     acceptances: "newAcceptances",
     newTrips: "newTrips",
@@ -224,6 +191,8 @@ export default function NotificationBell({ className = "text-slate-600" }: { cla
                 )}
 
                 {/* Accepted buddy requests → go directly to the trip chat */}
+                {counts.removedTrips > 0 && <button onClick={() => handleClearAndRoute("removedTrips", "/buddy/interests")} className="w-full border-b border-slate-100 px-4 py-3 text-left text-sm hover:bg-rose-50"><p className="font-semibold text-rose-700">Trip membership updated</p><p className="mt-1 text-xs text-slate-600">You were removed from {counts.removedTrips} trip chat(s). View details in My interests.</p></button>}
+                {counts.isAdmin && counts.adminTravelerReports > 0 && <button onClick={() => handleClearAndRoute("adminTravelerReports", "/admin/traveler-reports")} className="w-full border-b border-slate-100 px-4 py-3 text-left text-sm hover:bg-orange-50"><p className="font-semibold">Traveler reports</p><p className="mt-1 text-xs text-slate-600">{counts.adminTravelerReports} new report(s) awaiting review.</p></button>}
                 {counts.newAcceptances > 0 && (
                   <button
                     onClick={() => handleClearAndRoute(

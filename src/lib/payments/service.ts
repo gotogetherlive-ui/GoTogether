@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { queryOne, run, transaction } from "@/lib/db";
+import { query, queryOne, run, transaction } from "@/lib/db";
 import type { SessionUser } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
 import QRCode from "qrcode";
@@ -20,12 +20,9 @@ import {
   findProviderAccountById,
   findRefundByBookingId,
   findSuccessfulTransactionByBookingId,
-  listPendingRefunds,
   lockOrder,
-  recordRefundAttemptFailure,
   updateOrderStatus,
   updateOrderStatusIfMutable,
-  updateRefundProviderResult,
   type PaymentOrderRecord,
 } from "./repository";
 import { generateBookingReference } from "./utils";
@@ -263,15 +260,35 @@ export async function createBookingPaymentOrder(user: SessionUser, rawBody: unkn
       return { ok: false as const, status: 502, error: 'Payment gateway is not configured for production.' };
     }
 
+    // Resolve the stored reservation before pricing or capacity checks. A phone
+    // number is contact information, never authority to claim another account's booking.
+    const reservation = input.bookingId
+      ? await queryOne<any>(`SELECT * FROM trip_bookings WHERE id = $1 AND user_id = $2 FOR UPDATE`, [input.bookingId, user.id])
+      : await queryOne<any>(`SELECT * FROM trip_bookings WHERE trip_id = $1 AND user_id = $2 AND trip_date = $3
+          AND booking_status IN ('pending_payment', 'payment_processing', 'confirmed')
+          AND cancelled_at IS NULL AND (booking_status = 'confirmed' OR expires_at IS NULL OR expires_at > NOW())
+          ORDER BY created_at DESC LIMIT 1 FOR UPDATE`, [input.tripId, user.id, input.tripDate]);
+    if (input.bookingId && !reservation) return { ok: false as const, status: 404, error: "Booking not found" };
+    if (reservation) {
+      if (reservation.trip_id !== input.tripId || reservation.trip_date !== input.tripDate
+          || Number(reservation.male_count) !== input.maleCount
+          || Number(reservation.female_count) !== input.femaleCount
+          || Number(reservation.child_count) !== input.childCount) {
+        return { ok: false as const, status: 409, error: "Booking details cannot be changed during payment. Use the original reservation." };
+      }
+      input.bookingId = reservation.id;
+    }
+
     if (trip.max_capacity) {
       const booked = await queryOne<{ total: number | string }>(`
         SELECT COALESCE(SUM(male_count + female_count + child_count), 0) as total
         FROM trip_bookings
         WHERE trip_id = $1
+          AND ($2::text IS NULL OR id <> $2)
           AND booking_status IN ('pending_payment', 'payment_processing', 'confirmed')
           AND cancelled_at IS NULL
           AND (expires_at IS NULL OR expires_at > NOW() OR booking_status = 'confirmed')
-      `, [input.tripId]);
+      `, [input.tripId, input.bookingId]);
       const bookedCount = Number(booked?.total || 0);
       if (bookedCount + input.totalCount > Number(trip.max_capacity)) {
         const remaining = Number(trip.max_capacity) - bookedCount;
@@ -285,9 +302,9 @@ export async function createBookingPaymentOrder(user: SessionUser, rawBody: unkn
     let bookingId = input.bookingId;
     let bookingRef = "";
     let isNewBooking = true;
-    const totalAmount = amount * input.totalCount;
+    const totalAmount = reservation ? Number(reservation.amount) : amount * input.totalCount;
+    if (!Number.isSafeInteger(totalAmount) || totalAmount <= 0) return { ok: false as const, status: 400, error: "Invalid booking amount" };
     const expiresAt = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString();
-    const normalizedProfilePhone = (user.phone_number || '').replace(/\D/g, '');
 
     if (bookingId) {
       const existingBooking = await queryOne<any>(
@@ -318,39 +335,6 @@ export async function createBookingPaymentOrder(user: SessionUser, rawBody: unkn
         return { ok: false as const, status: 410, error: "Payment window expired. Please create a new booking." };
       }
 
-      const normalizedBookingPhone = String(existingBooking.phone_number || '').replace(/\D/g, '');
-      const canClaimPendingBooking = existingBooking.user_id !== user.id
-        && normalizedProfilePhone
-        && normalizedBookingPhone === normalizedProfilePhone
-        && existingBooking.expires_at
-        && new Date(existingBooking.expires_at) > new Date();
-
-      if (existingBooking.user_id !== user.id && !canClaimPendingBooking) {
-        return { ok: false as const, status: 404, error: "Booking not found" };
-      }
-
-      if (canClaimPendingBooking) {
-        const duplicateActiveBooking = await queryOne<{ id: string }>(
-          `SELECT id FROM public.trip_bookings
-           WHERE user_id = $1 AND trip_id = $2 AND trip_date = $3
-             AND booking_status IN ('pending_payment', 'payment_processing', 'confirmed')
-             AND cancelled_at IS NULL
-             AND (booking_status = 'confirmed' OR expires_at IS NULL OR expires_at > NOW())
-           LIMIT 1`,
-          [user.id, existingBooking.trip_id, existingBooking.trip_date]
-        );
-        if (duplicateActiveBooking) {
-          return { ok: false as const, status: 400, error: "You already have an active booking for this trip." };
-        }
-        await run(`UPDATE public.trip_bookings SET user_id = $1 WHERE id = $2`, [user.id, bookingId]);
-        await run(
-          `UPDATE payments.orders
-           SET user_id = $1
-           WHERE booking_id = $2 AND status IN ('CREATED', 'PENDING', 'PROCESSING')`,
-          [user.id, bookingId]
-        );
-      }
-
       bookingRef = existingBooking.booking_ref;
       isNewBooking = false;
       // Check if there is already an active payment order for this booking
@@ -364,7 +348,7 @@ export async function createBookingPaymentOrder(user: SessionUser, rawBody: unkn
         [bookingId]
       );
 
-      if (existingOrder && existingOrder.provider_order_id && existingOrder.provider !== PAYMENT_PROVIDER.CASHFREE) {
+      if (existingOrder && existingOrder.provider_order_id && Number(existingOrder.amount) === totalAmount) {
         return {
           ok: true as const,
           alreadyExists: true as const,
@@ -374,84 +358,23 @@ export async function createBookingPaymentOrder(user: SessionUser, rawBody: unkn
           amount: Number(existingOrder.amount),
           currency: existingOrder.currency,
           provider: existingOrder.provider || provider,
-          providerAccount,
+          providerAccount: await findProviderAccountById(existingOrder.provider_account_id),
           tripTitle: trip.title,
           providerPayload: existingOrder.provider_payload,
         };
       }
 
-      // Mark expired active orders as FAILED
+      if (existingOrder && !existingOrder.provider_order_id) return { ok: false as const, status: 409, error: "Checkout is being prepared. Please retry shortly." };
+
+      // Supersede an unusable or mismatched order before creating its replacement.
       await run(
         `UPDATE payments.orders SET status = 'FAILED', updated_at = NOW()
          WHERE booking_id = $1 AND status IN ('CREATED', 'PENDING', 'PROCESSING')`,
         [bookingId]
       );
     } else {
-      // Check if user already has an active booking for this trip+date
-      const existingActiveBooking = await queryOne<any>(
-        `SELECT id, booking_ref, booking_status FROM public.trip_bookings
-         WHERE user_id = $1 AND trip_id = $2 AND trip_date = $3
-           AND booking_status IN ('pending_payment', 'payment_processing', 'confirmed')
-           AND cancelled_at IS NULL
-           AND (booking_status = 'confirmed' OR expires_at IS NULL OR expires_at > NOW())
-         LIMIT 1`,
-        [user.id, input.tripId, input.tripDate]
-      );
-
-      if (existingActiveBooking) {
-        if (existingActiveBooking.booking_status === 'confirmed') {
-          return { ok: false as const, status: 400, error: "You already have a confirmed booking for this trip." };
-        }
-        // Reuse the existing pending booking
-        bookingId = existingActiveBooking.id;
-        bookingRef = existingActiveBooking.booking_ref;
-        isNewBooking = false;
-
-        // Mark expired active orders as FAILED
-        await run(
-          `UPDATE payments.orders SET status = 'FAILED', updated_at = NOW()
-           WHERE booking_id = $1 AND status IN ('CREATED', 'PENDING', 'PROCESSING')
-             AND (expires_at IS NOT NULL AND expires_at < NOW())`,
-          [bookingId]
-        );
-
-        // Check for a still-valid active order
-        const existingOrder = await queryOne<PaymentOrderRecord>(
-          `SELECT provider_order_id, order_reference, provider, provider_account_id, amount, currency, provider_payload FROM payments.orders
-           WHERE booking_id = $1
-             AND status IN ('CREATED', 'PENDING', 'PROCESSING')
-             AND expires_at > NOW()
-           ORDER BY created_at DESC
-           LIMIT 1`,
-          [bookingId]
-        );
-
-        if (existingOrder && existingOrder.provider_order_id && existingOrder.provider !== PAYMENT_PROVIDER.CASHFREE) {
-          return {
-            ok: true as const,
-            alreadyExists: true as const,
-            bookingId,
-            orderId: existingOrder.provider_order_id,
-            bookingRef: existingOrder.order_reference,
-            amount: Number(existingOrder.amount),
-            currency: existingOrder.currency,
-            provider: existingOrder.provider || provider,
-            providerAccount,
-            tripTitle: trip.title,
-            providerPayload: existingOrder.provider_payload,
-          };
-        }
-        if (existingOrder && existingOrder.provider_order_id && existingOrder.provider === PAYMENT_PROVIDER.CASHFREE) {
-          await run(
-            `UPDATE payments.orders SET status = 'FAILED', updated_at = NOW()
-             WHERE booking_id = $1 AND provider = $2 AND status IN ('CREATED', 'PENDING', 'PROCESSING')`,
-            [bookingId, PAYMENT_PROVIDER.CASHFREE]
-          );
-        }
-      } else {
-        bookingId = uuidv4();
-        bookingRef = generateBookingReference();
-      }
+      bookingId = uuidv4();
+      bookingRef = generateBookingReference();
     }
 
     const orderId = uuidv4();
@@ -740,6 +663,7 @@ export async function confirmPaymentFromWebhook(input: {
 }) {
   const order = await findOrderByProviderOrderId(input.provider, input.providerOrderId);
   if (!order) return { ok: false as const, status: 404, error: "Payment order not found" };
+  if (input.currency && input.currency !== order.currency) return { ok: false as const, status: 400, error: "Currency mismatch" };
   if (Number(order.amount) !== Number(input.amount)) return { ok: false as const, status: 400, error: "Amount mismatch" };
 
   let alreadyProcessed = false;
@@ -752,7 +676,7 @@ export async function confirmPaymentFromWebhook(input: {
     if (!lockedOrder) throw new Error("Payment order disappeared during confirmation");
 
     const booking = await queryOne<any>(`
-      SELECT b.*, t.max_capacity, t.title as trip_title, t.destination,
+      SELECT b.*, t.max_capacity, t.status AS trip_status, t.title as trip_title, t.destination,
              u.full_name as user_name
       FROM trip_bookings b
       JOIN trips t ON b.trip_id = t.id
@@ -780,7 +704,11 @@ export async function confirmPaymentFromWebhook(input: {
       providerResponse: input.rawPayment,
     });
 
-    if (booking.booking_status === BOOKING_STATUS.EXPIRED || booking.booking_status === BOOKING_STATUS.CANCELLED) {
+    if (booking.trip_status !== 'live' || booking.cancelled_at
+        || !['pending_payment', 'payment_processing', 'confirmed'].includes(booking.booking_status)
+        || Number(booking.amount) !== Number(order.amount)
+        || booking.trip_id !== order.trip_id
+        || (booking.expires_at && new Date(booking.expires_at) <= new Date())) {
       refundRequired = true;
       await run("UPDATE trip_bookings SET payment_status = 'refund_pending', booking_status = 'refund_pending' WHERE id = $1", [booking.id]);
       return;
@@ -869,96 +797,91 @@ export async function expirePendingPaymentBookings() {
 }
 
 export async function requestBookingRefund(bookingId: string, reason: string, overrideAmount?: number | null) {
-  const existing = await findRefundByBookingId(bookingId);
-  if (existing?.status === REFUND_STATUS.SUCCESS || existing?.status === REFUND_STATUS.PROCESSING) {
-    return { ok: true as const, providerRefundId: existing.provider_refund_id || null, alreadyExists: true };
-  }
-
-  const paidTransaction = await findSuccessfulTransactionByBookingId(bookingId);
-  if (!paidTransaction) return { ok: false as const, status: 400, error: "No successful online payment found for this booking" };
-  if (paidTransaction.payment_mode === PAYMENT_MODE.ORGANIZER_OWNED && !paidTransaction.provider_account_id) {
-    return { ok: false as const, status: 500, error: "Organizer payment gateway account is missing for this refund" };
-  }
-
-  const refundAmount = (overrideAmount !== undefined && overrideAmount !== null) ? overrideAmount : Number(paidTransaction.amount);
-
-  const refundId = existing?.refund_id || await createRefund({
-    transactionId: paidTransaction.transaction_id,
-    amount: refundAmount,
-    reason,
-    status: REFUND_STATUS.PENDING,
+  // Serialize intent creation, but never hold a database transaction over the gateway call.
+  const intent = await transaction(async () => {
+    const booking = await queryOne(`SELECT id FROM trip_bookings WHERE id = $1 FOR UPDATE`, [bookingId]);
+    if (!booking) return { ok: false as const, status: 404, error: "Booking not found" };
+    const existing = await findRefundByBookingId(bookingId);
+    if (existing) {
+      if (existing.status === REFUND_STATUS.SUCCESS || (existing.status === REFUND_STATUS.PROCESSING && existing.provider_refund_id)) {
+        return { ok: true as const, alreadyExists: true, providerRefundId: existing.provider_refund_id, refundId: existing.refund_id };
+      }
+      // Only a definitive provider failure starts a new gateway operation. Network
+      // failures retain the old key and exact persisted amount/reason on every retry.
+      if (existing.status === REFUND_STATUS.FAILED && existing.provider_refund_id) {
+        await run(`UPDATE payments.refunds SET provider_refund_id = NULL, attempt_key = $2,
+          status = 'PENDING', processing_token = NULL, processing_started_at = NULL WHERE refund_id = $1`, [existing.refund_id, uuidv4()]);
+      }
+      return { ok: true as const, alreadyExists: false, refundId: existing.refund_id };
+    }
+    const paid = await findSuccessfulTransactionByBookingId(bookingId);
+    if (!paid) return { ok: false as const, status: 400, error: "No successful online payment found for this booking" };
+    const amount = overrideAmount ?? Number(paid.amount);
+    if (!Number.isSafeInteger(amount) || amount <= 0 || amount > Number(paid.amount)) {
+      return { ok: false as const, status: 400, error: "Invalid refund amount" };
+    }
+    const refundId = await createRefund({ transactionId: paid.transaction_id, amount, reason, status: REFUND_STATUS.PENDING });
+    return { ok: true as const, alreadyExists: false, refundId };
   });
+  if (!intent.ok || intent.alreadyExists) return intent;
+  return dispatchRefund(intent.refundId);
+}
 
+async function dispatchRefund(refundId: string) {
+  const token = uuidv4();
+  const claimed = await queryOne<{ refund_id: string }>(`UPDATE payments.refunds
+    SET processing_token = $2, processing_started_at = NOW(), status = 'PROCESSING',
+        attempt_key = COALESCE(attempt_key, refund_id), updated_at = NOW()
+    WHERE refund_id = $1 AND status IN ('PENDING', 'FAILED', 'PROCESSING')
+      AND provider_refund_id IS NULL
+      AND (processing_token IS NULL OR processing_started_at < NOW() - INTERVAL '5 minutes')
+    RETURNING refund_id`, [refundId, token]);
+  if (!claimed) return { ok: true as const, refundId, alreadyExists: true, providerRefundId: null };
   try {
-    const providerAccount = await findProviderAccountById(paidTransaction.provider_account_id);
-    const refund = await PaymentService.refundPayment({ provider: paidTransaction.provider, providerPaymentId: paidTransaction.provider_payment_id, amount: refundAmount, notes: { booking_id: bookingId, reason }, providerAccount });
-        const providerRefundId = getProviderRefundId(refund);
-    if (!providerRefundId) throw new Error("Payment gateway did not return a refund id");
-    await updateRefundProviderResult(refundId, providerRefundId, REFUND_STATUS.PROCESSING, refund);
-
-    await run(`UPDATE public.booking_cancellations SET refund_id = $1, refund_status = 'processing' WHERE booking_id = $2`, [refundId, bookingId]);
-
-    return { ok: true as const, providerRefundId, refundId };
-} catch (error) {
-    await recordRefundAttemptFailure(refundId, error);
-    await run(`UPDATE public.booking_cancellations SET refund_id = $1, refund_status = 'failed' WHERE booking_id = $2`, [refundId, bookingId]);
-    await run(`
-      UPDATE public.trip_bookings
-      SET payment_status = 'refund_failed',
-          booking_status = CASE WHEN booking_status = 'trip_cancelled' THEN booking_status ELSE 'refund_failed' END
-      WHERE id = $1 AND payment_status = 'refund_pending'
-    `, [bookingId]);
-    console.error("[PAYMENTS] Refund request failed:", error);
-    return { ok: false as const, status: 502, error: "Refund gateway is temporarily unavailable. Please retry." };
+    const refund = await queryOne<any>(`SELECT r.*, o.booking_id, o.provider_order_id, o.provider_account_id, o.payment_mode,
+        t.provider, t.provider_payment_id FROM payments.refunds r
+      JOIN payments.transactions t ON t.transaction_id = r.transaction_id JOIN payments.orders o ON o.id = t.order_id
+      WHERE r.refund_id = $1`, [refundId]);
+    if (!refund) throw new Error('Refund disappeared');
+    if (refund.payment_mode === PAYMENT_MODE.ORGANIZER_OWNED && !refund.provider_account_id) throw new Error('Organizer payment account missing');
+    const result = await PaymentService.refundPayment({ provider: refund.provider,
+      providerPaymentId: refund.provider_payment_id, providerOrderId: refund.provider_order_id,
+      idempotencyKey: refund.attempt_key, amount: Number(refund.amount),
+      notes: { booking_id: refund.booking_id, refund_id: refund.refund_id, reason: refund.reason || 'Booking refund' },
+      providerAccount: await findProviderAccountById(refund.provider_account_id) });
+    const providerRefundId = getProviderRefundId(result);
+    if (!providerRefundId) throw new Error('Payment gateway did not return a refund id');
+    await transaction(async () => {
+      const updated = await queryOne(`UPDATE payments.refunds SET provider_refund_id = $3,
+        status = 'PROCESSING', provider_response = $4::jsonb, processing_token = NULL, updated_at = NOW()
+        WHERE refund_id = $1 AND processing_token = $2 RETURNING refund_id`, [refundId, token, providerRefundId, JSON.stringify(result)]);
+      if (!updated) return;
+      await run(`UPDATE booking_cancellations SET refund_id = $1, refund_status = 'processing' WHERE booking_id = $2`, [refundId, refund.booking_id]);
+      await run(`UPDATE trip_bookings SET payment_status = 'refund_pending' WHERE id = $1 AND payment_status = 'refund_failed'`, [refund.booking_id]);
+    });
+    return { ok: true as const, providerRefundId, refundId, alreadyExists: false };
+  } catch (error) {
+    // Keep the operation identity: a timeout may have happened after acceptance.
+    await run(`UPDATE payments.refunds SET status = 'FAILED', processing_token = NULL,
+      provider_response = jsonb_build_object('last_error', $3::text), updated_at = NOW()
+      WHERE refund_id = $1 AND processing_token = $2`, [refundId, token, error instanceof Error ? error.message : String(error)]);
+    return { ok: false as const, status: 502, error: 'Refund gateway is temporarily unavailable. Please retry.' };
   }
 }
 
-
 export async function processPendingRefunds(limit = 20) {
-  const pendingRefunds = await listPendingRefunds(limit);
+  const refunds = await query<{ refund_id: string }>(`SELECT refund_id FROM payments.refunds
+    WHERE status IN ('PENDING', 'FAILED', 'PROCESSING') AND provider_refund_id IS NULL
+      AND (processing_token IS NULL OR processing_started_at < NOW() - INTERVAL '5 minutes')
+    ORDER BY created_at ASC LIMIT $1`, [Math.max(1, Math.min(Number.isFinite(limit) ? Math.floor(limit) : 20, 100))]);
   let processed = 0;
-  let failed = 0;
   const failures: Array<{ refundId: string; error: string }> = [];
-
-  for (const refund of pendingRefunds) {
-    try {
-      if (refund.payment_mode === PAYMENT_MODE.ORGANIZER_OWNED && !refund.provider_account_id) {
-        throw new Error("Organizer payment gateway account is missing for this refund");
-      }
-
-      const providerRefund = await PaymentService.refundPayment({
-        provider: refund.provider,
-        providerPaymentId: refund.provider_payment_id,
-        amount: Number(refund.amount),
-        notes: {
-          booking_id: refund.booking_id,
-          refund_id: refund.refund_id,
-          reason: refund.reason || "Pending refund retry",
-        },
-        providerAccount: await findProviderAccountById(refund.provider_account_id),
-      });
-            const providerRefundId = getProviderRefundId(providerRefund);
-      if (!providerRefundId) throw new Error("Payment gateway did not return a refund id");
-      await updateRefundProviderResult(refund.refund_id, providerRefundId, REFUND_STATUS.PROCESSING, providerRefund);
-      await run(`UPDATE public.booking_cancellations SET refund_id = $1, refund_status = 'processing' WHERE booking_id = $2`, [refund.refund_id, refund.booking_id]);
-      await run(`UPDATE public.trip_bookings SET payment_status = 'refund_pending' WHERE id = $1 AND payment_status = 'refund_failed'`, [refund.booking_id]);
-      processed += 1;
-    } catch (error) {
-      failed += 1;
-      const message = error instanceof Error ? error.message : String(error);
-      failures.push({ refundId: refund.refund_id, error: message });
-            await recordRefundAttemptFailure(refund.refund_id, error);
-      await run(`UPDATE public.booking_cancellations SET refund_id = $1, refund_status = 'failed' WHERE booking_id = $2`, [refund.refund_id, refund.booking_id]);
-      await run(`
-        UPDATE public.trip_bookings
-        SET payment_status = 'refund_failed',
-            booking_status = CASE WHEN booking_status = 'trip_cancelled' THEN booking_status ELSE 'refund_failed' END
-        WHERE id = $1 AND payment_status = 'refund_pending'
-      `, [refund.booking_id]);
-    }
+  for (const refund of refunds) {
+    const result = await dispatchRefund(refund.refund_id);
+    if (!result.ok) failures.push({ refundId: refund.refund_id, error: result.error });
+    else if (!result.alreadyExists) processed++;
   }
-
-  return { scanned: pendingRefunds.length, processed, failed, failures };
+  return { scanned: refunds.length, processed, failed: failures.length, failures };
 }
 export async function getLatestPaymentForBooking(bookingId: string) {
   const order = await findOrderByBookingId(bookingId);

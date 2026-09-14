@@ -15,7 +15,7 @@ export default function AppError({
 
   return (
     <main className="min-h-screen bg-slate-50 px-6 py-24 text-slate-900">
-      <div className="mx-auto max-w-lg rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+      <div className="mx-auto max-w-lg rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
         <p className="mb-3 text-sm font-semibold uppercase tracking-wider text-orange-500">
           Temporary problem
         </p>

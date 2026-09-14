@@ -167,8 +167,10 @@ export async function findRefundByBookingId(bookingId: string) {
     refund_id: string;
     provider_refund_id: string | null;
     status: RefundStatus;
+    amount: number;
+    reason: string | null;
   }>(
-    `SELECT r.refund_id, r.provider_refund_id, r.status
+    `SELECT r.refund_id, r.provider_refund_id, r.status, r.amount, r.reason
      FROM payments.refunds r
      JOIN payments.transactions t ON t.transaction_id = r.transaction_id
      JOIN payments.orders o ON o.id = t.order_id
@@ -176,15 +178,6 @@ export async function findRefundByBookingId(bookingId: string) {
      ORDER BY r.created_at DESC
      LIMIT 1`,
     [bookingId]
-  );
-}
-
-export async function updateRefundProviderResult(refundId: string, providerRefundId: string, status: RefundStatus, providerResponse: unknown) {
-  await run(
-    `UPDATE payments.refunds
-     SET provider_refund_id = $1, status = $2, provider_response = $3::jsonb, updated_at = NOW()
-     WHERE refund_id = $4`,
-    [providerRefundId, status, safeJson(providerResponse || null), refundId]
   );
 }
 
@@ -236,38 +229,6 @@ export async function createRefund(input: {
 }
 
 
-export async function listPendingRefunds(limit = 20) {
-  return query<{
-    refund_id: string;
-    booking_id: string;
-    provider: PaymentProvider;
-    provider_account_id: string | null;
-    payment_mode: PaymentMode | null;
-    provider_payment_id: string;
-    amount: number;
-    reason: string | null;
-  }>(
-    `SELECT r.refund_id, o.booking_id, t.provider, o.provider_account_id, o.payment_mode, t.provider_payment_id, r.amount, r.reason
-     FROM payments.refunds r
-     JOIN payments.transactions t ON t.transaction_id = r.transaction_id
-     JOIN payments.orders o ON o.id = t.order_id
-     WHERE r.status IN ('PENDING', 'FAILED')
-       AND r.provider_refund_id IS NULL
-     ORDER BY r.created_at ASC
-     LIMIT $1`,
-    [Math.max(1, Math.min(limit, 100))]
-  );
-}
-
-export async function recordRefundAttemptFailure(refundId: string, error: unknown) {
-  const message = error instanceof Error ? error.message : String(error);
-  await run(
-    `UPDATE payments.refunds
-     SET status = 'FAILED', provider_response = jsonb_build_object('last_error', $1::text, 'failed_at', NOW()), updated_at = NOW()
-     WHERE refund_id = $2`,
-    [message.slice(0, 1000), refundId]
-  );
-}
 export async function logWebhook(input: {
   provider: PaymentProvider;
   eventType: string;
@@ -303,15 +264,17 @@ export async function claimPaymentEvent(input: {
   provider: PaymentProvider;
   providerEventId: string;
   payloadHash: string;
+  verifiedPayload?: unknown;
 }) {
   const rows = await query<{ id: string; processed_at: string | null }>(
-    `INSERT INTO payments.payment_events (id, provider, provider_event_id, payload_hash)
-     VALUES ($1,$2,$3,$4)
+    `INSERT INTO payments.payment_events (id, provider, provider_event_id, payload_hash, verified_payload)
+     VALUES ($1,$2,$3,$4,$5::jsonb)
      ON CONFLICT (provider, provider_event_id)
-     DO UPDATE SET payload_hash = EXCLUDED.payload_hash
+     DO UPDATE SET verified_payload = COALESCE(payments.payment_events.verified_payload, EXCLUDED.verified_payload)
      WHERE payments.payment_events.processed_at IS NULL
+       AND payments.payment_events.payload_hash = EXCLUDED.payload_hash
      RETURNING id, processed_at`,
-    [uuidv4(), input.provider, input.providerEventId, input.payloadHash]
+    [uuidv4(), input.provider, input.providerEventId, input.payloadHash, input.verifiedPayload ? safeJson(input.verifiedPayload) : null]
   );
   return rows[0] || null;
 }

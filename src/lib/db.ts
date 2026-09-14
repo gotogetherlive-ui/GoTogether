@@ -1,4 +1,8 @@
 import { Pool, PoolClient } from 'pg';
+import { BUSINESS_INTRODUCTION_SCHEMA_SQL } from './businessIntroductionSchema';
+import { CHAT_ENCRYPTION_SCHEMA_SQL } from './chatEncryptionSchema';
+import { BUDDY_MODERATION_SCHEMA_SQL } from './buddyModerationSchema';
+import { BUDDY_DURATION_SCHEMA_SQL } from './buddyDurationSchema';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { getDatabaseSsl } from './databaseSsl';
 import { parse as parseDatabaseConnectionString } from 'pg-connection-string';
@@ -10,6 +14,7 @@ import { parse as parseDatabaseConnectionString } from 'pg-connection-string';
 const globalForDb = globalThis as unknown as {
   __pgPool?: Pool;
   __schemaInitialized?: boolean;
+  __automaticChatEncryptionSchemaReady?: Promise<void>;
   __schemaReady?: Promise<void>;
   __schemaError?: unknown;
   __schemaRetryAt?: number;
@@ -64,6 +69,7 @@ function getQueryClient(): Pool | PoolClient {
 }
 
 function isRuntimeSchemaDdlAllowed(): boolean {
+  if (["0", "false", "no", "off"].includes(String(process.env.ALLOW_RUNTIME_SCHEMA_DDL || "").toLowerCase())) return false;
   if (process.env.NODE_ENV !== "production") return true;
   return ["1", "true", "yes", "on"].includes(String(process.env.ALLOW_RUNTIME_SCHEMA_DDL || "").toLowerCase());
 }
@@ -124,7 +130,7 @@ export function getPoolInstance(): Pool {
 // Schema Initialization
 // Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
 
-export async function initializeSchema(): Promise<void> {
+async function initializeSchema(): Promise<void> {
   if (globalForDb.__schemaInitialized) return;
   if (!isRuntimeSchemaDdlAllowed()) {
     throw new Error("Runtime schema initialization is disabled in production. Run db migrations before starting the app.");
@@ -208,7 +214,7 @@ export async function initializeSchema(): Promise<void> {
         start_date TEXT,
         images TEXT,
         starting_location TEXT,
-        traveller_type TEXT CHECK (traveller_type IN ('solo', 'couple')),
+        traveller_type TEXT CHECK (traveller_type IN ('solo', 'couple', 'group')),
         slug TEXT,
         registration_closed INTEGER DEFAULT 0,
         max_capacity INTEGER,
@@ -220,21 +226,12 @@ export async function initializeSchema(): Promise<void> {
     await client.query(`ALTER TABLE public.trips ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`);
     await client.query(`ALTER TABLE public.trips ADD COLUMN IF NOT EXISTS traveller_type TEXT`);
     await client.query(`UPDATE public.trips SET traveller_type = 'solo' WHERE trip_type = 'buddy' AND traveller_type IS NULL`);
+    await client.query(BUDDY_DURATION_SCHEMA_SQL);
+    await client.query(`ALTER TABLE public.trips DROP CONSTRAINT IF EXISTS trips_traveller_type_check`);
     await client.query(`
-      DO $$
-      BEGIN
-        IF NOT EXISTS (
-          SELECT 1
-          FROM pg_constraint
-          WHERE conrelid = 'public.trips'::regclass
-            AND conname = 'trips_traveller_type_check'
-        ) THEN
-          ALTER TABLE public.trips
-            ADD CONSTRAINT trips_traveller_type_check
-            CHECK (traveller_type IS NULL OR traveller_type IN ('solo', 'couple'));
-        END IF;
-      END
-      $$;
+      ALTER TABLE public.trips
+      ADD CONSTRAINT trips_traveller_type_check
+      CHECK (traveller_type IS NULL OR traveller_type IN ('solo', 'couple', 'group'))
     `);
     await client.query(`
       CREATE OR REPLACE FUNCTION public.set_trips_updated_at()
@@ -307,6 +304,8 @@ export async function initializeSchema(): Promise<void> {
         notification_seen INTEGER DEFAULT 0
       );
     `);
+
+    await client.query(BUDDY_MODERATION_SCHEMA_SQL);
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS reports (
@@ -393,6 +392,9 @@ export async function initializeSchema(): Promise<void> {
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
     `);
+
+    await client.query(CHAT_ENCRYPTION_SCHEMA_SQL);
+    await client.query(BUSINESS_INTRODUCTION_SCHEMA_SQL);
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS business_applications (
@@ -518,14 +520,20 @@ export async function initializeSchema(): Promise<void> {
       CREATE TABLE IF NOT EXISTS feedbacks (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL REFERENCES users(id),
-        category TEXT NOT NULL CHECK(category IN ('technical', 'trip', 'gotogether')),
+        category TEXT NOT NULL CHECK(category IN ('technical', 'trip', 'gotogether', 'love')),
         subject TEXT NOT NULL,
         description TEXT NOT NULL,
+        rating SMALLINT,
         status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'solved')),
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         notification_seen INTEGER DEFAULT 0
       );
     `);
+    await client.query(`ALTER TABLE feedbacks ADD COLUMN IF NOT EXISTS rating SMALLINT`);
+    await client.query(`ALTER TABLE feedbacks DROP CONSTRAINT IF EXISTS feedbacks_category_check`);
+    await client.query(`ALTER TABLE feedbacks ADD CONSTRAINT feedbacks_category_check CHECK (category IN ('technical', 'trip', 'gotogether', 'love'))`);
+    await client.query(`ALTER TABLE feedbacks DROP CONSTRAINT IF EXISTS feedbacks_love_rating_check`);
+    await client.query(`ALTER TABLE feedbacks ADD CONSTRAINT feedbacks_love_rating_check CHECK ((category = 'love' AND rating BETWEEN 1 AND 5) OR (category <> 'love' AND rating IS NULL))`);
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS support_tickets (
@@ -545,6 +553,57 @@ export async function initializeSchema(): Promise<void> {
     `);
 
     // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Chat Reads Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS crm_customer_profiles (
+        user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        stage TEXT NOT NULL DEFAULT 'lead' CHECK (stage IN ('lead', 'customer', 'repeat', 'vip', 'churn_risk')),
+        tags TEXT[] NOT NULL DEFAULT '{}',
+        owner_admin_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+        next_follow_up_at TIMESTAMPTZ,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS crm_notes (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        author_admin_id TEXT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+        body TEXT NOT NULL CHECK (char_length(body) BETWEEN 1 AND 4000),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS crm_conversations (
+        id TEXT PRIMARY KEY,
+        channel TEXT NOT NULL DEFAULT 'whatsapp' CHECK (channel IN ('whatsapp')),
+        external_contact_id TEXT NOT NULL,
+        contact_name TEXT,
+        phone_number TEXT,
+        user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+        status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'pending', 'resolved')),
+        assigned_admin_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+        unread_count INTEGER NOT NULL DEFAULT 0 CHECK (unread_count >= 0),
+        last_message_preview TEXT,
+        last_message_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (channel, external_contact_id)
+      );
+      CREATE TABLE IF NOT EXISTS crm_messages (
+        id TEXT PRIMARY KEY,
+        conversation_id TEXT NOT NULL REFERENCES crm_conversations(id) ON DELETE CASCADE,
+        provider_message_id TEXT UNIQUE,
+        direction TEXT NOT NULL CHECK (direction IN ('inbound', 'outbound')),
+        message_type TEXT NOT NULL DEFAULT 'text',
+        body TEXT,
+        delivery_status TEXT NOT NULL DEFAULT 'received' CHECK (delivery_status IN ('queued', 'sent', 'delivered', 'read', 'received', 'failed')),
+        sent_by_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+        provider_payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_crm_profiles_stage ON crm_customer_profiles(stage, updated_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_crm_notes_user_created ON crm_notes(user_id, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_crm_conversations_activity ON crm_conversations(status, last_message_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_crm_messages_conversation_created ON crm_messages(conversation_id, created_at DESC);
+    `);
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS user_chat_reads (
@@ -697,6 +756,14 @@ CREATE TABLE IF NOT EXISTS payments.payment_events_outbox (
   processed_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Apply before deploying the payment reliability fixes.
+ALTER TABLE payments.payment_events ADD COLUMN IF NOT EXISTS verified_payload JSONB;
+ALTER TABLE payments.refunds ADD COLUMN IF NOT EXISTS processing_token TEXT;
+ALTER TABLE payments.refunds ADD COLUMN IF NOT EXISTS processing_started_at TIMESTAMPTZ;
+ALTER TABLE payments.refunds ADD COLUMN IF NOT EXISTS attempt_key TEXT;
+ALTER TABLE payments.payment_events_outbox ADD COLUMN IF NOT EXISTS processing_token TEXT;
+ALTER TABLE payments.payment_events_outbox ADD COLUMN IF NOT EXISTS processing_started_at TIMESTAMPTZ;
 
 CREATE TABLE IF NOT EXISTS payments.reconciliation_jobs (
   id TEXT PRIMARY KEY,
@@ -1249,7 +1316,23 @@ CREATE INDEX IF NOT EXISTS idx_provider_accounts_provider ON payments.provider_a
 
 /** Initialize once per process. A failed attempt is cleared so later requests can recover. */
 export async function ensureSchema(): Promise<void> {
-  if (globalForDb.__schemaInitialized) return;
+  if (globalForDb.__schemaInitialized) {
+    // A development server may have initialized before this table was added.
+    // Hot reload preserves global state; apply this additive schema update once
+    // using the running server's pool, without re-running the full initializer.
+    if (isRuntimeSchemaDdlAllowed()) {
+      if (!globalForDb.__automaticChatEncryptionSchemaReady) {
+        globalForDb.__automaticChatEncryptionSchemaReady = pool.query(BUSINESS_INTRODUCTION_SCHEMA_SQL + BUDDY_MODERATION_SCHEMA_SQL + CHAT_ENCRYPTION_SCHEMA_SQL)
+          .then(() => {})
+          .catch((error) => {
+            globalForDb.__automaticChatEncryptionSchemaReady = undefined;
+            throw error;
+          });
+      }
+      await globalForDb.__automaticChatEncryptionSchemaReady;
+    }
+    return;
+  }
   if (!isRuntimeSchemaDdlAllowed()) return;
 
   if (

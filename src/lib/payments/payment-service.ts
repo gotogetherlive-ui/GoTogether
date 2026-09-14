@@ -35,6 +35,8 @@ export interface VerifyWebhookInput {
 }
 
 export interface RefundPaymentInput {
+  providerOrderId?: string;
+  idempotencyKey?: string;
   provider: PaymentProvider;
   providerPaymentId: string;
   amount: number;

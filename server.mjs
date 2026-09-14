@@ -9,10 +9,18 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const port = parseInt(process.env.PORT || '3000', 10);
+function integerSetting(name, fallback, minimum, maximum) {
+  const value = Number.parseInt(process.env[name] || String(fallback), 10);
+  if (!Number.isInteger(value) || value < minimum || value > maximum) {
+    throw new Error(`${name} must be an integer between ${minimum} and ${maximum}`);
+  }
+  return value;
+}
+
+const port = integerSetting('PORT', 3000, 1, 65535);
 
 if (cluster.isPrimary) {
-  const numCPUs = Math.max(1, Math.min(parseInt(process.env.WEB_CONCURRENCY || '4', 10), os.cpus().length));
+  const numCPUs = Math.min(integerSetting('WEB_CONCURRENCY', 4, 1, 64), os.availableParallelism?.() || os.cpus().length);
   let shuttingDown = false;
   console.log(`[Primary] Master process ${process.pid} is running.`);
   console.log(`[Primary] Spawning ${numCPUs} clustered server workers...`);
@@ -33,7 +41,7 @@ if (cluster.isPrimary) {
     shuttingDown = true;
     console.log('[Primary] Gracefully stopping workers...');
     cluster.disconnect(() => process.exit(0));
-    setTimeout(() => process.exit(1), 15_000).unref();
+    setTimeout(() => process.exit(1), 30_000).unref();
   };
   process.on('SIGTERM', shutdown);
   process.on('SIGINT', shutdown);
@@ -47,10 +55,12 @@ if (cluster.isPrimary) {
       const parsedUrl = parse(req.url, true);
       handle(req, res, parsedUrl);
     });
-    server.keepAliveTimeout = parseInt(process.env.HTTP_KEEP_ALIVE_TIMEOUT_MS || '65000', 10);
-    server.headersTimeout = parseInt(process.env.HTTP_HEADERS_TIMEOUT_MS || '66000', 10);
-    server.requestTimeout = parseInt(process.env.HTTP_REQUEST_TIMEOUT_MS || '30000', 10);
-    server.maxRequestsPerSocket = parseInt(process.env.HTTP_MAX_REQUESTS_PER_SOCKET || '1000', 10);
+    server.keepAliveTimeout = integerSetting('HTTP_KEEP_ALIVE_TIMEOUT_MS', 65_000, 1_000, 300_000);
+    server.headersTimeout = integerSetting('HTTP_HEADERS_TIMEOUT_MS', 66_000, server.keepAliveTimeout + 1_000, 310_000);
+    server.requestTimeout = integerSetting('HTTP_REQUEST_TIMEOUT_MS', 30_000, 1_000, 300_000);
+    server.maxRequestsPerSocket = integerSetting('HTTP_MAX_REQUESTS_PER_SOCKET', 1_000, 1, 100_000);
+    server.maxHeadersCount = integerSetting('HTTP_MAX_HEADERS_COUNT', 100, 20, 2_000);
+    server.on('clientError', (_error, socket) => socket.destroy());
     server.listen(port, () => {
       console.log(`[Worker ${process.pid}] Ready on http://localhost:${port}`);
     });
