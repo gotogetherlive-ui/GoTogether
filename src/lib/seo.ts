@@ -6,8 +6,8 @@ const DEFAULT_TITLE = "GoTogether | Custom Trips, Travel Buddies & Group Adventu
 const DEFAULT_DESCRIPTION =
   "Plan a custom trip, find a compatible travel buddy, or explore organizer-led group adventures across India. Choose your destination, dates, and way to travel.";
 const DEFAULT_OG_IMAGE = "/hero_india_ladakh.png";
-const INSTAGRAM_URL = "https://www.instagram.com/gotogethertrip2026?stkn=NGFxbHU5eGh1bWJq&utm_source=ig_contact_invite";
-const WHATSAPP_COMMUNITY_URL = "https://chat.whatsapp.com/HWmEmqlCvNIBoHvNyfPETP";
+const INSTAGRAM_URL = "https://www.instagram.com/gotogethertrip?stkn=azhiNGt5dXdiYmR2";
+const WHATSAPP_COMMUNITY_URL = "https://chat.whatsapp.com/BjYQdI3womD1zDAkpXRdrW?s=cl&p=a&mlu=4&ilr=4";
 const CANONICAL_PRODUCTION_ORIGIN = "https://www.gotogethertrip.com";
 
 export const PRIVATE_ROUTE_PREFIXES = [

@@ -26,13 +26,13 @@ const socialLinks = [
     className: "hover:text-sky-400",
   },
   {
-    href: "https://www.instagram.com/gotogethertrip2026?stkn=NGFxbHU5eGh1bWJq&utm_source=ig_contact_invite",
+    href: "https://www.instagram.com/gotogethertrip?stkn=azhiNGt5dXdiYmR2",
     label: "Instagram",
     Icon: InstagramIcon,
     className: "hover:text-pink-400",
   },
   {
-    href: "https://chat.whatsapp.com/HWmEmqlCvNIBoHvNyfPETP’s=sh&p=a&mlu=0&ilr=0",
+    href: "https://chat.whatsapp.com/BjYQdI3womD1zDAkpXRdrW?s=cl&p=a&mlu=4&ilr=4",
     label: "WhatsApp",
     Icon: WhatsAppIcon,
     className: "hover:text-emerald-400",
