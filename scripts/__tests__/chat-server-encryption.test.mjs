@@ -3,6 +3,18 @@ import test from 'node:test';
 import { randomBytes } from 'node:crypto';
 import { encryptStoredChatMessage, decryptStoredChatMessage, readStoredChatMessage } from '../../src/lib/chatServerEncryption.js';
 const context={id:'message-1',trip_id:'trip-1',sender_id:'sender-1'};
+test('runtime accepts the same surrounding key whitespace as the production validator', () => {
+ const old = process.env.CHAT_ENCRYPTION_KEY;
+ const key = randomBytes(32).toString('hex');
+ try {
+  process.env.CHAT_ENCRYPTION_KEY = ` ${key}\r\n`;
+  const stored = encryptStoredChatMessage('Hello from mobile 👋', context);
+  process.env.CHAT_ENCRYPTION_KEY = key;
+  assert.equal(decryptStoredChatMessage(stored, context), 'Hello from mobile 👋');
+  process.env.CHAT_ENCRYPTION_KEY = 'invalid';
+  assert.throws(() => encryptStoredChatMessage('secret', context), {code:'CHAT_ENCRYPTION_UNAVAILABLE'});
+ } finally { if (old === undefined) delete process.env.CHAT_ENCRYPTION_KEY; else process.env.CHAT_ENCRYPTION_KEY = old; }
+});
 test('server encryption round-trips text and emojis with unique nonces',()=>{
  const old=process.env.CHAT_ENCRYPTION_KEY;process.env.CHAT_ENCRYPTION_KEY=randomBytes(32).toString('hex');
  try {

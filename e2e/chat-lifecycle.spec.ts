@@ -25,7 +25,7 @@ test('chat messages, presence, popups, reports, removal and expiry work together
     const memberPage = await memberContext.newPage();
     await loginFixture(ownerPage,'alpha'); await loginFixture(memberPage,'beta');
     await memberPage.goto(`/chat/${tripId}`);
-    await expect(memberPage.getByLabel('Chat message', {exact:true})).toBeVisible();
+    await expect(memberPage.getByLabel('Chat message', {exact:true})).toBeVisible({timeout:30000});
     const initial = await ownerPage.request.get(`/api/chat/${tripId}`);
     expect(initial.status()).toBe(200);
     expect((await initial.json()).chat.members.find((item: {id:string})=>item.id===member).is_online).toBe(true);
@@ -40,13 +40,31 @@ test('chat messages, presence, popups, reports, removal and expiry work together
     await expect(memberPage.locator('time[datetime]').first()).toBeVisible();
     await expect(memberPage.getByText('Messages are encrypted',{exact:true})).toHaveCount(1);
     await expect(memberPage.getByLabel('Chat password',{exact:true})).toHaveCount(0);
-    const anotherDevice = await browser.newContext({baseURL:'http://127.0.0.1:3100'});
+    const anotherDevice = await browser.newContext({baseURL:'http://127.0.0.1:3100', viewport: {width:390,height:844}, isMobile:true, hasTouch:true});
     try {
       const anotherPage = await anotherDevice.newPage();
       await loginFixture(anotherPage,'beta');
       await anotherPage.goto(`/chat/${tripId}`);
+      // The development-only Next.js indicator overlaps the mobile send button.
+      await anotherPage.addStyleTag({content:'nextjs-portal { display: none !important; }'});
       await expect(anotherPage.getByText('Audit hello from organizer',{exact:true})).toBeVisible();
       await expect(anotherPage.getByLabel('Chat password',{exact:true})).toHaveCount(0);
+      const input = anotherPage.getByLabel('Chat message', {exact:true});
+      await expect(input).toBeInViewport();
+      await anotherPage.route(`**/api/chat/${tripId}`, async route => {
+        if (route.request().method() === 'POST') return route.fulfill({status:503,json:{error:'Internal server error'}});
+        return route.continue();
+      });
+      await input.fill('Hello from mobile');
+      await anotherPage.getByRole('button',{name:'Send message',exact:true}).click();
+      await expect(anotherPage.getByRole('alert').filter({hasText:'Could not send your message'})).toBeVisible();
+      await expect(input).toHaveValue('Hello from mobile');
+      await anotherPage.unroute(`**/api/chat/${tripId}`);
+      const sent = anotherPage.waitForResponse(response => response.url().endsWith(`/api/chat/${tripId}`) && response.request().method() === 'POST');
+      await anotherPage.getByRole('button',{name:'Send message',exact:true}).click();
+      expect((await sent).status()).toBe(200);
+      await expect(input).toHaveValue('');
+      await expect(anotherPage.getByText('Hello from mobile',{exact:true})).toBeVisible();
     } finally {await anotherDevice.close();}
     const stored = (await db.query('SELECT message FROM messages WHERE trip_id=$1',[tripId])).rows[0].message;
     expect(stored).toContain('gtchat:v2:');

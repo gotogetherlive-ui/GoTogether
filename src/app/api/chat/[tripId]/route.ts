@@ -158,6 +158,9 @@ export async function POST(
     });
   } catch (err) {
     console.error('Send chat message error:', err);
+    if (err instanceof Error && 'code' in err && err.code === 'CHAT_ENCRYPTION_UNAVAILABLE') {
+      return NextResponse.json({ error: 'Chat sending is temporarily unavailable. Please try again later.', code: 'CHAT_ENCRYPTION_UNAVAILABLE' }, { status: 503 });
+    }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

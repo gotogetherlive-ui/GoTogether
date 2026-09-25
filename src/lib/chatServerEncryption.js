@@ -3,8 +3,10 @@ import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 /** @typedef {{ id: string, trip_id: string, sender_id: string }} MessageContext */
 
 function getKey() {
-  const value = process.env.CHAT_ENCRYPTION_KEY;
-  if (!value || !/^[a-f0-9]{64}$/i.test(value)) throw new Error('CHAT_ENCRYPTION_KEY must be a securely stored 64-character hexadecimal key.');
+  const value = process.env.CHAT_ENCRYPTION_KEY?.trim();
+  if (!value || !/^[a-f0-9]{64}$/i.test(value)) {
+    throw Object.assign(new Error('CHAT_ENCRYPTION_KEY must be a securely stored 64-character hexadecimal key.'), { code: 'CHAT_ENCRYPTION_UNAVAILABLE' });
+  }
   return Buffer.from(value, 'hex');
 }
 

@@ -49,6 +49,7 @@ export default function ChatPage({ params }: { params: Promise<{ tripId: string 
   const { user } = useSession();
   const currentUserId = user?.id ?? null;
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
   const [chat, setChat] = useState<ChatInfo | null>(null);
   const [showChatInfo, setShowChatInfo] = useState(false);
   const [moderation, setModeration] = useState<{ member: ChatMember; action: 'remove' | 'report' } | null>(null);
@@ -86,6 +87,7 @@ export default function ChatPage({ params }: { params: Promise<{ tripId: string 
       const data = await res.json();
       if (generation !== messagesRequestGenerationRef.current) return;
       if (data.messages) {
+        setError(null);
         setMessages(previous => JSON.stringify(previous) === JSON.stringify(data.messages) ? previous : data.messages);
         if (data.chat) {
           setChat(data.chat);
@@ -132,6 +134,7 @@ export default function ChatPage({ params }: { params: Promise<{ tripId: string 
 
     const msg = newMessage;
     setSending(true);
+    setSendError(null);
 
     try {
       const res = await fetch(`/api/chat/${tripId}`, {
@@ -145,12 +148,12 @@ export default function ChatPage({ params }: { params: Promise<{ tripId: string 
       } else {
         const data = await res.json().catch(() => null);
         if (res.status === 410) void fetchMessages();
-        alert(data?.error || "Failed to send message");
+        setSendError(res.status >= 500 ? "Could not send your message. Please try again shortly." : data?.error || "Failed to send message");
         setNewMessage(msg); // Restore input on failure
       }
     } catch (err) {
       console.error(err);
-      alert(err instanceof Error ? err.message : "Error sending encrypted message");
+      setSendError("Could not send your message. Check your connection and try again.");
       setNewMessage(msg);
     } finally { setSending(false); }
   };
@@ -168,7 +171,7 @@ export default function ChatPage({ params }: { params: Promise<{ tripId: string 
       <div className="flex h-screen items-center justify-center bg-slate-50 p-4">
         <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200 text-center max-w-md">
           <ShieldAlert className="w-16 h-16 text-rose-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-slate-900 mb-2">Access Denied</h2>
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">Unable to load chat</h2>
           <p className="text-slate-600 mb-6">{error}</p>
           <button 
             onClick={() => router.push("/buddy/interests")}
@@ -182,7 +185,7 @@ export default function ChatPage({ params }: { params: Promise<{ tripId: string 
   }
 
   return (
-    <div className="gt-page-canvas flex h-screen flex-col overflow-hidden font-sans">
+    <div className="gt-page-canvas flex h-dvh flex-col overflow-hidden font-sans">
       {/* Header */}
       <header className="sticky top-0 z-20 flex shrink-0 items-center border-b border-amber-100 bg-white/90 px-3 py-3 shadow-[0_10px_30px_-24px_rgba(120,53,15,0.45)] backdrop-blur-xl sm:px-5">
         <button 
@@ -248,7 +251,7 @@ export default function ChatPage({ params }: { params: Promise<{ tripId: string 
       )}
 
       {/* Messages Area */}
-      <div className="flex flex-1 flex-col space-y-3 overflow-y-auto bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.08),_transparent_22rem),linear-gradient(180deg,#fffdf9,#f8fafc)] px-4 py-6">
+      <div className="flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.08),_transparent_22rem),linear-gradient(180deg,#fffdf9,#f8fafc)] px-4 py-6">
         {chat?.encryption_mode === 'server-managed' && <div className="mx-auto text-center"><p title="Messages are encrypted on our servers. This is not end-to-end encryption." className="inline-flex items-center justify-center gap-1.5 rounded-full bg-amber-50 px-4 py-2 text-[11px] text-amber-800"><LockKeyhole aria-hidden="true" className="h-3 w-3" />Messages are encrypted</p></div>}
 
         {messages.length === 0 ? (
@@ -332,7 +335,8 @@ export default function ChatPage({ params }: { params: Promise<{ tripId: string 
       </div>
 
       {/* Input Area */}
-      <div className="shrink-0 border-t border-amber-100 bg-white/92 px-4 py-3 backdrop-blur-xl">
+      <div className="shrink-0 border-t border-amber-100 bg-white/92 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-xl">
+        {sendError && <p role="alert" className="mx-auto mb-2 max-w-4xl text-sm text-rose-700">{sendError}</p>}
         <form onSubmit={handleSendMessage} className="max-w-4xl mx-auto flex items-center gap-2">
           {!chat?.is_chat_closed && <ChatEmojiPicker onSelect={emoji => {
             const input = messageInputRef.current;
@@ -354,7 +358,7 @@ export default function ChatPage({ params }: { params: Promise<{ tripId: string 
               onChange={(e) => setNewMessage(e.target.value)}
               disabled={chat?.is_chat_closed || sending}
               placeholder={chat?.is_chat_closed ? "Chat closed - read-only" : "Message..."}
-              className="chat-message-input min-w-0 flex-1 border-0 bg-transparent text-slate-900 placeholder:text-slate-400 font-medium text-[15px] py-1"
+              className="chat-message-input min-w-0 flex-1 border-0 bg-transparent text-slate-900 placeholder:text-slate-400 font-medium text-base py-1"
             />
           </div>
           {!chat?.is_chat_closed && newMessage.trim() && (
