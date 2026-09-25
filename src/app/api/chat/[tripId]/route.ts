@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { query, queryOne, run, transaction } from '@/lib/db';
-import { notifyUser } from '@/lib/notificationEvents';
 import { randomUUID } from 'node:crypto';
 import { encryptStoredChatMessage, readStoredChatMessage } from '@/lib/chatServerEncryption';
 
@@ -148,12 +147,15 @@ export async function POST(
     const messageId = randomUUID();
     const ciphertext = encryptStoredChatMessage(message, { id: messageId, trip_id: tripId, sender_id: user.id });
     await run('INSERT INTO messages (id, trip_id, sender_id, message, encryption_version) VALUES ($1,$2,$3,$4,2)', [messageId, tripId, user.id, ciphertext]);
-    const recipients = await query<{ user_id: string }>(`
-      SELECT user_id FROM trip_participants WHERE trip_id = $1 AND user_id <> $2
-      UNION SELECT organizer_id FROM trips WHERE id = $1 AND organizer_id <> $2
-    `, [tripId, user.id]);
     // PostgreSQL delivers these events only when the message transaction commits.
-    for (const recipient of recipients) await notifyUser(recipient.user_id, messageId);
+    // Notify all members in one round trip rather than waiting once per member.
+    await run(`
+      SELECT pg_notify('gotogether_notifications', json_build_object('type', 'user', 'id', recipients.user_id, 'messageId', $3::text)::text)
+      FROM (
+        SELECT user_id FROM trip_participants WHERE trip_id = $1 AND user_id <> $2
+        UNION SELECT organizer_id FROM trips WHERE id = $1 AND organizer_id <> $2
+      ) recipients
+    `, [tripId, user.id, messageId]);
     return NextResponse.json({ success: true, messageId });
     });
   } catch (err) {

@@ -51,12 +51,22 @@ test('chat messages, presence, popups, reports, removal and expiry work together
       await expect(anotherPage.getByLabel('Chat password',{exact:true})).toHaveCount(0);
       const input = anotherPage.getByLabel('Chat message', {exact:true});
       await expect(input).toBeInViewport();
+      let releaseSend!: () => void;
+      const sendGate = new Promise<void>(resolve => { releaseSend = resolve; });
       await anotherPage.route(`**/api/chat/${tripId}`, async route => {
-        if (route.request().method() === 'POST') return route.fulfill({status:503,json:{error:'Internal server error'}});
+        if (route.request().method() === 'POST') {
+          await sendGate;
+          return route.fulfill({status:503,json:{error:'Internal server error'}});
+        }
         return route.continue();
       });
       await input.fill('Hello from mobile');
       await anotherPage.getByRole('button',{name:'Send message',exact:true}).click();
+      try {
+        await expect(anotherPage.getByText('Sending…',{exact:true})).toBeVisible();
+        await expect(anotherPage.getByRole('button',{name:'Send message',exact:true})).toBeDisabled();
+        await expect(anotherPage.getByRole('button',{name:'Send message',exact:true})).toHaveAttribute('aria-busy','true');
+      } finally { releaseSend(); }
       await expect(anotherPage.getByRole('alert').filter({hasText:'Could not send your message'})).toBeVisible();
       await expect(input).toHaveValue('Hello from mobile');
       await anotherPage.unroute(`**/api/chat/${tripId}`);

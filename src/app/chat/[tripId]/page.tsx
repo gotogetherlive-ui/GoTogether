@@ -49,6 +49,7 @@ export default function ChatPage({ params }: { params: Promise<{ tripId: string 
   const { user } = useSession();
   const currentUserId = user?.id ?? null;
   const [sending, setSending] = useState(false);
+  const [pendingMessage, setPendingMessage] = useState<string | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
   const [chat, setChat] = useState<ChatInfo | null>(null);
   const [showChatInfo, setShowChatInfo] = useState(false);
@@ -126,7 +127,7 @@ export default function ChatPage({ params }: { params: Promise<{ tripId: string 
   // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, pendingMessage]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,6 +135,7 @@ export default function ChatPage({ params }: { params: Promise<{ tripId: string 
 
     const msg = newMessage;
     setSending(true);
+    setPendingMessage(msg);
     setSendError(null);
 
     try {
@@ -144,7 +146,7 @@ export default function ChatPage({ params }: { params: Promise<{ tripId: string 
       });
       if (res.ok) {
         setNewMessage("");
-        fetchMessages(); // Fetch immediately after sending
+        await fetchMessages(); // Keep sending feedback visible until history refreshes.
       } else {
         const data = await res.json().catch(() => null);
         if (res.status === 410) void fetchMessages();
@@ -155,7 +157,7 @@ export default function ChatPage({ params }: { params: Promise<{ tripId: string 
       console.error(err);
       setSendError("Could not send your message. Check your connection and try again.");
       setNewMessage(msg);
-    } finally { setSending(false); }
+    } finally { setSending(false); setPendingMessage(null); }
   };
 
   if (loading) {
@@ -254,7 +256,7 @@ export default function ChatPage({ params }: { params: Promise<{ tripId: string 
       <div className="flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.08),_transparent_22rem),linear-gradient(180deg,#fffdf9,#f8fafc)] px-4 py-6">
         {chat?.encryption_mode === 'server-managed' && <div className="mx-auto text-center"><p title="Messages are encrypted on our servers. This is not end-to-end encryption." className="inline-flex items-center justify-center gap-1.5 rounded-full bg-amber-50 px-4 py-2 text-[11px] text-amber-800"><LockKeyhole aria-hidden="true" className="h-3 w-3" />Messages are encrypted</p></div>}
 
-        {messages.length === 0 ? (
+        {messages.length === 0 && !pendingMessage ? (
           <div className="m-auto text-center flex flex-col items-center justify-center">
             <div className="w-20 h-20 bg-gradient-to-br from-orange-100 to-rose-100 rounded-full mb-4 flex items-center justify-center">
               <Send className="w-8 h-8 text-rose-400 -ml-1" />
@@ -331,6 +333,12 @@ export default function ChatPage({ params }: { params: Promise<{ tripId: string 
             );
           })
         )}
+        {pendingMessage && <div className="flex justify-end" role="status" aria-live="polite">
+          <div className="max-w-[85%] rounded-2xl bg-slate-900/75 px-4 py-3 text-white sm:max-w-[60%]">
+            <p className="whitespace-pre-wrap break-words text-[15px]">{pendingMessage}</p>
+            <p className="mt-1 flex items-center justify-end gap-1.5 text-xs text-slate-200"><Loader2 aria-hidden="true" className="h-3 w-3 animate-spin" />Sending…</p>
+          </div>
+        </div>}
         <div ref={messagesEndRef} className="h-2" />
       </div>
 
@@ -361,14 +369,15 @@ export default function ChatPage({ params }: { params: Promise<{ tripId: string 
               className="chat-message-input min-w-0 flex-1 border-0 bg-transparent text-slate-900 placeholder:text-slate-400 font-medium text-base py-1"
             />
           </div>
-          {!chat?.is_chat_closed && newMessage.trim() && (
+          {!chat?.is_chat_closed && (newMessage.trim() || sending) && (
             <button
               type="submit"
               disabled={sending}
               aria-label="Send message"
-              className="text-orange-500 hover:text-rose-500 p-2 rounded-full transition-colors flex items-center justify-center shrink-0"
+              aria-busy={sending}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-orange-500 text-white shadow-sm transition active:scale-90 hover:bg-orange-600 disabled:cursor-wait disabled:bg-orange-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
             >
-              <Send className="w-6 h-6" fill="currentColor" />
+              {sending ? <Loader2 aria-hidden="true" className="h-5 w-5 animate-spin" /> : <Send aria-hidden="true" className="h-5 w-5" />}
             </button>
           )}
         </form>
